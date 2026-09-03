@@ -1,0 +1,428 @@
+/* Premium Capital Addition Stylesheet */
+.Capital-page-wrapper {
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.Capital-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.Capital-page-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.Capital-page-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+.Capital-btn-add {
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2), 0 2px 4px -1px rgba(30, 41, 59, 0.1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.Capital-btn-add:hover {
+    background: #334155;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(30, 41, 59, 0.25);
+}
+
+.Capital-table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.Capital-table-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.25rem;
+}
+
+.Capital-search-control {
+    position: relative;
+    width: 280px;
+    display: flex;
+    align-items: center;
+}
+
+.Capital-search-icon {
+    position: absolute;
+    left: 12px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.Capital-search-control input {
+    width: 100%;
+    padding: 0.6rem 0.75rem 0.6rem 2.5rem !important;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background-color: #ffffff;
+    transition: all 0.2s;
+}
+
+.Capital-search-control input:focus {
+    outline: none;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.Capital-table-responsive {
+    overflow-x: auto;
+}
+
+.Capital-data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.Capital-data-table th {
+    text-align: left;
+    padding: 12px 16px;
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 2px solid #edf2f7;
+}
+
+.Capital-data-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.85rem;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.Capital-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.Capital-btn-icon {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.Capital-btn-icon.view {
+    color: #eab308;
+    background: #fef9c3;
+}
+
+.Capital-btn-icon.view:hover {
+    background: #334155;
+}
+
+.Capital-btn-icon.edit {
+    color: #2563eb;
+    background: #dbeafe;
+}
+
+.Capital-btn-icon.edit:hover {
+    background: #334155;
+}
+
+.Capital-btn-icon.delete {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.Capital-btn-icon.delete:hover {
+    background: #334155;
+}
+
+/* Modals */
+.Capital-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.Capital-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e8f0;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.Capital-small-modal {
+    max-width: 420px;
+}
+
+.Capital-modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.Capital-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+.Capital-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.2s;
+}
+
+.Capital-close-btn:hover {
+    color: #475569;
+}
+
+.Capital-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.Capital-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background-color: #f8fafc;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+/* Forms */
+.Capital-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.Capital-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.Capital-form-group label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.Capital-form-group input,
+.Capital-form-group select,
+.Capital-form-group textarea {
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background-color: white;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.Capital-form-group input:focus,
+.Capital-form-group select:focus,
+.Capital-form-group textarea:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.15);
+}
+
+.Capital-form-group input:disabled,
+.Capital-form-group textarea:disabled {
+    background-color: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.required {
+    color: #ef4444;
+}
+
+/* Uploads */
+.Capital-upload-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.Capital-upload-btn {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+    cursor: pointer;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.Capital-upload-btn:hover {
+    border-color: #1e293b;
+    background-color: #334155;
+}
+
+.Capital-remove-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+}
+
+.Capital-signature-preview-box img {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 4px;
+    background: white;
+}
+
+/* Buttons */
+.Capital-btn-cancel,
+.Capital-btn-close {
+    background-color: #64748b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.Capital-btn-cancel:hover,
+.Capital-btn-close:hover {
+    background-color: #334155;
+}
+
+.Capital-btn-save {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.Capital-btn-save:hover {
+    background-color: #334155;
+}
+
+.Capital-btn-delete-confirm {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.Capital-btn-delete-confirm:hover {
+    background-color: #334155;
+}
+
+.Capital-btn-print-action {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.Capital-btn-print-action:hover {
+    background-color: #334155;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .Capital-form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .Capital-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .Capital-btn-add {
+        width: 100%;
+        justify-content: center;
+    }
+    .Capital-search-control {
+        width: 100%;
+    }
+}

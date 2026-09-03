@@ -1,0 +1,1576 @@
+/* POS Layout Config */
+.companypos-layout {
+    display: flex;
+    background-color: #f1f5f9;
+    overflow: hidden;
+    height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Left components: Main Content */
+.companypos-main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    overflow-y: hidden;
+    height: 100vh;
+}
+
+.companypos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.companypos-search-bar {
+    position: relative;
+    flex: 1;
+    max-width: 500px;
+}
+
+.companypos-search-input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    border: none;
+    border-radius: 12px;
+    background: white;
+    font-size: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+}
+
+.companypos-search-input:focus {
+    outline: none;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.companypos-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.companypos-categories {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+}
+
+.companypos-category-pill {
+    padding: 0.6rem 1.25rem;
+    background: white;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.companypos-category-pill:hover {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.companypos-category-pill.companypos-active {
+    background: #1e293b;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+/* Product Grid */
+.companypos-products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+    padding-right: 0.5rem;
+}
+
+/* Custom Scrollbar */
+.companypos-products-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.companypos-products-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.companypos-products-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.companypos-product-card {
+    background: white;
+    border-radius: 12px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.companypos-product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: #1e293b;
+}
+
+.companypos-product-image-placeholder {
+    width: 100%;
+    height: 120px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    overflow: hidden;
+    padding: 0.25rem;
+}
+
+.companypos-product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.companypos-product-info h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.companypos-product-info p {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.companypos-product-price {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.companypos-stock-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    color: #475569;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 5;
+}
+
+/* Right Sidebar: Cart */
+.companypos-sidebar {
+    width: 380px;
+    min-width: 350px;
+    background: white;
+    border-left: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 15px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    height: 100vh;
+}
+
+.companypos-cart-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.companypos-cart-header h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.companypos-customer-selector {
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.companypos-customer-select-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.companypos-customer-select {
+    width: 100%;
+    padding: 0.8rem 2.5rem 0.8rem 2.8rem;
+    background-color: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #334155;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.2s;
+    height: 46px;
+}
+
+.companypos-customer-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.companypos-input-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.companypos-input-icon.left {
+    left: 1rem;
+    color: #3b82f6;
+}
+
+.companypos-input-icon.right {
+    right: 1rem;
+    color: #94a3b8;
+}
+.companypos-sidebar-scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.companypos-sidebar-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.companypos-sidebar-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.companypos-sidebar-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.companypos-sidebar-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.companypos-cart-items-container {
+    flex: none;
+    overflow-y: visible;
+    padding: 1rem 1.5rem;
+}
+
+.companypos-cart-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.companypos-cart-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    width: 100%;
+}
+
+.companypos-cart-item-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.companypos-cart-item-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: normal;
+    margin-bottom: 0.15rem;
+}
+
+.companypos-cart-item-sku {
+    font-size: 0.8rem;
+    color: #64748b;
+    display: block;
+}
+
+.companypos-cart-item-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.companypos-cart-item-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
+}
+
+.companypos-qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 3px;
+    height: 32px;
+}
+
+.companypos-qty-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.15s;
+}
+
+.companypos-qty-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.companypos-qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.companypos-qty-display {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    width: 24px;
+    text-align: center;
+}
+
+.companypos-qty-input {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+    width: 70px;
+    text-align: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: white;
+    outline: none;
+    height: 32px;
+    padding: 0 4px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.companypos-qty-input:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.15);
+}
+
+/* Hide native number spinners */
+.companypos-qty-input::-webkit-outer-spin-button,
+.companypos-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.companypos-qty-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.companypos-rate-input {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0f172a;
+    width: 90px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: white;
+    outline: none;
+    height: 28px;
+    padding: 0 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.companypos-rate-input:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.15);
+}
+
+.companypos-rate-input::-webkit-outer-spin-button,
+.companypos-rate-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.companypos-rate-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.companypos-uom-select-container {
+    flex: 1;
+}
+
+.companypos-uom-select {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background-color: white;
+    color: #334155;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 32px;
+}
+
+.companypos-uom-select:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.15);
+}
+
+.companypos-cart-item-delete {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.companypos-cart-item-delete:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+/* Totals & Controls Section */
+.companypos-cart-footer {
+    padding: 1.5rem;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.companypos-control-select,
+.companypos-control-input {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.companypos-control-select:focus,
+.companypos-control-input:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.2);
+    /* Fixed ring property to box-shadow */
+}
+
+.companypos-summary-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.companypos-summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+.companypos-checkout-btn-container {
+    padding: 1.5rem;
+    background: white;
+    border-top: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+.companypos-checkout-btn {
+    width: 100%;
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 1.1rem;
+    border-radius: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    box-shadow: 0 8px 20px -4px rgba(30, 41, 59, 0.4);
+}
+
+.companypos-checkout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -4px rgba(30, 41, 59, 0.5);
+    filter: brightness(1.05);
+}
+
+/* Empty State */
+.companypos-empty-cart {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    text-align: center;
+    padding: 2rem;
+}
+
+.companypos-empty-cart svg {
+    margin-bottom: 1rem;
+    color: #e2e8f0;
+    width: 64px;
+    height: 64px;
+}
+
+/* Modal Styles */
+.companypos-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.companypos-modal-content {
+    background: white;
+    width: 600px;
+    max-width: 90%;
+    border-radius: 20px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+/* Print Modal Size Override */
+.companypos-modal-content.print-mode {
+    width: 900px;
+    max-width: 95%;
+}
+
+/* Mobile Modal Fixes */
+@media (max-width: 640px) {
+    .companypos-modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        border-radius: 0;
+    }
+}
+
+.companypos-modal-header {
+    padding: 1.5rem;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.companypos-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+.companypos-modal-body {
+    padding: 2rem;
+    overflow-y: auto;
+    max-height: 80vh;
+}
+
+.companypos-modal-body.padded-print {
+    padding: 40px;
+    background: #f1f5f9;
+}
+
+/* Payment Methods Grid */
+.companypos-payment-methods {
+    display: flex;
+    gap: 1rem;
+    /* Explicit Gap */
+    width: 100%;
+    margin-bottom: 1rem;
+    margin-top: 1rem;
+}
+
+.companypos-method-card {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.companypos-method-card:hover {
+    border-color: #1e293b;
+    background: #f8fafc;
+}
+
+.companypos-method-card.active {
+    background: #f8fafc;
+    border-color: #1e293b;
+    /* Verified #1e293b */
+    color: #1e293b;
+    box-shadow: 0 0 0 2px #1e293b;
+}
+
+.companypos-notes-input {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: #f8fafc;
+    transition: all 0.2s;
+    margin-top: 1rem;
+}
+
+.companypos-notes-input:focus {
+    background: white;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.companypos-modal-footer {
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.companypos-btn-secondary {
+    padding: 0.8rem 1.5rem;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.companypos-btn-secondary:hover {
+    color: #0f172a;
+    background: #334155;
+}
+
+.companypos-btn-dark {
+    padding: 0.8rem 2rem;
+    border-radius: 10px;
+    border: none;
+    background: #1e293b;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+}
+
+.companypos-btn-dark:hover {
+    background: #334155;
+    transform: translateY(-1px);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustment */
+@media (max-width: 1200px) {
+    .companypos-products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    .companypos-main-content {
+        padding: 1rem;
+    }
+
+    .companypos-sidebar {
+        width: 320px;
+    }
+
+    .companypos-modal-content {
+        width: 95%;
+    }
+}
+
+/* =================================================================================
+   POS INVOICE PREVIEW STYLES (Scoped with POS-invoice-)
+   ================================================================================= */
+.POS-invoice-preview-container {
+    background: white;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 2rem;
+    transform-origin: top left;
+}
+
+.POS-invoice-preview-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+}
+
+.POS-invoice-header-left {
+    flex: 1;
+}
+
+.POS-invoice-logo-large {
+    height: 50px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+    max-width: 200px;
+}
+
+.POS-invoice-title-large {
+    font-size: 2.5rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.POS-invoice-company-details {
+    font-size: 0.9rem;
+    color: inherit;
+    line-height: 1.5;
+}
+
+.POS-invoice-header-right {
+    text-align: right;
+}
+
+.POS-invoice-meta-info {
+    text-align: right;
+}
+
+.POS-invoice-meta-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+}
+
+.POS-invoice-label {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.POS-invoice-qr-box {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.POS-invoice-qr-code {
+    width: 100px;
+    height: 100px;
+    background: #f1f5f9;
+}
+
+.POS-invoice-addresses {
+    display: flex;
+    justify-content: space-between;
+    margin: 2rem 0;
+    padding-top: 2rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.POS-invoice-bill-to,
+.POS-invoice-ship-to {
+    width: 45%;
+}
+
+.POS-invoice-section-header {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #1e293b;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.POS-invoice-table-preview {
+    width: 100%;
+    margin-top: 2rem;
+    border-collapse: collapse;
+}
+
+.POS-invoice-table-preview th {
+    text-align: left;
+    padding: 0.8rem;
+    color: white;
+    font-size: 0.85rem;
+    background: #1e293b;
+    /* Default Green for POS */
+}
+
+.POS-invoice-table-preview td {
+    padding: 0.8rem;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.9rem;
+}
+
+.POS-invoice-total-section {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.POS-invoice-totals {
+    width: 300px;
+}
+
+.POS-invoice-total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.POS-invoice-final-total {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 1rem;
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin-top: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.POS-invoice-paid-row {
+    color: #334155; /* Success Green */
+    font-weight: 700;
+}
+
+.POS-invoice-due-row {
+    color: #1e293b; /* Bold Dark */
+    font-weight: 800;
+}
+
+.POS-invoice-label {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.POS-invoice-total-amount {
+    font-weight: 700;
+}
+
+.POS-invoice-notes-section {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.POS-invoice-notes-text {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* Template Specific: Dynamic Backgrounds */
+.POS-template-newyork .POS-invoice-header-wrapper {
+    background: var(--header-bg, #004aad);
+    color: white;
+    padding: 2rem;
+    margin: -2rem -2rem 2rem -2rem;
+}
+
+.POS-template-newyork .POS-invoice-title-large {
+    color: white;
+}
+
+.POS-template-newyork .POS-invoice-table-preview th {
+    background: var(--header-bg, #004aad);
+}
+
+.POS-template-newyork .POS-invoice-final-total {
+    color: var(--header-bg, #004aad);
+}
+
+/* Template - Toronto (Modern Minimal) */
+.POS-template-toronto .POS-invoice-title-large {
+    color: var(--header-bg, #004aad);
+    border-bottom: 3px solid var(--header-bg, #004aad);
+    display: inline-block;
+    padding-bottom: 5px;
+}
+
+.POS-template-toronto .POS-invoice-table-preview th {
+    background: var(--header-bg, #004aad);
+}
+
+/* Template - Rio (Vibrant) */
+.POS-template-rio .POS-invoice-header-wrapper {
+    border-top: 8px solid var(--header-bg, #004aad);
+    padding-top: 1rem;
+}
+
+.POS-template-rio .POS-invoice-title-large {
+    color: var(--header-bg, #004aad);
+    font-weight: 900;
+}
+
+.POS-template-rio .POS-invoice-table-preview th {
+    background: #f8fafc;
+    color: var(--header-bg, #004aad);
+    border-bottom: 2px solid var(--header-bg, #004aad);
+}
+
+/* Template - London (Classic) */
+.POS-template-london .POS-invoice-header-wrapper {
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 2rem;
+}
+
+.POS-template-london .POS-invoice-title-large {
+    color: #1e293b;
+    font-family: serif;
+}
+
+.POS-template-london .POS-invoice-table-preview th {
+    background: #1e293b;
+}
+
+/* Template - Paris (Elegant) */
+.POS-template-paris .POS-invoice-title-large {
+    color: var(--header-bg, #004aad);
+    font-style: italic;
+    letter-spacing: 2px;
+}
+
+.POS-template-paris .POS-invoice-table-preview th {
+    background: white;
+    color: #1e293b;
+    border-bottom: 1px solid #1e293b;
+}
+
+/* Template - Tokyo (Minimalist) */
+.POS-template-tokyo .POS-invoice-title-large {
+    color: #000;
+    border-left: 10px solid var(--header-bg, #004aad);
+    padding-left: 15px;
+}
+
+.POS-template-tokyo .POS-invoice-table-preview th {
+    background: #f1f5f9;
+    color: #000;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+}
+
+/* Template - Mumbai (Bold) */
+.POS-template-mumbai .POS-invoice-header-wrapper {
+    background: linear-gradient(135deg, var(--header-bg, #004aad), #1e293b);
+    color: white;
+    padding: 2.5rem;
+}
+
+.POS-template-mumbai .POS-invoice-title-large {
+    color: #fbbf24;
+    /* Gold accent */
+}
+
+/* Template - Istanbul (Ornate) */
+.POS-template-istanbul .POS-invoice-header-wrapper {
+    border: 2px solid var(--header-bg, #004aad);
+    border-radius: 20px;
+    margin-bottom: 2rem;
+}
+
+.POS-template-istanbul .POS-invoice-title-large {
+    color: var(--header-bg, #004aad);
+    text-align: center;
+    width: 100%;
+}
+
+/* Print Overrides */
+/* Print Overrides */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #print-area,
+    #print-area * {
+        visibility: visible;
+    }
+
+    #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .companypos-modal-overlay {
+        background: white;
+    }
+
+    .companypos-modal-content {
+        box-shadow: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .POS-invoice-preview-container {
+        border: none;
+        box-shadow: none;
+    }
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .companypos-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        /* Allow full page scrolling */
+        overflow-x: hidden;
+    }
+
+    .companypos-main-content {
+        flex: none;
+        width: 100%;
+        height: auto;
+        overflow-y: visible;
+        padding: 1rem;
+    }
+
+    .companypos-sidebar {
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+        /* Take natural height based on content */
+        border-left: none;
+        border-top: 1px solid #e2e8f0;
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        order: 2;
+        /* Ensure sidebar is at bottom */
+    }
+
+    .companypos-sidebar-scroll-container {
+        flex: none;
+        overflow-y: visible;
+    }
+
+    .companypos-checkout-btn-container {
+        padding: 1rem;
+    }
+
+    .companypos-cart-items-container {
+        max-height: 300px;
+        /* Limit cart items height but allow scroll */
+        min-height: 150px;
+        overflow-y: auto;
+    }
+
+    .companypos-products-grid {
+        padding-bottom: 0;
+        overflow-y: visible;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .companypos-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        margin-bottom: 1rem;
+    }
+
+    .companypos-search-bar {
+        max-width: 100%;
+    }
+
+    .companypos-header .flex.gap-2 {
+        justify-content: flex-end;
+    }
+
+    /* Product Grid - Force 2 Columns with better spacing */
+    .companypos-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .companypos-product-card {
+        padding: 0.75rem;
+        border-radius: 12px;
+        min-height: 220px;
+        /* Ensure minimum height to prevent squash */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .companypos-product-image-placeholder {
+        height: 120px;
+        min-height: 120px;
+        /* Force minimum height for image */
+        margin-bottom: 0.5rem;
+    }
+
+    .companypos-product-info h3 {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.2;
+    }
+
+    .companypos-product-info p {
+        margin-bottom: 0.25rem;
+    }
+
+    .companypos-product-price {
+        font-size: 1rem;
+    }
+
+    .companypos-stock-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+    }
+
+    /* Categories */
+    .companypos-categories {
+        margin-bottom: 1rem;
+    }
+
+    .companypos-category-pill {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    .companypos-sidebar {
+        height: auto;
+        position: relative;
+        z-index: 10;
+        padding-bottom: 20px;
+        /* Space at bottom of page */
+    }
+
+    .companypos-sidebar-scroll-container {
+        flex: none;
+        overflow-y: visible;
+    }
+
+    .companypos-checkout-btn-container {
+        padding: 0.75rem 1rem;
+    }
+
+    .companypos-cart-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .companypos-customer-selector {
+        padding: 0.75rem 1rem;
+    }
+
+    .companypos-cart-footer {
+        padding: 0.75rem 1rem;
+    }
+
+    /* Cart Footer Grid */
+    .companypos-cart-footer .grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .companypos-summary-container {
+        margin-bottom: 0.5rem;
+    }
+
+    .companypos-checkout-btn {
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+    }
+
+    /* Cart Items Fix */
+    .companypos-cart-item {
+        padding: 0.75rem 0;
+    }
+
+    .companypos-qty-controls {
+        height: 32px;
+        /* Slightly taller for touch */
+    }
+
+    .companypos-cart-items-container {
+        max-height: none;
+        /* Let it grow on mobile if user wants */
+        min-height: auto;
+    }
+
+    .companypos-empty-cart {
+        padding: 2rem 1rem;
+    }
+
+    /* Modals */
+    .companypos-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .companypos-modal-body {
+        flex: 1;
+        padding: 1rem;
+    }
+
+    .companypos-modal-header {
+        padding: 1rem;
+    }
+
+    .companypos-modal-footer {
+        padding: 1rem;
+    }
+
+    .companypos-payment-methods {
+        flex-wrap: wrap;
+    }
+
+    /* Invoice Preview Mobile */
+    .POS-invoice-preview-container {
+        padding: 1rem;
+    }
+
+    .POS-invoice-preview-header {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .POS-invoice-header-right,
+    .POS-invoice-meta-info {
+        text-align: left;
+    }
+
+    .POS-invoice-meta-row {
+        justify-content: flex-start;
+    }
+
+    .POS-invoice-qr-box {
+        justify-content: flex-start;
+    }
+
+    .POS-invoice-addresses {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .POS-invoice-ship-to {
+        width: 100%;
+        text-align: left;
+    }
+
+    .POS-invoice-bill-to {
+        width: 100%;
+    }
+
+    .POS-invoice-table-preview {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .POS-invoice-total-section {
+        justify-content: flex-start;
+    }
+
+    .POS-invoice-totals {
+        width: 100%;
+    }
+}
+
+/* Tax Selection Styles */
+.companypos-tax-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 10px;
+}
+
+.companypos-tax-dropdown {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    background-color: #1e293b;
+    /* Dark Green matching screenshot */
+    color: white;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    transition: all 0.2s;
+}
+
+.companypos-tax-dropdown:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.2);
+}
+
+.companypos-tax-dropdown option {
+    background: white;
+    color: #334155;
+    padding: 10px;
+}
+
+/* Explicit Modal Control Select */
+.companypos-modal-body .companypos-control-select {
+    height: 48px;
+    border: 1.5px solid #e2e8f0;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #f8fafc;
+}
+
+.companypos-modal-body .companypos-control-select:focus {
+    background-color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Complete Checkout Modal - Custom Responsive Layout Styles */
+.companypos-modal-header-title-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.companypos-modal-title-icon {
+    color: #3b82f6;
+}
+
+.companypos-modal-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.companypos-modal-close-btn:hover {
+    background-color: #334155;
+    color: #475569;
+}
+
+.companypos-checkout-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.companypos-summary-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.companypos-summary-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.companypos-summary-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.companypos-summary-value.customer-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #334155;
+    word-break: break-word;
+}
+
+.companypos-summary-due-info {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+}
+
+.companypos-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.companypos-form-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Modal responsiveness queries */
+@media (max-width: 640px) {
+    .companypos-checkout-summary {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        border-bottom: 1px solid #f1f5f9;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+    
+    .companypos-summary-group.mobile-left {
+        text-align: left;
+    }
+
+    .companypos-summary-value {
+        font-size: 1.5rem;
+    }
+
+    .companypos-summary-value.customer-name {
+        font-size: 1.125rem;
+    }
+}
+
+.companypos-tax-dropdown::-webkit-outer-spin-button,
+.companypos-tax-dropdown::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.companypos-tax-dropdown[type="number"] {
+    -moz-appearance: textfield;
+}

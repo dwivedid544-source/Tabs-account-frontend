@@ -1,0 +1,280 @@
+/* src/components/Navbar.css */
+
+/* ===== THEME ===== */
+:root {
+  --brand: #1e293b !important;
+  --brand-hover: #334155 !important;
+  --brand-tint: #f1f5f9 !important;
+  --navbar-bg: #fff !important;
+  --navbar-text: #0f172a !important;
+  --navbar-text-hover: var(--brand-hover);
+}
+
+/* ===== NAVBAR WRAPPER ===== */
+.custom-navbar {
+  background-color: var(--navbar-bg) !important;
+  color: var(--navbar-text) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Slide down + fade on mount */
+.navbar-animate {
+  opacity: 0;
+  transform: translateY(-16px);
+  animation: navbarFadeSlide 0.6s ease-out forwards;
+}
+
+@keyframes navbarFadeSlide {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== LOGO ===== */
+.navbar-logo-img {
+  margin-right: 0.75rem;
+  transition: transform 0.25s ease;
+}
+
+.navbar-logo-img:hover {
+  transform: scale(1.05);
+}
+
+/* ===== DESKTOP NAV LINKS ===== */
+.navbar-nav-links .nav-link-strong {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--navbar-text) !important;
+  position: relative;
+  padding-bottom: 0.25rem;
+  transition: color 0.2s ease;
+  text-decoration: none !important;
+}
+
+.navbar-nav-links .nav-link-strong:link,
+.navbar-nav-links .nav-link-strong:visited,
+.navbar-nav-links .nav-link-strong:active {
+  color: var(--navbar-text) !important;
+}
+
+@media (min-width: 992px) {
+  .navbar-nav-links .nav-link-strong {
+    font-size: 1.05rem;
+  }
+}
+
+.navbar-nav-links .nav-link-strong:hover,
+.navbar-nav-links .nav-link-strong:focus {
+  color: var(--navbar-text-hover) !important;
+  text-decoration: none !important;
+}
+
+.navbar-nav-links .nav-link-strong.active {
+  color: var(--brand) !important;
+}
+
+.navbar-nav-links .nav-link-strong::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 2px;
+  background-color: var(--brand);
+  transition: width 0.25s ease;
+}
+
+.navbar-nav-links .nav-link-strong:hover::after,
+.navbar-nav-links .nav-link-strong:focus::after,
+.navbar-nav-links .nav-link-strong.active::after {
+  width: 100%;
+}
+
+/* ===== MOBILE NAV LINKS ===== */
+.navbar-nav-mobile .nav-link-mobile {
+  font-weight: 500;
+  font-size: 1.15rem;
+  color: var(--navbar-text) !important;
+  padding: 0.75rem 0 !important;
+  text-decoration: none !important;
+  border: none !important;
+  background: transparent !important;
+  transition: color 0.2s ease;
+  text-align: center;
+  width: 100%;
+}
+
+.navbar-nav-mobile .nav-link-mobile:link,
+.navbar-nav-mobile .nav-link-mobile:visited,
+.navbar-nav-mobile .nav-link-mobile:active {
+  color: var(--navbar-text) !important;
+}
+
+.navbar-nav-mobile .nav-link-mobile:hover,
+.navbar-nav-mobile .nav-link-mobile:focus {
+  color: var(--brand-hover) !important;
+  background-color: transparent !important;
+  text-decoration: none !important;
+}
+
+.navbar-nav-mobile .nav-link-mobile::after {
+  display: none;
+}
+
+/* ===== BRAND BUTTONS ===== */
+.btn-brand {
+  background-color: var(--brand) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--brand-hover) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn-brand:hover,
+.btn-brand:focus {
+  background-color: var(--brand-hover) !important;
+  border-color: var(--brand-hover) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 0 0.25rem rgba(51, 136, 113, 0.35);
+}
+
+.btn-brand-outline {
+  background: transparent !important;
+  color: #000000 !important;
+  border: 2px solid var(--brand) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn-brand-outline:hover,
+.btn-brand-outline:focus {
+  background-color: var(--brand) !important;
+  color: #ffffff !important;
+  border-color: var(--brand-hover) !important;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 0 0.25rem rgba(51, 136, 113, 0.35);
+}
+
+/* ===== TOGGLE BUTTON (Hamburger) ===== */
+.custom-toggle {
+  background: none !important;
+  border: none !important;
+  padding: 0.5rem !important;
+  cursor: pointer;
+  outline: none !important;
+}
+
+.custom-hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 20px;
+  width: 28px;
+}
+
+.custom-hamburger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background-color: #1c1c1c;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* ===== DROPDOWN MENU ===== */
+.dropdown-menu {
+  background-color: var(--navbar-bg) !important;
+  border: none !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 0.5rem !important;
+}
+
+.dropdown-item {
+  color: var(--navbar-text) !important;
+  font-weight: 500 !important;
+  padding: 0.5rem 1rem !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--brand-tint) !important;
+  color: var(--brand-hover) !important;
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  color: var(--brand) !important;
+  background-color: transparent !important;
+}
+
+/* ===== MOBILE MENU COLLAPSE ===== */
+.custom-navbar-collapse {
+  background: white;
+  padding: 1rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease-out;
+  width: 100%;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== MOBILE LAYOUT ADJUSTMENTS ===== */
+@media (max-width: 991.98px) {
+  .custom-navbar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Ensure hamburger sticks to the right edge with no extra space */
+  .custom-toggle {
+    margin-left: auto;
+    margin-right: -0.5rem;
+    /* Pull back to counteract container padding */
+  }
+
+  .navbar-nav-mobile .nav-link-mobile {
+    padding: 0.75rem 0 !important;
+    margin: 0.25rem 0 !important;
+    font-size: 1.2rem;
+    text-align: left;
+  }
+
+  /* Full-width buttons on mobile */
+  .btn-brand,
+  .btn-brand-outline {
+    width: auto !important;
+    margin: 0.5rem auto !important;
+  }
+
+  /* Make mobile menu buttons smaller */
+  .custom-navbar-collapse .btn-brand,
+  .custom-navbar-collapse .btn-brand-outline {
+    font-size: 0.825rem !important;
+    padding: 0.375rem 0.85rem !important;
+  }
+
+  .custom-navbar-collapse {
+    padding: 1rem 0.75rem;
+    margin-top: 0.5rem;
+  }
+}

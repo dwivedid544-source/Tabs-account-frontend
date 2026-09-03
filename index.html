@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/tab-accounts-logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TAB ACCOUNTS | www.tabaccounts.com</title>
+
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- DNS Prefetch & Preconnect for Background Translation -->
+    <link rel="dns-prefetch" href="//translate.google.com" />
+    <link rel="dns-prefetch" href="//translate.googleapis.com" />
+    <link rel="preconnect" href="https://translate.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://translate.google.com" crossorigin />
+
+    <style>
+      /* Hide all Google Translate elements completely & invisibly */
+      .goog-te-banner-frame,
+      iframe.goog-te-banner-frame,
+      .goog-te-banner-frame.skiptranslate,
+      iframe.skiptranslate,
+      #goog-gt-tt,
+      .goog-te-balloon-frame,
+      .VIpgJd-yDtffd-Lg4t8b,
+      .VIpgJd-yDtffd-Lg4t8b-span,
+      .VIpgJd-yDtffd-Lg4t8b-gsl1,
+      .VIpgJd-yDtffd-Lg4t8b-Lg4t8b,
+      .goog-te-gadget,
+      .goog-te-gadget-icon,
+      .goog-te-gadget-simple,
+      .goog-te-spinner-pos,
+      #google_translate_element,
+      img[src*="translate.googleapis.com"],
+      img[src*="gstatic.com/images/branding/product/"],
+      [class*="VIpgJd"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+      }
+      body {
+        top: 0px !important;
+        position: static !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="google_translate_element" style="display:none;position:absolute;top:-9999px;left:-9999px;"></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

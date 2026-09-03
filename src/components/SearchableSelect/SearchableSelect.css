@@ -1,0 +1,265 @@
+.searchable-select-container {
+    position: relative;
+    width: 100%;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.searchable-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 6px 12px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #1e293b;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.searchable-select-trigger:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.searchable-select-trigger:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.searchable-select-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+    flex: 1;
+}
+
+.searchable-select-value.is-placeholder {
+    color: #94a3b8;
+}
+
+.searchable-select-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+}
+
+.searchable-select-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.searchable-select-clear:hover {
+    background-color: #f1f5f9;
+    color: #ef4444;
+}
+
+.searchable-select-chevron {
+    transition: transform 0.2s ease;
+}
+
+.searchable-select-container.is-open .searchable-select-chevron {
+    transform: rotate(180deg);
+}
+
+.searchable-select-container.is-open {
+    z-index: 1060;
+}
+
+.searchable-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    margin-top: 4px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 300px;
+    box-sizing: border-box;
+}
+
+.searchable-select-search-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.searchable-select-search-icon {
+    color: #94a3b8;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.searchable-select-search-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+}
+
+.searchable-select-search-input::placeholder {
+    color: #94a3b8;
+}
+
+.searchable-select-options-list {
+    overflow-y: auto;
+    max-height: 240px;
+    padding: 4px 0;
+}
+
+.searchable-select-no-results {
+    padding: 16px;
+    text-align: center;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.searchable-select-group {
+    padding: 4px 0;
+}
+
+.searchable-select-group:not(:first-child) {
+    border-top: 1px solid #f1f5f9;
+}
+
+.searchable-select-group-header {
+    padding: 6px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    background-color: #fafafa;
+}
+
+.searchable-select-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.searchable-select-option:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+.searchable-select-option.is-selected {
+    background-color: #eff6ff;
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.searchable-select-option.is-highlighted {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.option-label {
+    flex: 1;
+}
+
+.option-subtext {
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+/* For inside tables where row heights can be tight */
+.Expenses-items-table td .searchable-select-trigger {
+    padding: 6px 8px;
+    font-size: 13px;
+    border-radius: 4px;
+}
+
+/* Global compact style overrides for any searchable select inside a table cell */
+td .searchable-select-trigger {
+    padding: 5px 8px !important;
+    font-size: 13px !important;
+    border-radius: 4px !important;
+    min-height: 30px !important;
+    line-height: 1.2 !important;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1 !important;
+}
+
+td .searchable-select-container {
+    min-width: 120px;
+    max-width: 100%;
+}
+
+/* 
+   Ensure that parent containers (tables, table responsive wrappers, rows, cells) 
+   allow overflow and stack on top when a searchable select dropdown is open.
+*/
+.Invoice-table-responsive-compact:has(.searchable-select-container.is-open),
+.PBILL-table-responsive-compact:has(.searchable-select-container.is-open),
+.Quotation-table-responsive:has(.searchable-select-container.is-open),
+.SalesOrder-table-responsive:has(.searchable-select-container.is-open),
+.Zirak-DC-table-responsive:has(.searchable-select-container.is-open),
+.Drawing-table-responsive:has(.searchable-select-container.is-open),
+.Capital-table-responsive:has(.searchable-select-container.is-open),
+.pretn-items-container:has(.searchable-select-container.is-open),
+.grn-card:has(.searchable-select-container.is-open),
+.Zirak-Transfer-items-table-container:has(.searchable-select-container.is-open),
+.Zirak-Adjustment-card:has(.searchable-select-container.is-open),
+.table-responsive:has(.searchable-select-container.is-open) {
+    overflow: visible !important;
+}
+
+tr:has(.searchable-select-container.is-open),
+td:has(.searchable-select-container.is-open) {
+    position: relative !important;
+    z-index: 50 !important;
+    overflow: visible !important;
+}
+
+.searchable-select-option-delete {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 2px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.searchable-select-option-delete:hover {
+    background-color: #fee2e2;
+    transform: scale(1.1);
+}

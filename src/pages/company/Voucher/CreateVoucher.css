@@ -1,0 +1,894 @@
+.Voucher-voucher-page {
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.Voucher-voucher-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.Voucher-voucher-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.Voucher-voucher-table th {
+    text-align: left;
+    padding: 12px 15px;
+    background-color: #f8f9fa;
+    color: #4b5563;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 2px solid #edf2f7;
+}
+
+.Voucher-voucher-table td {
+    padding: 15px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+/* Modal Specifics */
+.Voucher-voucher-modal {
+    max-width: 900px !important;
+}
+
+.Voucher-voucher-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.Voucher-logo-upload-area {
+    width: 200px;
+    height: 120px;
+    border: 2px dashed #e2e8f0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+}
+
+.Voucher-logo-upload-area:hover {
+    border-color: #1e293b;
+    background-color: #f8fafc;
+}
+
+.Voucher-logo-upload-placeholder {
+    color: #64748b;
+    font-size: 0.8rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.Voucher-product-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.Voucher-product-details-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+}
+
+.Voucher-btn-add-product {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.Voucher-voucher-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.Voucher-voucher-items-table th {
+    background-color: #f8fafc;
+    padding: 10px;
+    text-align: left;
+    font-size: 0.75rem;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.Voucher-voucher-items-table td {
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.Voucher-btn-delete-item {
+    background-color: #fecaca;
+    color: #ef4444;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.Voucher-voucher-footer-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 3rem;
+    margin-top: 2rem;
+}
+
+.Voucher-totals-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.Voucher-total-row {
+    display: flex;
+    justify-content: space-between;
+    width: 200px;
+    font-size: 0.9rem;
+    color: #4b5563;
+}
+
+.Voucher-total-row.Voucher-grand-total {
+    font-weight: 800;
+    color: #1e293b;
+    font-size: 1.1rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.75rem;
+}
+
+.Voucher-voucher-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.Voucher-signature-section {
+    margin-top: 2rem;
+}
+
+.Voucher-signature-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+}
+
+.Voucher-btn-upload-signature {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.Voucher-input-sm {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+}
+
+.Voucher-btn-add-item-link {
+    display: block;
+    background: none;
+    border: 1px solid #1e293b;
+    color: #1e293b;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.Voucher-btn-add-item-link:hover {
+    background-color: #334155;
+}
+
+.Voucher-voucher-no-text {
+    font-family: monospace;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.Voucher-thin-border {
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* View Modal Specifics */
+.Voucher-view-header-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    padding: 1rem;
+    background-color: #f8fafc;
+    border-radius: 8px;
+}
+
+.Voucher-view-group label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.Voucher-view-group p {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.Voucher-voucher-items-table.Voucher-view-mode th {
+    background-color: #f1f5f9;
+}
+
+.Voucher-signature-upload-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.Voucher-signature-preview {
+    position: relative;
+    padding: 5px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+}
+
+.Voucher-remove-sig {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Added unique form styles */
+.Voucher-form-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.25rem;
+}
+
+.Voucher-form-input,
+.Voucher-form-select,
+.Voucher-form-textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    background-color: white;
+}
+
+.Voucher-form-input:focus,
+.Voucher-form-select:focus,
+.Voucher-form-textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.Voucher-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.Voucher-form-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(2, 1fr);
+    margin-bottom: 1rem;
+}
+
+.Voucher-table-container {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.Voucher-mb-4 {
+    margin-bottom: 1rem;
+}
+
+.Voucher-text-red {
+    color: #ef4444;
+}
+
+.Voucher-text-right {
+    text-align: right;
+}
+
+.Voucher-text-center {
+    text-align: center;
+}
+
+.Voucher-full-width {
+    width: 100%;
+}
+
+.Voucher-h-20 {
+    height: 5rem;
+}
+
+/* Pagination controls */
+.Voucher-pagination-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.Voucher-pagination-info {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.Voucher-pagination-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.Voucher-pagination-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.Voucher-pagination-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.Voucher-pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Modal Title */
+.Voucher-modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.Voucher-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+}
+
+/* Page Header */
+.Voucher-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.Voucher-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* Controls Row */
+.Voucher-controls-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.Voucher-entries-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.Voucher-entries-select {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #334155;
+    transition: all 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+}
+
+.Voucher-entries-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.Voucher-search-control {
+    position: relative;
+    width: 250px; /* Precise width */
+    display: flex;
+    align-items: center;
+}
+
+.Voucher-search-icon {
+    position: absolute;
+    left: 12px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.Voucher-search-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem 0.6rem 2.5rem !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background-color: #ffffff;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.Voucher-search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    background-color: #fff;
+}
+
+.Voucher-p-3 {
+    padding: 0.75rem;
+}
+
+.Voucher-bg-gray-50 {
+    background-color: #f9fafb;
+}
+
+.Voucher-flex {
+    display: flex;
+}
+
+.Voucher-justify-between {
+    justify-content: space-between;
+}
+
+.Voucher-items-center {
+    align-items: center;
+}
+
+.Voucher-border-t {
+    border-top: 1px solid #e2e8f0;
+}
+
+.Voucher-text-blue-600 {
+    color: #2563eb;
+}
+
+.Voucher-mr-1 {
+    margin-right: 0.25rem;
+}
+
+.Voucher-gap-6 {
+    gap: 1.5rem;
+}
+
+.Voucher-font-bold {
+    font-weight: 700;
+}
+
+.Voucher-text-sm {
+    font-size: 0.875rem;
+}
+
+.Voucher-text-green-600 {
+    color: #334155;
+}
+
+.Voucher-text-red-600 {
+    color: #dc2626;
+}
+
+
+
+.Voucher-entries-text {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-left: 0.5rem;
+}
+
+.Voucher-action-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.Voucher-btn-view {
+    color: #f59e0b;
+    background: #fffbeb;
+}
+
+.Voucher-btn-edit {
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+.Voucher-btn-delete {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.Voucher-btn-add {
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.Voucher-btn-add:hover {
+    background: #334155;
+}
+
+.Voucher-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.Voucher-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.Voucher-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.Voucher-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+/* Ensure type-badge works or prefix it */
+.Voucher-type-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.Voucher-type-badge.expense {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.Voucher-type-badge.income {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.Voucher-type-badge.contra {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.Voucher-type-badge.journal {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
+/* Modal Footer */
+.Voucher-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background-color: #fff;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.Voucher-btn-cancel {
+    background-color: #64748b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.Voucher-btn-cancel:hover {
+    background-color: #334155;
+}
+
+.Voucher-btn-submit {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.Voucher-btn-submit:hover {
+    background-color: #334155;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .Voucher-voucher-page {
+        padding: 1rem;
+    }
+
+    .Voucher-voucher-card {
+        padding: 1rem;
+    }
+
+    .Voucher-form-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .Voucher-modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Page Header */
+    .Voucher-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .Voucher-btn-add {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Controls Row */
+    .Voucher-controls-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .Voucher-entries-control {
+        justify-content: space-between;
+    }
+
+    .Voucher-search-control {
+        width: 100%;
+    }
+
+    /* Table Responsiveness */
+    .Voucher-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .Voucher-voucher-table,
+    .Voucher-voucher-items-table {
+        min-width: 600px;
+        /* Ensure table doesn't squash too much */
+    }
+
+    /* Modal Layout */
+    .Voucher-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .Voucher-modal-header {
+        padding: 1rem;
+    }
+
+    .Voucher-modal-body {
+        padding: 1rem;
+    }
+
+    /* Form Grids */
+    .Voucher-form-grid {
+        grid-template-columns: 1fr !important;
+        /* Force single column */
+        gap: 1rem;
+    }
+
+    .Voucher-form-group {
+        max-width: 100% !important;
+        /* Override inline styles for width */
+    }
+
+    /* Header Top (Company Name & Logo) */
+    .Voucher-voucher-header-top {
+        flex-direction: column-reverse;
+        /* Logo on top or bottom based on preference, here bottom of header area */
+        gap: 1.5rem;
+    }
+
+    .Voucher-logo-upload-area {
+        width: 100%;
+        height: 100px;
+    }
+
+    /* Product Details */
+    .Voucher-product-details-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .Voucher-btn-add-product {
+        width: 100%;
+    }
+
+    /* Footer Grid & Totals */
+    .Voucher-voucher-footer-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .Voucher-totals-section {
+        width: 100%;
+        align-items: center;
+    }
+
+    .Voucher-total-row {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Modal Footer */
+    .Voucher-modal-footer {
+        padding: 1rem;
+        flex-direction: column-reverse;
+    }
+
+    .Voucher-btn-cancel,
+    .Voucher-btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Journal Mode Specifics */
+    .journal-mode-content .Voucher-form-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .Voucher-p-3.Voucher-flex {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .Voucher-flex.Voucher-gap-6 {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+
+    /* Pagination */
+    .Voucher-pagination-row {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+    }
+}
+/* Print Styles */
+@media print {
+  .Sidebar, .Header, .Navbar, #Sidebar, #Navbar, .no-print, .Voucher-modal-footer, 
+  .Voucher-page-header, .Voucher-controls-row, .Voucher-pagination-row, 
+  .Voucher-voucher-action-buttons { display: none !important; }
+  body, .Voucher-modal-overlay { position: static !important; background: none !important; display: block !important; padding: 0 !important; margin: 0 !important; }
+  .Voucher-modal-content { width: 100% !important; max-width: 100% !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; position: static !important; border: none !important; }
+  .Voucher-modal-body { padding: 0 !important; overflow: visible !important; max-height: none !important; }
+  .print-section { display: block !important; }
+  @page { size: A4; margin: 15mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+.Voucher-btn-print { background-color: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+.Voucher-btn-print:hover { background-color: #334155; }

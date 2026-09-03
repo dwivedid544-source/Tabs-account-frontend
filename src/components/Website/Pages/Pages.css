@@ -1,0 +1,321 @@
+.join-hero {
+  min-height: 220px;            
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background-size: cover;
+  background-position: center;
+}
+.py-md-6 { padding-top: 4.5rem !important; padding-bottom: 4.5rem !important; }
+.py-lg-7 { padding-top: 6rem !important; padding-bottom: 6rem !important; }
+
+.join-content { background-color: #fff; }
+.join-illustration { max-width: 420px; }
+
+/* Hero banner gradient */
+.join-hero {
+  min-height: 220px; /* adjust as needed */
+  background: linear-gradient(
+    135deg,
+    #1e293b 0%,
+    #1e293b 35%,
+    #0f172a 100%
+  );
+  /* optional subtle pattern overlay if you want the crossed lines look:
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.05) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.05) 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 0 20px, 20px -20px, -20px 0;
+  */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Optional larger top padding on md+ screens (Bootstrap doesn't have py-md-6 by default) */
+@media (min-width: 768px) {
+  .py-md-6 {
+    padding-top: 4.5rem !important;
+    padding-bottom: 4.5rem !important;
+  }
+}
+
+/* Add extra spacing on larger screens for the main content section */
+@media (min-width: 992px) {
+  .py-lg-7 {
+    padding-top: 5rem !important;
+    padding-bottom: 5rem !important;
+  }
+}
+
+/* Create subtle \"card\" feeling / overlap under hero */
+.join-content {
+  margin-top: -3rem; /* pulls section upward to overlap hero */
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.08);
+}
+
+/* Responsive illustration sizing tweaks */
+.join-illustration {
+  max-width: 480px;
+  width: 100%;
+  height: auto;
+}
+
+:root {
+  --brand-color: #475569;
+  --brand-dark: #1e293b;
+  --text-dark: #2D1810;
+  --bg-light: #f4f6f5;
+}
+
+.billing-toggle-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.billing-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #888;
+  transition: color 0.3s ease;
+}
+
+.billing-label.active {
+  color: var(--brand-color);
+  font-weight: 600;
+}
+
+.billing-toggle {
+  width: 60px;
+  height: 30px;
+  background-color: #d9d9d9;
+  border-radius: 50px;
+  border: none;
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.billing-toggle:hover {
+  background-color: #ccc;
+}
+
+.billing-toggle-knob {
+  width: 24px;
+  height: 24px;
+  background-color: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: left 0.3s ease, background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.billing-toggle-knob.knob-right {
+  left: 33px;
+}
+
+.billing-save-pill {
+  background-color: var(--brand-color);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+
+:root {
+  --brand-color: #475569;
+  --brand-light: #f1f5f9;
+  --brand-dark: #1e293b;
+  --card-bg: #ffffff;
+  --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Pricing Card Base */
+.pricing-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.pricing-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Featured Card Highlight */
+.pricing-card-featured {
+  border: 2px solid var(--brand-color);
+  box-shadow: 0 12px 28px rgba(51, 136, 113, 0.2);
+}
+
+.pricing-featured-badge {
+  position: absolute;
+  top: 12px;
+  right: -35px;
+  background-color: var(--brand-color);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 50px;
+  transform: rotate(45deg);
+}
+
+/* Header */
+.pricing-card-header h4 {
+  font-size: 1.3rem;
+  color: var(--text-dark, #2D1810);
+}
+
+.pricing-card-price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--brand-dark);
+}
+
+/* Button */
+.btn-plan {
+  background-color: var(--brand-color) !important;
+  border: none;
+  font-weight: 600;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.btn-plan:hover {
+  background-color: var(--brand-dark) !important;
+  transform: scale(1.02);
+  box-shadow: 0 6px 14px rgba(51, 136, 113, 0.35);
+}
+
+/* Features List */
+.pricing-feature-list {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.pricing-feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.more-features-link {
+  color: var(--brand-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.more-features-link:hover {
+  color: var(--brand-dark);
+}
+
+/* Responsive */
+@media (max-width: 767.98px) {
+  .pricing-card {
+    padding: 1rem;
+  }
+  .pricing-card-header h4 {
+    font-size: 1.2rem;
+  }
+  .pricing-card-price {
+    font-size: 1.3rem;
+  }
+}
+
+
+/* Container styling */
+.upgrade-info {
+  background: #f8f9fa;
+  border-left: 5px solid var(--brand);
+  transition: box-shadow 0.3s ease;
+}
+.upgrade-info:hover {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Title styling */
+.upgrade-info h5 {
+  color: #2d1810;
+}
+.text-brand {
+  color: var(--brand); /* Use your theme color (#475569) */
+}
+
+/* Notes list styling */
+.upgrade-notes li {
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  color: #444;
+  display: flex;
+  align-items: center;
+}
+
+/* Hover effect for links */
+.hover-underline:hover {
+  text-decoration: underline;
+}
+
+.bank-details-section {
+  background: #f8f9fa;
+  border-left: 5px solid var(--brand);
+  transition: box-shadow 0.3s ease;
+}
+.bank-details-section:hover {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.text-brand {
+  color: var(--brand);
+}
+
+.bank-details-table {
+  border: 1px solid #dee2e6;
+  font-size: 0.95rem;
+}
+.bank-details-table th {
+  background: #f1f1f1;
+  font-weight: 600;
+  color: #444;
+}
+.bank-details-table td {
+  background: #fff;
+}
+.bank-details-table .qr-cell {
+  vertical-align: middle;
+}
+.qr-image {
+  width: 120px;
+  display: block;
+  margin: 0 auto 8px;
+}
+.qr-text {
+  font-size: 0.85rem;
+  color: #666;
+}
+.payment-icons img {
+  filter: grayscale(40%);
+  transition: filter 0.2s;
+}
+.payment-icons img:hover {
+  filter: grayscale(0%);
+}

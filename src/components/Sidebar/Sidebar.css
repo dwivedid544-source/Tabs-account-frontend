@@ -1,0 +1,410 @@
+/* ===============================
+   SIDEBAR CONTAINER
+================================ */
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: #ffffff;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease, padding 0.3s ease;
+    z-index: 1000;
+    overflow: hidden;
+    padding: 1.5rem 1rem;
+}
+
+.sidebar.collapsed {
+    width: 80px;
+    padding: 1.5rem 0.75rem;
+    overflow: visible; /* Allow floating menus to show */
+}
+
+/* ===============================
+   SIDEBAR HEADER
+================================ */
+.sidebar-header {
+    height: 55px;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    margin-bottom: 1.5rem;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+/* ===============================
+   LOGO
+================================ */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding-bottom: 0;
+}
+
+/* SHORT LOGO (ZB) */
+.logo-short {
+    display: none;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--text-main);
+}
+
+/* FULL LOGO (Zirak Books) */
+.logo-full {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.logo-main {
+    font-weight: 800;
+    font-size: 2rem;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+}
+
+.logo-text-extra {
+    font-weight: 800;
+}
+
+.logo-accent {
+    font-weight: 800;
+    font-size: 2rem;
+    color: #1e293b;
+}
+
+/* LOGO STATE CONTROL */
+.sidebar.open .logo-full {
+    display: flex;
+}
+
+.sidebar.open .logo-short {
+    display: none;
+    font-weight: 800;
+    font-size: 2rem;
+
+}
+
+.sidebar.collapsed .logo-full {
+    display: none;
+}
+
+.sidebar.collapsed .logo-short {
+    display: block;
+    font-weight: 800;
+    font-size: 2rem;
+}
+
+.sidebar.collapsed .logo {
+    justify-content: center;
+}
+
+/* ===============================
+   NAVIGATION
+================================ */
+.sidebar-menu {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-right: 4px;
+}
+
+.sidebar.collapsed .sidebar-menu {
+    overflow: visible;
+}
+
+/* ===============================
+   MENU ITEM
+================================ */
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem;
+    color: var(--text-main);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-weight: 700 !important;
+    font-size: 0.92rem;
+    border-radius: 12px;
+    white-space: nowrap;
+    position: relative; /* Anchor for floating tooltips */
+}
+
+.sidebar.open .menu-item {
+    padding: 0.6rem 1rem;
+}
+
+/* ICON + TEXT */
+.icon-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.menu-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 10px;
+    background-color: #f8fafc;
+    color: #64748b;
+    transition: all 0.2s ease;
+}
+
+/* COLLAPSED MENU */
+.sidebar.collapsed .menu-item {
+    justify-content: center;
+    padding: 0.6rem 0;
+}
+
+.sidebar.collapsed .icon-label {
+    gap: 0;
+}
+
+.menu-text {
+    flex: 1;
+    transition: opacity 0.2s ease;
+    font-weight: 700 !important;
+    color: #1e293b;
+}
+
+.sidebar.collapsed .menu-text,
+.sidebar.collapsed .chevron-wrapper,
+.sidebar.collapsed .submenu {
+    display: none;
+}
+
+/* ===============================
+   COLLAPSED HOVER EFFECTS (FLOATING MENU)
+   =============================== */
+.sidebar.collapsed .menu-item:hover .menu-text {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    left: 65px; /* Moved closer */
+    background-color: #1e293b;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 2000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    white-space: nowrap;
+    pointer-events: auto;
+}
+
+/* Hover Bridge for single tooltips */
+.sidebar.collapsed .menu-item:hover .menu-text::after {
+    content: "";
+    position: absolute;
+    left: -20px;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    background: transparent;
+}
+
+/* Tooltip Arrow */
+.sidebar.collapsed .menu-item:hover .menu-text::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 6px solid #1e293b;
+}
+
+/* Floating Submenu for groups */
+.sidebar.collapsed .menu-group:hover .submenu {
+    display: flex !important;
+    flex-direction: column;
+    position: absolute;
+    left: 65px; /* Moved slightly closer to avoid gap */
+    top: 0;
+    background-color: #1e293b;
+    min-width: 200px;
+    padding: 0.75rem;
+    border-radius: 12px;
+    z-index: 2000;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    margin-left: 0;
+    border-left: none;
+}
+
+/* Hover Bridge: Transparent area to keep hover active while moving mouse to submenu */
+.sidebar.collapsed .menu-group .submenu::after {
+    content: "";
+    position: absolute;
+    left: -20px;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    background: transparent;
+}
+
+.sidebar.collapsed .menu-group:hover .submenu .submenu-item {
+    color: #cbd5e1;
+    padding: 0.7rem 1.2rem;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    text-decoration: none;
+}
+
+.sidebar.collapsed .menu-group:hover .submenu-item:hover {
+    color: white;
+    background-color: rgba(255,255,255,0.1);
+}
+
+.sidebar.collapsed .menu-group:hover .submenu-item.active {
+    color: #ffffff !important;
+    background-color: #1e293b !important;
+    font-weight: 600;
+}
+
+/* HOVER */
+.menu-item:hover {
+    background-color: #f1f5f9;
+}
+
+.menu-item:hover .menu-icon-wrapper {
+    background-color: #e2e8f0;
+    color: var(--text-main);
+}
+
+/* ===============================
+   ACTIVE STATE
+================================ */
+.menu-item.active,
+.menu-item.active-parent {
+    background-color: #1e293b;
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25);
+}
+
+.menu-item.active .menu-icon-wrapper,
+.menu-item.active-parent .menu-icon-wrapper {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.menu-item.active .menu-text,
+.menu-item.active-parent .menu-text {
+    color: white;
+}
+
+/* ===============================
+   SUBMENU
+================================ */
+.menu-group {
+    position: relative;
+}
+
+.submenu {
+    display: none;
+    margin-left: 1.5rem;
+    margin-top: 0.25rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid #edf2f7;
+}
+
+.submenu.expanded {
+    display: block;
+}
+
+/* ===============================
+   REPORTS SUBMENU & SUB-CATEGORIES
+================================ */
+.submenu-section {
+    margin-bottom: 4px;
+}
+
+.reports-sub-header {
+    font-weight: 600 !important;
+    color: #313131 !important;
+}
+
+.reports-sub-header:hover {
+    color: #000000 !important;
+    background-color: #f1f5f9;
+}
+
+.active-parent-sub {
+    color: #1e293b !important;
+    font-weight: 700 !important;
+}
+
+.submenu-nested-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.submenu-item {
+    display: block;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    margin-bottom: 2px;
+}
+
+.submenu-item:hover {
+    color: #1e293b;
+    background-color: #f1f5f9;
+}
+
+.submenu-item.active {
+    color: #1e293b;
+    font-weight: 700;
+    background-color: #e2e8f0;
+}
+
+/* ============================
+   RESPONSIVE SIDEBAR
+   ============================ */
+
+/* Tablet & Mobile (Max-width: 991px) */
+@media (max-width: 991.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1050;
+        /* Higher than Navbar */
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        width: 260px !important;
+        /* Always full width when open on mobile */
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+        padding: 1.5rem 1rem;
+        /* Restore padding */
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+        /* Fully hide when collapsed on mobile */
+        width: 0;
+        padding: 0;
+    }
+}

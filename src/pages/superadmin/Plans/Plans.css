@@ -1,0 +1,640 @@
+.superplan-page {
+    padding: 1.5rem;
+    background-color: #f8f9fd;
+    min-height: 100%;
+}
+
+.superplan-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.superplan-page-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.superplan-header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.superplan-btn-add-plan {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.superplan-btn-add-plan:hover {
+    background-color: #334155;
+}
+
+/* Card Container */
+.superplan-content-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Controls */
+.superplan-table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.superplan-entries-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.superplan-entries-select {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+}
+
+.superplan-search-control {
+    position: relative;
+    width: 250px;
+}
+
+.superplan-search-input {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    font-size: 0.9rem;
+}
+
+/* Table */
+.superplan-table-responsive {
+    overflow-x: auto;
+}
+
+.superplan-plans-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1000px;
+}
+
+.superplan-plans-table th {
+    text-align: left;
+    padding: 1rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #1f2937;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.superplan-plans-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    vertical-align: middle;
+}
+
+.superplan-plans-table tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Column Styles */
+.superplan-badge-plan {
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.superplan-bg-bronze {
+    background-color: #b45309;
+}
+
+.superplan-bg-pro {
+    background-color: #1e293b;
+}
+
+.superplan-status-badge {
+    background-color: #1e293b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.superplan-modules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.superplan-module-pill {
+    background-color: #64748b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    width: fit-content;
+    white-space: nowrap;
+}
+
+.superplan-btn-more-modules {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-align: left;
+    margin-top: 2px;
+}
+
+/* Actions */
+.superplan-actions-cell {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.superplan-action-icon-btn {
+    padding: 6px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.superplan-btn-edit {
+    background-color: #eab308;
+    color: white;
+}
+
+.superplan-btn-view {
+    background-color: #0ea5e9;
+    color: white;
+}
+
+.superplan-btn-delete {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Pagination */
+.superplan-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.superplan-showing-text {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.superplan-pagination {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.superplan-page-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.superplan-page-btn.active {
+    background-color: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+
+.superplan-page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- MODAL STYLES --- */
+.superplan-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.superplan-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: modalSlideUp 0.3s ease-out;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.superplan-modal-content.superplan-modal-lg {
+    max-width: 800px;
+    /* Wide for the plan form */
+}
+
+.superplan-modal-content.superplan-modal-sm {
+    max-width: 400px;
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.superplan-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.superplan-modal-header h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.superplan-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.superplan-close-btn:hover {
+    background-color: #334155;
+    color: var(--text-main);
+}
+
+.superplan-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+/* Form Styles */
+.superplan-form-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.superplan-form-row.three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.superplan-form-row.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.superplan-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.superplan-form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.superplan-form-group input,
+.superplan-form-group select {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+}
+
+.superplan-form-group input:focus,
+.superplan-form-group select:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.1);
+}
+
+/* Modules Section */
+.superplan-modules-section {
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #fafbfc;
+}
+
+.superplan-modules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.superplan-module-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.superplan-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.superplan-checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #1e293b;
+}
+
+.superplan-price-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.superplan-price-input-wrapper input {
+    width: 80px;
+}
+
+/* Total Price Banner */
+.superplan-total-price-banner {
+    background-color: #e0f2fe;
+    /* Light blue/cyan */
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    color: #0369a1;
+    font-size: 0.95rem;
+}
+
+/* Description Section */
+.superplan-descriptions-section {
+    gap: 0.75rem;
+}
+
+.superplan-description-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.superplan-add-btn-small,
+.superplan-remove-btn-small {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.superplan-add-btn-small:hover {
+    border-color: #1e293b;
+    color: #1e293b;
+}
+
+.superplan-remove-btn-small:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Footer */
+.superplan-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.superplan-cancel-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #334155;
+    /* Dark gray for cancel/close */
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.superplan-submit-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    background-color: #1e293b;
+    /* Teal for primary action */
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.superplan-submit-btn:hover {
+    background-color: #334155;
+}
+
+.superplan-delete-confirm-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    background-color: #ef4444;
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .superplan-page {
+        padding: 1rem;
+    }
+
+    .superplan-table-controls {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .superplan-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .superplan-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .superplan-btn-add-plan {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Controls */
+    .superplan-entries-control {
+        justify-content: space-between;
+    }
+
+    .superplan-search-control {
+        width: 100%;
+    }
+
+    .superplan-search-input {
+        width: 100%;
+    }
+
+    /* Table */
+    .superplan-content-card {
+        padding: 0;
+        /* Maximize space for table */
+        overflow: hidden;
+    }
+
+    .superplan-table-responsive {
+        overflow-x: auto;
+    }
+
+    .superplan-plans-table {
+        min-width: 600px;
+    }
+
+    .superplan-plans-table th,
+    .superplan-plans-table td {
+        padding: 0.75rem 1rem;
+    }
+
+    /* Modals */
+    .superplan-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .superplan-modal-body {
+        padding: 1rem;
+    }
+
+    .superplan-form-row,
+    .superplan-form-row.two-col,
+    .superplan-form-row.three-col {
+        display: flex;
+        /* Stack flex items */
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .superplan-modal-footer {
+        flex-direction: column-reverse;
+        padding: 1rem;
+    }
+
+    .superplan-cancel-btn,
+    .superplan-submit-btn,
+    .superplan-delete-confirm-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Module Grid Mobile */
+    .superplan-module-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .superplan-price-input-wrapper {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .superplan-price-input-wrapper input {
+        width: 100px;
+    }
+}

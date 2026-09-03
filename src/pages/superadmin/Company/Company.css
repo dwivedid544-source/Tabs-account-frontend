@@ -1,0 +1,820 @@
+/* Page Layout */
+.supercompany-page {
+    padding: 1.5rem;
+    background-color: #f8f9fd;
+    min-height: 100%;
+}
+
+.supercompany-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.supercompany-page-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.supercompany-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.supercompany-view-toggles {
+    display: flex;
+    background: white;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.supercompany-view-btn {
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.supercompany-view-btn.active {
+    background-color: #f1f5f9;
+    color: var(--primary);
+}
+
+.supercompany-add-btn {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.supercompany-add-btn:hover {
+    background-color: #334155;
+}
+
+/* Filters Section */
+.supercompany-filters-bar {
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.supercompany-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.supercompany-filter-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.supercompany-search-input-wrapper {
+    position: relative;
+    min-width: 250px;
+}
+
+.supercompany-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+/* General Form Control */
+.supercompany-form-control {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    width: 100%;
+}
+
+/* Specific for search which has an icon */
+.supercompany-search-input-wrapper .supercompany-form-control {
+    padding-left: 2rem;
+}
+
+.supercompany-form-control-date {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.supercompany-form-select {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: white;
+    min-width: 120px;
+}
+
+/* Companies Grid */
+.supercompany-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.supercompany-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.supercompany-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.supercompany-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.supercompany-plan-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #c28135, #925f23);
+    box-shadow: 0 4px 6px -1px rgba(180, 83, 9, 0.2);
+}
+
+.supercompany-status-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.supercompany-status-badge.active {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+}
+
+.supercompany-status-badge.expired {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.supercompany-menu-trigger {
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.supercompany-menu-trigger:hover {
+    background-color: #f1f5f9;
+}
+
+.supercompany-identity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.supercompany-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+}
+
+.supercompany-avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border: 1px solid #e2e8f0;
+}
+
+.supercompany-details {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.supercompany-details h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.supercompany-email {
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.supercompany-info-rows {
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+}
+
+.supercompany-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.supercompany-info-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.supercompany-info-icon {
+    width: 18px;
+    height: 18px;
+    padding: 3px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    flex-shrink: 0;
+}
+
+.supercompany-info-label {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.supercompany-info-value {
+    color: #475569;
+    font-weight: 500;
+}
+
+/* Card Actions */
+.supercompany-card-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.supercompany-btn-upgrade-new {
+    background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    padding: 6px 12px;
+    flex: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    height: 32px;
+    box-shadow: 0 2px 4px rgba(62, 148, 133, 0.2);
+    transition: all 0.2s;
+}
+
+.supercompany-btn-upgrade-new:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(62, 148, 133, 0.3);
+}
+
+.supercompany-btn-icon-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 2px 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    min-width: 40px;
+    height: 32px;
+    flex: 0.8;
+    transition: all 0.2s;
+}
+
+.supercompany-btn-icon-stack:hover {
+    background-color: #334155;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.supercompany-btn-icon-stack span {
+    font-size: 0.55rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-top: -1px;
+}
+
+.supercompany-btn-icon-stack:hover {
+    background-color: #334155;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.supercompany-icon-blue {
+    color: #3b82f6;
+}
+
+.supercompany-icon-cyan {
+    color: #06b6d4;
+}
+
+.supercompany-icon-red {
+    color: #ef4444;
+}
+
+/* Modals */
+.supercompany-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+    backdrop-filter: blur(2px);
+}
+
+.supercompany-modal-content {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: scaleUp 0.2s ease-out;
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.supercompany-modal-lg {
+    max-width: 800px;
+}
+
+.supercompany-modal-md {
+    max-width: 600px;
+}
+
+.supercompany-modal-sm {
+    max-width: 400px;
+}
+
+.supercompany-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.supercompany-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.supercompany-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.supercompany-close-btn:hover {
+    background: #334155;
+}
+
+.supercompany-close-btn-red {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.supercompany-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.supercompany-modal-footer {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background-color: #f8fafc;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+/* Forms in Modals */
+.supercompany-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+    .supercompany-form-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.supercompany-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.supercompany-form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.supercompany-form-group label.required::after {
+    content: " *";
+    color: #ef4444;
+}
+
+.supercompany-form-control.w-full,
+.supercompany-form-select.w-full {
+    width: 100%;
+}
+
+.supercompany-logo-upload-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 0;
+}
+
+.supercompany-logo-placeholder {
+    width: 120px;
+    height: 120px;
+    background-color: #f8fafc;
+    border-radius: 50%;
+    border: 2px dashed #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.supercompany-logo-placeholder:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.supercompany-logo-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.supercompany-upload-info {
+    text-align: center;
+}
+
+.supercompany-upload-btn {
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Buttons */
+.supercompany-btn-cancel {
+    background: #1f2937;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.supercompany-btn-create {
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.supercompany-btn-close-gray {
+    background: #6b7280;
+    color: white;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+/* User Table */
+.supercompany-users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.supercompany-users-table th {
+    text-align: left;
+    padding: 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+}
+
+.supercompany-users-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    color: var(--text-main);
+    vertical-align: middle;
+}
+
+.supercompany-table-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.supercompany-badge-role {
+    background-color: #0ea5e9;
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.supercompany-badge-status {
+    background-color: #1e293b;
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Dropdown */
+.supercompany-relative {
+    position: relative;
+}
+
+.supercompany-action-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 180px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border);
+    z-index: 50;
+    padding: 0.5rem;
+    animation: fadeIn 0.1s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.supercompany-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: 6px;
+    color: var(--text-main);
+}
+
+.supercompany-dropdown-item:hover {
+    background-color: #f1f5f9;
+}
+
+.supercompany-dropdown-divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 4px 0;
+}
+
+/* Plan Badges */
+.supercompany-badge-na {
+    background-color: #b45309;
+}
+
+.supercompany-badge-bronze {
+    background-color: #b45309;
+}
+
+.supercompany-badge-pro {
+    background-color: #b45309;
+}
+
+.supercompany-badge-silver {
+    background-color: #94a3b8;
+}
+
+.supercompany-badge-gold {
+    background-color: #eab308;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .supercompany-page {
+        padding: 1rem;
+    }
+
+    .supercompany-filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .supercompany-filter-group {
+        justify-content: space-between;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .supercompany-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .supercompany-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .supercompany-add-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .supercompany-search-input-wrapper {
+        min-width: unset;
+        width: 100%;
+    }
+
+    /* Grid */
+    .supercompany-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .supercompany-card {
+        padding: 1.25rem;
+    }
+
+    /* Modals */
+    .supercompany-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .supercompany-modal-footer {
+        flex-direction: column-reverse;
+        /* Button stack */
+    }
+
+    .supercompany-btn-cancel,
+    .supercompany-btn-create,
+    .supercompany-btn-close-gray {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Users Table in Modal (if any) */
+    .supercompany-users-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .supercompany-users-table th,
+    .supercompany-users-table td {
+        white-space: nowrap;
+    }
+}

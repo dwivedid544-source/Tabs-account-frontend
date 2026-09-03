@@ -1,0 +1,524 @@
+.superPayments-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.superPayments-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.superPayments-page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.superPayments-add-btn {
+    background: linear-gradient(135deg, #1e293b, #1e293b);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.superPayments-add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.superPayments-filters-bar {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.superPayments-search-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.superPayments-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.superPayments-search-input-wrapper .superPayments-form-control {
+    padding-left: 2.5rem;
+}
+
+.superPayments-status-select {
+    width: 200px;
+}
+
+.superPayments-form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.superPayments-form-control:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.superPayments-input-with-icon {
+    position: relative;
+}
+
+.superPayments-input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.superPayments-input-with-icon .superPayments-form-control {
+    padding-left: 2.5rem;
+}
+
+.superPayments-table-container {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.superPayments-custom-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.superPayments-custom-table th {
+    background-color: #f8fafc;
+    padding: 1.25rem 1rem;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1.5px solid #e2e8f0;
+}
+
+.superPayments-custom-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 0.95rem;
+}
+
+.superPayments-company-icon-sm {
+    width: 32px;
+    height: 32px;
+    background: #eff6ff;
+    color: #1e293b;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.superPayments-status-badge {
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+}
+
+.superPayments-badge-warning {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #ffedd5;
+}
+
+.superPayments-badge-success {
+    background: #f8fafc;
+    color: #1e293b;
+    border: 1px solid #f1f5f9;
+}
+
+.superPayments-badge-danger {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fee2e2;
+}
+
+.superPayments-badge-secondary {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.superPayments-action-btns-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.superPayments-btn-action-sm {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.superPayments-btn-edit-sm {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.superPayments-btn-edit-sm:hover {
+    background-color: #334155;
+    color: white;
+}
+
+.superPayments-btn-delete-sm {
+    background-color: #fff1f2;
+    color: #e11d48;
+}
+
+.superPayments-btn-delete-sm:hover {
+    background-color: #334155;
+    color: white;
+}
+
+/* Modal Styles */
+.superPayments-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.superPayments-modal-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 550px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.superPayments-modal-sm {
+    max-width: 400px;
+}
+
+.superPayments-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.superPayments-modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.superPayments-close-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.superPayments-close-btn:hover {
+    color: #1e293b;
+}
+
+.superPayments-modal-body {
+    padding: 1.5rem;
+}
+
+.superPayments-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.superPayments-modal-footer {
+    padding: 1.25rem 1.5rem;
+    background-color: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.superPayments-btn-cancel {
+    background: white;
+    color: #475569;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    border: 1.5px solid #e2e8f0;
+    cursor: pointer;
+}
+
+.superPayments-btn-save {
+    background: #1e293b;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.superPayments-btn-delete {
+    background: #ef4444;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+/* Receipt Styles */
+.superPayments-receipt-view {
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+.superPayments-receipt-top {
+    margin-bottom: 2rem;
+}
+
+.superPayments-receipt-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.superPayments-receipt-icon-circle.success {
+    background-color: #f8fafc;
+    color: #10b981;
+}
+
+.superPayments-receipt-icon-circle.pending {
+    background-color: #fff7ed;
+    color: #f59e0b;
+}
+
+.superPayments-receipt-amount {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.superPayments-receipt-status-text {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.superPayments-receipt-items {
+    background-color: #f8fafc;
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.superPayments-receipt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.superPayments-receipt-label {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.superPayments-receipt-value {
+    color: #1e293b;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.superPayments-border-t-0 {
+    border-top: 0 !important;
+}
+
+.superPayments-bg-white {
+    background-color: white !important;
+}
+
+/* Delete Specific Modal UI */
+.superPayments-delete-modal-body {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+}
+
+.superPayments-delete-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    background-color: #fef2f2;
+    color: #ef4444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    border: 4px solid #fff1f2;
+}
+
+.superPayments-delete-modal-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+}
+
+.superPayments-delete-modal-text {
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .superPayments-page {
+        padding: 1rem;
+    }
+
+    .superPayments-filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .superPayments-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .superPayments-add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Controls */
+    .superPayments-search-input-wrapper,
+    .superPayments-form-control,
+    .superPayments-status-select {
+        width: 100%;
+    }
+
+    /* Table */
+    .superPayments-table-container {
+        overflow-x: auto;
+    }
+
+    .superPayments-custom-table {
+        min-width: 800px;
+    }
+
+    .superPayments-custom-table th,
+    .superPayments-custom-table td {
+        white-space: nowrap;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Modals */
+    .superPayments-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .superPayments-modal-body {
+        padding: 1rem;
+    }
+
+    .superPayments-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .superPayments-modal-footer {
+        flex-direction: column-reverse;
+        padding: 1rem;
+    }
+
+    .superPayments-btn-cancel,
+    .superPayments-btn-save,
+    .superPayments-btn-delete {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0;
+        /* Reset */
+    }
+
+    /* Receipt View */
+    .superPayments-receipt-amount {
+        font-size: 1.75rem;
+    }
+
+    .superPayments-receipt-items {
+        padding: 1rem;
+    }
+}

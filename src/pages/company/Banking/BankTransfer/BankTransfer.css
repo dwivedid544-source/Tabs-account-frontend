@@ -1,0 +1,695 @@
+/* Bank Balance Transfer Page Styles - Modern & Unique */
+
+.BankTransfer-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Header Section */
+.BankTransfer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.BankTransfer-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+    letter-spacing: -0.025em;
+}
+
+.BankTransfer-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.BankTransfer-breadcrumb-link {
+    color: #64748b;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.BankTransfer-breadcrumb-link:hover {
+    color: #1e293b;
+}
+
+.BankTransfer-breadcrumb-current {
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.BankTransfer-btn-add {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.3), 0 2px 4px -1px rgba(30, 41, 59, 0.06);
+}
+
+.BankTransfer-btn-add:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 10px 15px -3px rgba(30, 41, 59, 0.4), 0 4px 6px -2px rgba(30, 41, 59, 0.05);
+}
+
+/* Filter Card */
+.BankTransfer-filter-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
+    margin-bottom: 2rem;
+    border: 1px solid #f1f5f9;
+}
+
+.BankTransfer-filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    align-items: flex-end;
+}
+
+.BankTransfer-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.BankTransfer-filter-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.BankTransfer-filter-group input,
+.BankTransfer-filter-group select {
+    padding: 0.625rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #1e293b;
+    transition: all 0.2s;
+    background-color: #f8fafc;
+}
+
+.BankTransfer-filter-group input:focus,
+.BankTransfer-filter-group select:focus {
+    outline: none;
+    border-color: #1e293b;
+    background-color: white;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.BankTransfer-filter-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.BankTransfer-btn-search,
+.BankTransfer-btn-reset {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.BankTransfer-btn-search {
+    background-color: #1e293b;
+    color: white;
+}
+
+.BankTransfer-btn-reset {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.BankTransfer-btn-search:hover {
+    background-color: #334155;
+}
+
+.BankTransfer-btn-reset:hover {
+    background-color: #334155;
+}
+
+/* Table Card */
+.BankTransfer-table-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+}
+
+.BankTransfer-table-controls {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.BankTransfer-entries-control {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.BankTransfer-entries-control select {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+}
+
+.BankTransfer-search-control input {
+    padding: 0.625rem 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    width: 250px;
+    background-color: #f8fafc;
+}
+
+.BankTransfer-table-responsive {
+    overflow-x: auto;
+}
+
+.BankTransfer-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.BankTransfer-table th {
+    padding: 1rem 1.5rem;
+    background-color: #f8fafc;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.BankTransfer-table td {
+    padding: 1.25rem 1.5rem;
+    font-size: 0.875rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.BankTransfer-table tr:last-child td {
+    border-bottom: none;
+}
+
+.BankTransfer-table tr:hover td {
+    background-color: #f8fafc;
+}
+
+.BankTransfer-text-center {
+    text-align: center;
+}
+
+.BankTransfer-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.BankTransfer-btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.BankTransfer-edit {
+    background-color: #f8fafc;
+    color: #334155;
+}
+
+.BankTransfer-delete {
+    background-color: #fff1f2;
+    color: #e11d48;
+}
+
+.BankTransfer-edit:hover {
+    background-color: #f1f5f9;
+    transform: scale(1.1);
+}
+
+.BankTransfer-delete:hover {
+    background-color: #ffe4e6;
+    transform: scale(1.1);
+}
+
+.BankTransfer-table-footer {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+/* Modals - Glassmorphism & Premium Feel */
+.BankTransfer-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: BankTransfer-fadeIn 0.3s ease-out;
+    padding: 1rem;
+}
+
+@keyframes BankTransfer-fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.BankTransfer-modal {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    max-width: 650px;
+    z-index: 100000;
+    box-sizing: border-box;
+    transform: scale(1);
+    animation: BankTransfer-slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes BankTransfer-slideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.BankTransfer-modal-lg { max-width: 650px; }
+.BankTransfer-modal-sm { max-width: 420px; }
+
+.BankTransfer-modal-header {
+    padding: 1.25rem 1.75rem;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.BankTransfer-modal-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+}
+
+.BankTransfer-modal-close {
+    background: #f1f5f9;
+    border: none;
+    color: #64748b;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.BankTransfer-modal-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    transform: rotate(90deg);
+}
+
+.BankTransfer-modal-body {
+    padding: 1.75rem;
+    max-height: 75vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.BankTransfer-form-row {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.BankTransfer-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.BankTransfer-form-group.BankTransfer-half {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.BankTransfer-form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.BankTransfer-required {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.BankTransfer-date-input-wrapper {
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
+}
+
+.BankTransfer-form-group select,
+.BankTransfer-form-group input,
+.BankTransfer-form-group textarea,
+.BankTransfer-date-input-wrapper input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+}
+
+.BankTransfer-form-group select:focus,
+.BankTransfer-form-group input:focus,
+.BankTransfer-form-group textarea:focus,
+.BankTransfer-date-input-wrapper input:focus {
+    outline: none;
+    border-color: #1e293b;
+    background-color: white;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.BankTransfer-form-group textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.BankTransfer-modal-footer {
+    padding: 1.25rem 1.75rem;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.BankTransfer-btn-cancel {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.BankTransfer-btn-cancel:hover {
+    background: #334155;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.BankTransfer-btn-submit {
+    padding: 0.75rem 1.75rem;
+    background: #1e293b;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.3);
+}
+
+.BankTransfer-btn-submit:hover {
+    background: #334155;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(30, 41, 59, 0.4);
+}
+
+.BankTransfer-btn-delete-final {
+    padding: 0.75rem 1.75rem;
+    background: #ef4444;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.3);
+}
+
+.BankTransfer-btn-delete-final:hover {
+    background: #334155;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(30, 41, 59, 0.4);
+}
+
+/* View Modal Specifics */
+.BankTransfer-view-modal {
+    border-top: 6px solid #1e293b;
+}
+
+.BankTransfer-btn-print {
+    padding: 0.5rem 1rem;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.BankTransfer-btn-print:hover {
+    background: #334155;
+    color: #1e293b;
+}
+
+.BankTransfer-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px dashed #e2e8f0;
+}
+
+.BankTransfer-view-brand h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1e293b;
+    font-weight: 900;
+}
+
+.BankTransfer-view-brand span {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.BankTransfer-view-ref p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+.BankTransfer-view-details-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.BankTransfer-view-detail-box {
+    flex: 1;
+    padding: 1.25rem;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.BankTransfer-view-detail-box label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.BankTransfer-view-detail-box p {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.BankTransfer-view-detail-box span {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.BankTransfer-view-amount-section {
+    text-align: center;
+    padding: 2rem;
+    background: #f8fafc;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+}
+
+.BankTransfer-view-amount-section label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.BankTransfer-view-amount {
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #334155;
+    letter-spacing: -0.02em;
+}
+
+.BankTransfer-view-desc-section {
+    margin-bottom: 2.5rem;
+}
+
+.BankTransfer-view-desc-section label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #475569;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.BankTransfer-view-description {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.BankTransfer-view-footer {
+    display: flex;
+    justify-content: space-between;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+/* Print Styles */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .printable-area, .printable-area * {
+        visibility: visible;
+    }
+    .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+    .no-print-bg {
+        background: white !important;
+        backdrop-filter: none !important;
+    }
+    .BankTransfer-modal {
+        animation: none !important;
+        transform: none !important;
+    }
+}
+
+/* Scrollbar Styling for Modal Body */
+.BankTransfer-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.BankTransfer-modal-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.BankTransfer-modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.BankTransfer-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

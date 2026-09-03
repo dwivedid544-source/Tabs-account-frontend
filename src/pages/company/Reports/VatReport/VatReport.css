@@ -1,0 +1,626 @@
+.vat-report-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+/* Control Header Card */
+.vat-control-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.vat-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 1.25rem;
+    gap: 1.5rem;
+}
+
+.vat-badge-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.vat-badge-live {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: #1e293b;
+    color: #ffffff;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+}
+
+.vat-badge-basis {
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.vat-page-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.vat-page-subtitle {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin-top: 0.35rem;
+    line-height: 1.4;
+}
+
+.vat-control-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.vat-period-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.85rem;
+    color: #334155;
+}
+
+.vat-period-pill svg {
+    color: #64748b;
+}
+
+.vat-export-dropdown {
+    position: relative;
+}
+
+.vat-btn-export {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    padding: 0.55rem 1.15rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+    transition: all 0.2s;
+}
+
+.vat-btn-export:hover {
+    background: #334155;
+    transform: translateY(-1px);
+}
+
+.vat-export-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    width: 240px;
+    overflow: hidden;
+    padding: 0.4rem;
+}
+
+.vat-export-menu button {
+    width: 100%;
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    background: none;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.15s;
+}
+
+.vat-export-menu button:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+/* Bi-Monthly Period Selector Row */
+.vat-period-selector-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.vat-period-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.vat-period-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 0.85rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 90px;
+}
+
+.vat-period-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.vat-period-btn.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(30, 41, 59, 0.2);
+}
+
+.vat-p-label {
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.vat-p-sub {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.vat-period-btn.active .vat-p-sub {
+    color: #94a3b8;
+}
+
+.vat-year-select-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.vat-year-select-wrap label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.vat-year-select {
+    padding: 0.55rem 0.9rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    outline: none;
+    cursor: pointer;
+}
+
+.vat-year-select:focus {
+    border-color: #1e293b;
+}
+
+/* Secondary Controls Row */
+.vat-secondary-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.vat-basis-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.vat-basis-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.vat-basis-pill-wrap {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 0.25rem;
+    border: 1px solid #e2e8f0;
+}
+
+.vat-basis-btn {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vat-basis-btn.active {
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.vat-custom-dates-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.vat-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.vat-date-field label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.vat-date-field input {
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    background: #fff;
+    outline: none;
+}
+
+.vat-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    flex: 1;
+    max-width: 320px;
+}
+
+.vat-search-box svg {
+    color: #94a3b8;
+}
+
+.vat-search-box input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    outline: none;
+    font-size: 0.85rem;
+    color: #1e293b;
+}
+
+.vat-btn-reset {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vat-btn-reset:hover {
+    background: #334155;
+    color: #ffffff;
+}
+
+/* 3 Primary Return Boxes (T1, T2, T3) */
+.vat-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.vat-kpi-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vat-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.06);
+}
+
+.vat-kpi-card.output {
+    border-top: 4px solid #0f172a;
+}
+
+.vat-kpi-card.input {
+    border-top: 4px solid #475569;
+}
+
+.vat-kpi-card.net.payable {
+    border-top: 4px solid #0284c7;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
+}
+
+.vat-kpi-card.net.refund {
+    border-top: 4px solid #059669;
+    background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+}
+
+.vat-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.vat-box-code {
+    font-size: 0.78rem;
+    font-weight: 900;
+    background: #0f172a;
+    color: #ffffff;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+
+.vat-box-type {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vat-kpi-amount {
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -0.03em;
+    margin: 0.4rem 0 1rem 0;
+}
+
+.vat-kpi-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    color: #64748b;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.75rem;
+}
+
+.vat-kpi-footer strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.vat-status-pill {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #0369a1;
+}
+
+/* Nav Tabs */
+.vat-nav-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.vat-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    padding: 0.65rem 1.15rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+
+.vat-tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.vat-tab-btn.active {
+    background: #1e293b;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(30, 41, 59, 0.2);
+}
+
+/* Table Cards */
+.vat-table-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.vat-card-title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.1rem 1.5rem;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.vat-card-title-bar h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.vat-method-note, .vat-count-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.vat-table-responsive {
+    overflow-x: auto;
+}
+
+.vat-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.vat-data-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.vat-data-table td {
+    padding: 0.9rem 1.25rem;
+    font-size: 0.88rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.vat-data-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.vat-footer-row td {
+    background: #f8fafc;
+    font-weight: 800;
+    color: #0f172a;
+    border-top: 2px solid #0f172a;
+    font-size: 0.95rem;
+    padding: 1rem 1.25rem;
+}
+
+.vat-rate-tag {
+    font-weight: 800;
+    color: #0f172a;
+    background: #f1f5f9;
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    border: 1px solid #e2e8f0;
+}
+
+.vat-type-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.vat-type-badge.sale {
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.vat-type-badge.purchase {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.vat-dir-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.vat-dir-tag.output {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.vat-dir-tag.input {
+    background: #64748b;
+    color: #ffffff;
+}
+
+@media (max-width: 1024px) {
+    .vat-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+    .vat-control-header {
+        flex-direction: column;
+    }
+}

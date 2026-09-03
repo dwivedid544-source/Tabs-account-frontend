@@ -1,0 +1,441 @@
+.Income-expenses-page {
+    padding: 20px;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.Income-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.Income-page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.Income-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.Income-breadcrumb-link {
+    color: #64748b;
+    text-decoration: none;
+}
+
+.Income-breadcrumb-link:hover {
+    color: #3b82f6;
+}
+
+.Income-breadcrumb-current {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.Income-expenses-btn-dark {
+    background-color: #475569;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.Income-btn-dark:hover {
+    background-color: #334155;
+}
+
+/* Modal Styles */
+.Income-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.Income-modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.Income-modal-content.Income-large-modal {
+    max-width: 900px;
+}
+
+.Income-modal-content.Income-small-modal {
+    max-width: 400px;
+}
+
+.Income-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.Income-modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.Income-close-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.Income-close-btn:hover {
+    background-color: #334155;
+}
+
+.Income-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.Income-form-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.Income-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.Income-form-group.Income-half {
+    flex: 1;
+}
+
+.Income-form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.Income-required {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.Income-form-group input,
+.Income-form-group select,
+.Income-form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #1e293b;
+    transition: border-color 0.2s;
+}
+
+.Income-form-group input:focus,
+.Income-form-group select:focus,
+.Income-form-group textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.Income-modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.Income-btn-cancel {
+    padding: 8px 16px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.Income-btn-save,
+.Income-btn-create,
+.Income-btn-delete-confirm {
+    padding: 8px 16px;
+    border: none;
+    background: #3b82f6;
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.Income-btn-save {
+    background-color: #ffffff;
+    /* Green for save */
+}
+
+.Income-btn-delete-confirm {
+    background-color: #ef4444;
+    /* Red for delete */
+}
+
+/* Items Table Styles */
+.Income-items-table-wrapper {
+    margin-top: 20px;
+}
+
+.Income-items-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.Income-items-table th {
+    background: #f8fafc;
+    padding: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Income-items-table td {
+    padding: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Income-items-table input,
+.Income-items-table select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+.Income-btn-add-row {
+    margin-top: 12px;
+    color: #3b82f6;
+    background: none;
+    border: 1px dashed #3b82f6;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+    text-align: center;
+}
+
+.Income-btn-add-row:hover {
+    background: #334155;
+}
+
+.Income-expenses-btn-icon-red {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Data Table Styles (reused from BankTransfer mostly) */
+.Income-table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.Income-table-controls {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Income-data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.Income-data-table th {
+    background: #f8fafc;
+    padding: 12px 24px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.Income-data-table td {
+    padding: 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 14px;
+}
+
+.Income-action-buttons1 {
+    display: flex;
+    gap: 8px;
+}
+
+.Income-expenses-btn-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.Income-expenses-btn-icon.Income-edit {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.Income-expenses-btn-icon.Income-view {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.Income-expenses-btn-icon.Income-delete {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .Income-expenses-page {
+        padding: 1rem;
+    }
+
+    .Income-table-card {
+        padding: 0;
+    }
+
+    .Income-form-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .Income-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .Income-expenses-btn-dark {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Table Controls */
+    .Income-table-controls {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    /* Data Table Scroll */
+    .Income-table-card {
+        overflow-x: auto;
+    }
+
+    .Income-data-table {
+        min-width: 600px;
+    }
+
+    /* Modals */
+    .Income-modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .Income-modal-body {
+        padding: 1rem;
+    }
+
+    /* Form */
+    .Income-form-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    /* Items Table in Modal */
+    .Income-items-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .Income-items-table {
+        min-width: 500px;
+    }
+
+    /* Modal Footer */
+    .Income-modal-footer {
+        flex-direction: column-reverse;
+        /* Stack buttons */
+        padding: 1rem;
+    }
+
+    .Income-btn-cancel,
+    .Income-btn-save,
+    .Income-btn-create {
+        width: 100%;
+        justify-content: center;
+    }
+}

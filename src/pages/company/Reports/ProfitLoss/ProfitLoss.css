@@ -1,0 +1,888 @@
+/* ProfitLoss.css - Premium Dashboard and Statement Report Styles */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --pl-primary: #1e293b;
+    --pl-primary-hover: #0f172a;
+    --pl-bg: #f8fafc;
+    --pl-surface: #ffffff;
+    --pl-border: #e2e8f0;
+    --pl-text: #0f172a;
+    --pl-text-muted: #64748b;
+    
+    /* Harmonious Thematic Colors */
+    --pl-income: #334155;
+    --pl-income-glow: rgba(51, 65, 85, 0.15);
+    --pl-income-bg: #f8fafc;
+    
+    --pl-expense: #dc2626;
+    --pl-expense-glow: rgba(30, 41, 59, 0.15);
+    --pl-expense-bg: #fef2f2;
+    
+    --pl-profit: #2563eb;
+    --pl-profit-glow: rgba(59, 130, 246, 0.15);
+    --pl-profit-bg: #eff6ff;
+    
+    --pl-margin: #7c3aed;
+    --pl-margin-glow: rgba(139, 92, 246, 0.15);
+    --pl-margin-bg: #f5f3ff;
+    
+    --pl-radius-lg: 16px;
+    --pl-radius-md: 12px;
+    --pl-radius-sm: 8px;
+    
+    --pl-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    --pl-shadow-hover: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+    --pl-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profit-loss-page {
+    padding: 2.5rem;
+    background-color: var(--pl-bg);
+    min-height: 100vh;
+    font-family: 'Outfit', sans-serif;
+    color: var(--pl-text);
+}
+
+/* Header Section */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--pl-text);
+    margin: 0 0 0.35rem 0;
+    letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+    color: var(--pl-text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Switches & Buttons */
+.view-toggle {
+    display: flex;
+    background: #e2e8f0;
+    padding: 0.25rem;
+    border-radius: var(--pl-radius-md);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.toggle-btn {
+    padding: 0.55rem 1.25rem;
+    border-radius: var(--pl-radius-sm);
+    border: none;
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: var(--pl-transition);
+}
+
+.toggle-btn.active {
+    background: var(--pl-surface);
+    color: var(--pl-text);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.date-filter-range {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--pl-surface);
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--pl-radius-md);
+    border: 1px solid var(--pl-border);
+    box-shadow: var(--pl-shadow);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--pl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.date-input-field {
+    border: 1px solid #cbd5e1;
+    border-radius: var(--pl-radius-sm);
+    padding: 0.4rem 0.75rem;
+    font-size: 0.88rem;
+    color: var(--pl-text);
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+    transition: var(--pl-transition);
+    background-color: var(--pl-bg);
+}
+
+.date-input-field:focus {
+    border-color: #3b82f6;
+    background-color: var(--pl-surface);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.export-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.35rem;
+    background: var(--pl-primary);
+    color: white;
+    border: none;
+    border-radius: var(--pl-radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--pl-transition);
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.15);
+    font-size: 0.9rem;
+}
+
+.btn-primary:hover {
+    background: var(--pl-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(30, 41, 59, 0.2);
+}
+
+.export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius-md);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    min-width: 190px;
+    overflow: hidden;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1.2rem;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 0.88rem;
+    color: #475569;
+    cursor: pointer;
+    transition: var(--pl-transition);
+    font-weight: 500;
+    font-family: inherit;
+}
+
+.export-menu button:hover {
+    background: #f1f5f9;
+    color: var(--pl-text);
+    padding-left: 1.4rem;
+}
+
+.export-menu button:not(:last-child) {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* KPI Summary Cards */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.kpi-card {
+    background: var(--pl-surface);
+    padding: 1.6rem;
+    border-radius: var(--pl-radius-lg);
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: var(--pl-shadow);
+    border: 1px solid var(--pl-border);
+    transition: var(--pl-transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--pl-shadow-hover);
+}
+
+.kpi-card.income::after { background: var(--pl-income); }
+.kpi-card.expense::after { background: var(--pl-expense); }
+.kpi-card.profit::after { background: var(--pl-profit); }
+.kpi-card.margin::after { background: var(--pl-margin); }
+
+.kpi-card.income:hover { box-shadow: 0 12px 24px -10px var(--pl-income-glow), var(--pl-shadow-hover); }
+.kpi-card.expense:hover { box-shadow: 0 12px 24px -10px var(--pl-expense-glow), var(--pl-shadow-hover); }
+.kpi-card.profit:hover { box-shadow: 0 12px 24px -10px var(--pl-profit-glow), var(--pl-shadow-hover); }
+.kpi-card.margin:hover { box-shadow: 0 12px 24px -10px var(--pl-margin-glow), var(--pl-shadow-hover); }
+
+.kpi-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--pl-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: var(--pl-transition);
+}
+
+.kpi-card:hover .kpi-icon {
+    transform: scale(1.1);
+}
+
+.income .kpi-icon { background: var(--pl-income-bg); color: var(--pl-income); }
+.expense .kpi-icon { background: var(--pl-expense-bg); color: var(--pl-expense); }
+.profit .kpi-icon { background: var(--pl-profit-bg); color: var(--pl-profit); }
+.margin .kpi-icon { background: var(--pl-margin-bg); color: var(--pl-margin); }
+
+.kpi-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kpi-label {
+    font-size: 0.85rem;
+    color: var(--pl-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+}
+
+.kpi-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--pl-text);
+    margin: 0 0 0.4rem 0;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kpi-trend {
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    width: fit-content;
+}
+
+.kpi-trend.positive {
+    color: var(--pl-income);
+    background: var(--pl-income-bg);
+}
+
+.kpi-trend.negative {
+    color: var(--pl-expense);
+    background: var(--pl-expense-bg);
+}
+
+/* Charts Containers */
+.charts-container {
+    display: grid;
+    grid-template-columns: 1.8fr 1.2fr;
+    gap: 1.75rem;
+    margin-bottom: 2.5rem;
+}
+
+.chart-card {
+    background: var(--pl-surface);
+    padding: 1.75rem;
+    border-radius: var(--pl-radius-lg);
+    box-shadow: var(--pl-shadow);
+    border: 1px solid var(--pl-border);
+}
+
+.chart-card h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--pl-text);
+    letter-spacing: -0.01em;
+}
+
+/* Recharts Custom Tooltip Styling overlay */
+.recharts-default-tooltip {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--pl-border) !important;
+    border-radius: var(--pl-radius-md) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+    padding: 10px 14px !important;
+}
+
+/* Official Statement (Report View) */
+.official-statement-card {
+    background: var(--pl-surface);
+    border-radius: var(--pl-radius-lg);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    padding: 3.5rem;
+    border: 1px solid var(--pl-border);
+    margin: 0 auto;
+    position: relative;
+}
+
+.statement-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Premium Document Header */
+.report-header-premium {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    /* padding-bottom: 2rem; */
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid #f1f5f9;
+    gap: 1.5rem;
+}
+
+.report-company-name {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--pl-text);
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+}
+
+.report-company-details {
+    color: var(--pl-text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem 0;
+}
+
+.report-type-box {
+    text-align: right;
+}
+
+.report-type-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--pl-text);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.4rem 0;
+}
+
+.report-period {
+    color: var(--pl-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Statement Table UI */
+.statement-table-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 1.75rem;
+    background: var(--pl-primary);
+    border-radius: var(--pl-radius-md);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #f8fafc;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.1);
+}
+
+.statement-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.95rem;
+    transition: var(--pl-transition);
+}
+
+.statement-row:not(.header-row):not(.total-row):hover {
+    background-color: #f8fafc;
+    transform: translateX(4px);
+}
+
+.statement-row.header-row {
+    background: #f1f5f9;
+    padding: 0.85rem 1.75rem;
+    margin: 1.25rem 0 0.75rem 0;
+    border-radius: var(--pl-radius-sm);
+    border-bottom: none;
+    border-left: 4px solid var(--pl-primary);
+}
+
+.header-row .row-name {
+    color: var(--pl-primary);
+    font-weight: 800;
+    font-size: 0.98rem;
+    letter-spacing: 0.03em;
+}
+
+.statement-row.indent .row-name {
+    padding-left: 1.75rem;
+    position: relative;
+}
+
+.statement-row.indent .row-name::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    background: #cbd5e1;
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+.statement-row.total-row {
+    border-bottom: 2px solid var(--pl-primary);
+    font-weight: 700;
+    color: var(--pl-primary);
+    background-color: var(--pl-bg);
+    margin: 0.5rem 0;
+    border-radius: var(--pl-radius-sm);
+}
+
+.row-name {
+    font-weight: 600;
+    color: #334155;
+    display: flex;
+    align-items: center;
+}
+
+.row-data {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+}
+
+.row-percentage {
+    font-size: 0.85rem;
+    color: var(--pl-text-muted);
+    width: 60px;
+    text-align: right;
+    font-weight: 700;
+}
+
+.row-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-width: 130px;
+    text-align: right;
+    font-size: 0.98rem;
+}
+
+/* Math Flow Coloring & Prefixes */
+.math-prefix {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    margin-right: 0.65rem;
+    display: inline-block;
+    width: 14px;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.type-add .math-prefix,
+.type-add .row-value {
+    color: var(--pl-income) !important;
+}
+
+.type-sub .math-prefix,
+.type-sub .row-value {
+    color: var(--pl-expense) !important;
+}
+
+.type-result .math-prefix,
+.type-result .row-name,
+.type-result .row-value {
+    color: var(--pl-text) !important;
+    font-weight: 800 !important;
+}
+
+.statement-spacer {
+    height: 2rem;
+}
+
+.statement-final-spacer {
+    height: 2.5rem;
+}
+
+/* Calculation Milestone container */
+.calculation-milestone {
+    background: #f8fafc;
+    border-radius: var(--pl-radius-md);
+    padding: 0.25rem 0.5rem;
+    margin: 1rem 0;
+    border: 1px solid var(--pl-border);
+}
+
+.calculation-milestone .type-result {
+    border-top: none;
+    padding-top: 0.85rem !important;
+    margin-top: 0;
+    background: transparent;
+}
+
+/* Net Income Bottom Banner */
+.net-income-box-premium {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--pl-primary) 0%, #0f172a 100%);
+    color: white;
+    padding: 2.2rem 2.5rem;
+    border-radius: var(--pl-radius-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 1.5rem;
+    box-shadow: 0 15px 30px rgba(30, 41, 59, 0.18);
+    position: relative;
+    overflow: hidden;
+    border-left: 6px solid #94a3b8;
+}
+
+.net-income-box-premium::before {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    right: -50px;
+    top: -50px;
+    border-radius: 50%;
+}
+
+.net-income-box-premium:has(.text-success) {
+    border-left-color: var(--pl-income);
+}
+
+.net-income-box-premium:has(.text-danger) {
+    border-left-color: var(--pl-expense);
+}
+
+.net-income-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    z-index: 2;
+}
+
+.main-label {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f8fafc;
+}
+
+.sub-label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.net-income-value-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 2;
+}
+
+.net-income-value {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.net-income-value.text-success {
+    color: #64748b !important; /* Emerald 400 for contrast on dark */
+}
+
+.net-income-value.text-danger {
+    color: #f87171 !important; /* Red 400 for contrast on dark */
+}
+
+/* Loading & Empty States */
+.loading-state {
+    padding: 5rem 2rem;
+    text-align: center;
+    color: var(--pl-text-muted);
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3.5px solid #e2e8f0;
+    border-top: 3.5px solid var(--pl-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   RESPONSIVE STYLES
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+    
+    .charts-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .profit-loss-page {
+        padding: 1.5rem;
+    }
+    
+    .page-header {
+        margin-bottom: 1.75rem;
+    }
+    
+    .official-statement-card {
+        padding: 2rem;
+    }
+    
+    .report-header-premium {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.25rem;
+    }
+    
+    .report-type-box {
+        text-align: left;
+    }
+    
+    .statement-table-header {
+        padding: 0.85rem 1.2rem;
+    }
+    
+    .statement-row {
+        padding: 0.75rem 1.2rem;
+    }
+    
+    .statement-row.indent .row-name {
+        padding-left: 1.2rem;
+    }
+    
+    .statement-row.indent .row-name::before {
+        left: 0.5rem;
+    }
+    
+    .row-data {
+        gap: 1.5rem;
+    }
+    
+    .net-income-box-premium {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.25rem;
+        padding: 1.75rem;
+    }
+    
+    .net-income-value-wrapper {
+        align-items: flex-start;
+    }
+    
+    .net-income-value {
+        font-size: 2.1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .summary-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.85rem;
+    }
+    
+    .date-filter-range {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 0.85rem;
+    }
+    
+    .filter-group {
+        justify-content: space-between;
+    }
+    
+    .date-input-field {
+        width: 130px;
+    }
+    
+    .view-toggle {
+        justify-content: stretch;
+    }
+    
+    .toggle-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.5rem;
+    }
+    
+    .btn-primary {
+        justify-content: center;
+    }
+}
+
+/* ==========================================================================
+   PRINT STYLES
+   ========================================================================== */
+
+@media print {
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .profit-loss-page {
+        padding: 0 !important;
+        background-color: white !important;
+    }
+    
+    .page-header,
+    .view-toggle,
+    .date-filter-range,
+    .export-dropdown-wrapper,
+    .summary-cards,
+    .charts-container,
+    .statement-table-header span:last-child,
+    .row-percentage,
+    .recharts-responsive-container,
+    .PBILL-no-print,
+    .no-print {
+        display: none !important;
+    }
+    
+    .official-statement-card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+    
+    .statement-table-header {
+        background: #0f172a !important;
+        color: white !important;
+        box-shadow: none !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .statement-row.header-row {
+        background: #f1f5f9 !important;
+        border-left: 4px solid #0f172a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .statement-row.total-row {
+        background: #f8fafc !important;
+        border-bottom: 2px solid #0f172a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .net-income-box-premium {
+        background: #1e293b !important;
+        color: white !important;
+        border-left: 6px solid #334155 !important;
+        box-shadow: none !important;
+        padding: 1.5rem !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .net-income-value.text-success {
+        color: #10b981 !important;
+    }
+    
+    .net-income-value.text-danger {
+        color: #ef4444 !important;
+    }
+}

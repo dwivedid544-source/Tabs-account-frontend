@@ -1,0 +1,359 @@
+.cashflow-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.page-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.breadcrumb-item.active {
+    color: #64748b;
+}
+
+.btn-export {
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.export-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    min-width: 180px;
+    overflow: hidden;
+}
+
+.export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 0.85rem;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.export-menu button:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.export-menu button:not(:last-child) {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Summary Cards Grid */
+.cashflow-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.cashflow-summary-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cashflow-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.cashflow-summary-card.blue { border-left: 4px solid #3b82f6; }
+.cashflow-summary-card.amber { border-left: 4px solid #f59e0b; }
+.cashflow-summary-card.purple { border-left: 4px solid #a855f7; }
+.cashflow-summary-card.teal { border-left: 4px solid #1e293b; }
+
+.card-content .card-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.card-content .card-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+.card-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.blue .card-icon-wrapper { background: #eff6ff; color: #2563eb; }
+.amber .card-icon-wrapper { background: #fffbeb; color: #d97706; }
+.purple .card-icon-wrapper { background: #faf5ff; color: #9333ea; }
+.teal .card-icon-wrapper { background: #f8fafc; color: #334155; }
+
+/* Filter & Meta Card */
+.cf-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.meta-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 1.15rem;
+}
+
+.meta-box-label {
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.meta-box-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* Report Content */
+.report-content {
+    padding: 1.5rem;
+}
+
+.section-block {
+    margin-bottom: 2rem;
+}
+
+.section-block.last {
+    margin-bottom: 0;
+}
+
+.section-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid white;
+    /* Just for spacing if needed */
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.cashflow-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1200px;
+}
+
+.cashflow-table th {
+    text-align: left;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.col-category {
+    width: 200px;
+}
+
+.cashflow-table td {
+    padding: 1rem 0.5rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    border-bottom: 1px solid #f8fafc;
+}
+
+/* Specific Row Styles */
+.row-group td {
+    font-weight: 600;
+    color: #334155;
+    padding-top: 1.5rem;
+}
+
+.row-subtotal-header td {
+    background: #f8fafc;
+    /* Very light gray bg for formula lines */
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #475569;
+    text-transform: uppercase;
+    padding: 0.5rem 0.5rem;
+}
+
+.row-total td {
+    border-top: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.row-total .detail-label {
+    color: #64748b;
+}
+
+/* Net Profit Specifics */
+.row-subtotal-header.profit td {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.row-total.profit-total td {
+    color: #64748b;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .cashflow-page {
+        padding: 1rem;
+    }
+
+    .info-cards-row {
+        gap: 1rem;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .report-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .export-dropdown-wrapper {
+        width: 100%;
+    }
+
+    .btn-export {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+        flex-direction: column;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+
+    .toggle-group {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .toggle-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .filter-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .year-select {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Cards */
+    .info-cards-row {
+        grid-template-columns: 1fr;
+    }
+
+    /* Table */
+    .cashflow-table {
+        min-width: 600px;
+        /* Ensure scroll */
+    }
+
+    .col-category {
+        width: 150px;
+        /* Shrink slightly if needed */
+    }
+}

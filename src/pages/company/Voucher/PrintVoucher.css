@@ -1,0 +1,109 @@
+/* Print Button Styles (Visible on UI) */
+.Voucher-btn-print {
+    background-color: #f59e0b;
+    color: white !important;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.Voucher-btn-print:hover {
+    background-color: #334155;
+}
+
+.Voucher-mr-1 {
+    margin-right: 4px;
+}
+
+/* Print Layout Styles (Hidden from UI, Only for Paper/PDF) */
+@media print {
+  /* Hide application UI */
+  aside, nav, header, footer, 
+  .Sidebar, .Header, .Navbar, #Sidebar, #Navbar,
+  .no-print, .Voucher-modal-footer, .Voucher-modal-header,
+  .Voucher-page-header, .Voucher-controls-row, .Voucher-pagination-row, 
+  .Voucher-voucher-action-buttons, .Voucher-voucher-card {
+    display: none !important;
+  }
+
+  /* Reset main container */
+  body, #root, .Voucher-voucher-page {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* Force modal to fill page */
+  .Voucher-modal-overlay {
+    position: static !important;
+    background: white !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 1 !important;
+  }
+
+  .Voucher-modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    position: static !important;
+    display: block !important;
+    background: white !important;
+  }
+
+  .Voucher-modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    display: block !important;
+  }
+
+  /* Force visibility of the section to be printed */
+  .print-section {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Table borders for professional print */
+  .Voucher-voucher-items-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 2rem !important;
+  }
+  
+  .Voucher-voucher-items-table th, 
+  .Voucher-voucher-items-table td {
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+    color: black !important;
+  }
+
+  .Voucher-total-row {
+    color: black !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

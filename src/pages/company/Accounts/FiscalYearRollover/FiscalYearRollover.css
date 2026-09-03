@@ -1,0 +1,161 @@
+.FY-page-container {
+    padding: 24px;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.FY-header {
+    margin-bottom: 24px;
+}
+
+.FY-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.FY-header p {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.FY-wizard-stepper {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    position: relative;
+    background: #ffffff;
+    padding: 16px 24px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.FY-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.FY-step.active {
+    color: #1e293b;
+}
+
+.FY-step.completed {
+    color: #10b981;
+}
+
+.FY-step-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #f1f5f9;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.FY-step.active .FY-step-number {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+.FY-step.completed .FY-step-number {
+    background-color: #10b981;
+    color: #ffffff;
+}
+
+.FY-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.FY-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.FY-summary-box {
+    padding: 18px;
+    border-radius: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.FY-summary-box.highlight {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.FY-summary-box.highlight.loss {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+}
+
+.FY-box-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.FY-box-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.FY-box-value.profit {
+    color: #10b981;
+}
+
+.FY-box-value.loss {
+    color: #ef4444;
+}
+
+.FY-footer-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 24px;
+}
+
+.FY-btn-next {
+    background-color: #1e293b;
+    color: #ffffff;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+}
+
+.FY-btn-next:hover {
+    background-color: #334155;
+}
+
+.FY-btn-back {
+    background-color: #ffffff;
+    color: #475569;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+}

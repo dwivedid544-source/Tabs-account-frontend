@@ -1,0 +1,52 @@
+.statement-spacer.highlight {
+    background: #f1f5f9;
+    height: 1px;
+    margin: 1.5rem 0;
+}
+
+.math-prefix {
+    font-family: 'Courier New', monospace;
+    font-weight: 800;
+    margin-right: 0.75rem;
+    display: inline-block;
+    width: 30px;
+    font-size: 1.1rem;
+}
+
+/* Color Coding based on type */
+.type-add .math-prefix, 
+.type-add .row-value { 
+    color: #10b981 !important; /* Green */
+}
+
+.type-sub .math-prefix, 
+.type-sub .row-value { 
+    color: #ef4444 !important; /* Red */
+}
+
+.type-result .math-prefix, 
+.type-result .row-name, 
+.type-result .row-value { 
+    color: #000000 !important; /* Black */
+    font-weight: 800 !important;
+}
+
+.type-result {
+    border-top: 2px solid #1e293b;
+    padding-top: 1rem !important;
+    margin-top: 0.5rem;
+}
+
+.calculation-milestone {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 1.5rem -0.75rem;
+    border: 1px solid #e2e8f0;
+}
+
+.calculation-milestone .type-result {
+    border-top: none;
+    padding-top: 0 !important;
+    margin-top: 0;
+}

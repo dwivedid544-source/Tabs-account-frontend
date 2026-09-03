@@ -1,0 +1,1741 @@
+.Quotation-quotation-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.Quotation-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.Quotation-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.Quotation-page-subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+/* Process Tracker */
+.Quotation-process-tracker-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.Quotation-tracker-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.Quotation-tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+    z-index: 1;
+}
+
+.Quotation-step-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.Quotation-status-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: white;
+    border-radius: 50%;
+    padding: 1px;
+}
+
+.Quotation-step-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+/* Tracker States */
+.Quotation-tracker-step.Quotation-completed .Quotation-step-icon-wrapper {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #1e293b;
+}
+
+.Quotation-tracker-step.Quotation-completed .Quotation-step-label {
+    color: #1e293b;
+}
+
+.Quotation-tracker-step.Quotation-completed .Quotation-status-badge {
+    color: #1e293b;
+}
+
+.Quotation-tracker-step.Quotation-active .Quotation-step-icon-wrapper {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-tracker-step.Quotation-active .Quotation-step-label {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.Quotation-tracker-step.Quotation-active .Quotation-status-badge {
+    color: #1e293b;
+}
+
+.Quotation-tracker-divider {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    margin: 0 1rem;
+    margin-top: -24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e2e8f0;
+}
+
+.Quotation-tracker-divider.Quotation-active {
+    background: #1e293b;
+    color: #1e293b;
+}
+
+/* Table Styles from Original */
+.Quotation-table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.Quotation-table-container {
+    overflow-x: auto;
+}
+
+.Quotation-quotation-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.Quotation-quotation-table th {
+    text-align: left;
+    padding: 1rem;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Quotation-quotation-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.Quotation-quotation-status-pill {
+    padding: 0.4rem 1rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 100px;
+}
+
+.Quotation-quotation-status-pill.active,
+.Quotation-quotation-status-pill.accepted,
+.Quotation-quotation-status-pill.completed {
+    background-color: #1e293b;
+}
+
+.Quotation-quotation-status-pill.pending {
+    background-color: #f59e0b;
+}
+
+.Quotation-quotation-status-pill.draft {
+    background-color: #3b82f6;
+}
+
+.Quotation-quotation-status-pill.sent {
+    background-color: #06b6d4;
+}
+
+.Quotation-quotation-status-pill.overdue,
+.Quotation-quotation-status-pill.cancelled {
+    background-color: #ef4444;
+}
+
+
+.Quotation-discount-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: right;
+    color: #1e293b;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+
+.Quotation-discount-input:focus {
+    outline: none;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-btn-add {
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+}
+
+.Quotation-btn-add:hover {
+    background: #334155;
+}
+
+/* 
+   PREMIUM MODAL STYLES 
+   Re-implementing the "Paper" look
+*/
+
+.Quotation-quotation-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.Quotation-quotation-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.Quotation-quotation-action-btn.Quotation-view {
+    background-color: #f59e0b;
+}
+
+.Quotation-quotation-action-btn.Quotation-view:hover {
+    background-color: #334155;
+}
+
+.Quotation-quotation-action-btn.Quotation-edit {
+    background-color: #22d3ee;
+}
+
+.Quotation-quotation-action-btn.Quotation-edit:hover {
+    background-color: #334155;
+}
+
+.Quotation-quotation-action-btn.Quotation-delete {
+    background-color: #f43f5e;
+}
+
+.Quotation-quotation-action-btn.Quotation-delete:hover {
+    background-color: #334155;
+}
+
+.Quotation-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.Quotation-quotation-form-modal {
+    background: white;
+    width: 90vw;
+    max-width: 1100px;
+    height: 90vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.Quotation-modal-header-simple {
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+}
+
+.Quotation-close-btn-simple {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.Quotation-close-btn-simple:hover {
+    background: #334155;
+    color: #ef4444;
+}
+
+.Quotation-modal-body-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    background: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Form Sections */
+.Quotation-form-section-grid {
+    display: flex;
+    gap: 3rem;
+    margin-bottom: 2rem;
+}
+
+.Quotation-company-section {
+    flex: 1;
+}
+
+.Quotation-meta-section {
+    flex: 0 0 320px;
+}
+
+.Quotation-logo-upload-box {
+    width: 200px;
+    height: 80px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    background: #f8fafc;
+}
+
+.Quotation-company-logo-text {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #1e293b;
+    letter-spacing: -1px;
+}
+
+.Quotation-search-wrapper {
+    flex: 1;
+    min-width: 300px;
+    position: relative;
+}
+
+.Quotation-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.Quotation-search-input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+.Quotation-search-input:focus {
+    outline: none;
+    border-color: #1e293b;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-date-input {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: #475569;
+    background-color: #f8fafc;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.Quotation-date-input:focus {
+    border-color: #1e293b;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-full-width-input {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.Quotation-full-width-input.Quotation-user-editable:focus {
+    border-color: #1e293b;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-meta-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.Quotation-meta-row label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    width: 120px;
+}
+
+.Quotation-meta-input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.Quotation-meta-input.Quotation-disabled {
+    background: #f8fafc;
+    color: #94a3b8;
+}
+
+.Quotation-status-indicator {
+    text-align: right;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    text-transform: uppercase;
+    border-bottom: 2px solid #1e293b;
+    display: block;
+    float: right;
+    padding-bottom: 2px;
+}
+
+.Quotation-divider {
+    border: none;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 1.5rem 0;
+}
+
+/* Compact Header Row for Meta Fields */
+.Quotation-meta-header-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.Quotation-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.Quotation-meta-item label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #000000;
+}
+
+.Quotation-form-label-sm {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #000000;
+    display: block;
+}
+
+/* Clean Premium Customer Section */
+.Quotation-customer-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease-in-out;
+}
+
+.Quotation-customer-select-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.Quotation-customer-dropdown-col {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.Quotation-customer-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.Quotation-label-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.Quotation-add-quick-btn {
+    background-color: #475569;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.Quotation-add-quick-btn:hover {
+    background-color: #334155;
+}
+
+.Quotation-customer-select {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #1e293b;
+    background-color: #f8fafc;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.Quotation-customer-select:focus {
+    border-color: #475569;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.15);
+}
+
+.Quotation-customer-empty-hint {
+    flex: 1;
+    min-width: 280px;
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    font-size: 0.825rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.Quotation-hint-badge {
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.Quotation-customer-info-grid {
+    display: grid;
+    grid-template-columns: 1.8fr 1.1fr 1.1fr;
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.Quotation-customer-info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.Quotation-customer-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.Quotation-form-select-compact,
+.Quotation-detail-input-compact {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    color: #1e293b;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.Quotation-form-select-compact:focus,
+.Quotation-detail-input-compact:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.Quotation-form-select-compact:disabled,
+.Quotation-detail-input-compact:disabled {
+    background-color: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+/* Items Table */
+.Quotation-items-section-new {
+    margin-bottom: 3rem;
+    margin-top: 70px;
+}
+
+.Quotation-btn-add-row {
+    background: #1e293b;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+}
+
+.Quotation-new-items-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.Quotation-new-items-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #000000;
+    text-transform: uppercase;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Quotation-new-items-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+}
+
+.Quotation-search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.Quotation-search-input-wrapper input {
+    width: 100%;
+    padding: 0.5rem;
+    padding-right: 2rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+.Quotation-search-input-wrapper svg {
+    position: absolute;
+    right: 0.75rem;
+    color: #94a3b8;
+}
+
+table input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.Quotation-amount-input.Quotation-disabled {
+    background: #f1f5f9;
+    font-weight: 700;
+    color: #475569;
+}
+
+/* Totals & Bottom Layout */
+.Quotation-bottom-layout-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.Quotation-bottom-left-col {
+    display: block;
+}
+
+.Quotation-bottom-right-col {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.Quotation-totals-box-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.Quotation-totals-box {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.Quotation-t-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #000000;
+}
+
+.Quotation-t-row.Quotation-total {
+    background: #f8fafc;
+    font-weight: 700;
+    color: #1e293b;
+    border-bottom: none;
+    font-size: 1.1rem;
+}
+
+.Quotation-terms-section {
+    margin-top: 2rem;
+}
+
+.Quotation-section-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #000000;
+    margin-bottom: 0.5rem;
+}
+
+.Quotation-bank-details-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.Quotation-bank-input {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.Quotation-bank-input:last-child {
+    border-bottom: none;
+}
+
+.Quotation-notes-area,
+.Quotation-terms-area {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.Quotation-bottom-textareas-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.Quotation-notes-area {
+    height: 100px;
+}
+
+.Quotation-terms-area {
+    height: 100px;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.Quotation-btn-print-header {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.Quotation-btn-print-header:hover {
+    background: #334155;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.Quotation-btn-primary-blue {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.6rem 2rem;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.Quotation-btn-primary-blue:hover {
+    background: #334155;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.Quotation-btn-upload-small {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+.Quotation-thank-you-note {
+    text-align: center;
+    margin-top: 3rem;
+    color: #64748b;
+}
+
+/* Modal Footer */
+.Quotation-modal-footer-simple {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background: white;
+}
+
+.Quotation-btn-plain {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.Quotation-btn-primary-green {
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    padding: 0.6rem 2rem;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+}
+
+.Quotation-btn-primary-green:hover {
+    background: #334155;
+}
+
+.Quotation-btn-delete-row {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Delete Confirmation Modal - Match User Design */
+.Quotation-delete-confirmation-box {
+    background: white;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 8px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+    font-family: inherit;
+}
+
+.Quotation-delete-modal-header {
+    background: #ffe4e6;
+    /* Light pink background */
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #fecdd3;
+    /* Slightly darker pink border */
+}
+
+.Quotation-delete-modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #3f2e18;
+    /* Dark brownish/red text */
+    margin: 0;
+}
+
+.Quotation-delete-close-btn {
+    background: transparent;
+    border: none;
+    color: #881337;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.Quotation-delete-modal-body {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: #4b5563;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.Quotation-delete-modal-footer {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.Quotation-btn-cancel {
+    background: white;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.Quotation-btn-delete-confirm {
+    background: #ef4444;
+    /* Red */
+    border: none;
+    color: white;
+    padding: 0.5rem 1.25rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(30, 41, 59, 0.2);
+}
+
+.Quotation-btn-delete-confirm:hover {
+    background: #334155;
+}
+
+/* Attachments List */
+.Quotation-attachment-list {
+    margin-top: 0.75rem;
+}
+
+/* Print Styles */
+@media print {
+    @page {
+        margin: 8mm 12mm !important;
+        size: A4 portrait;
+    }
+
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    /* Target modal body in react-to-print print window */
+    .Quotation-modal-body-scrollable,
+    .Quotation-modal-body-scrollable * {
+        visibility: visible !important;
+    }
+
+    .Quotation-modal-body-scrollable {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+
+    .Quotation-view-document {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+        width: 100% !important;
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+        color: #000000 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Hide standard interactive UI elements */
+    .Quotation-modal-header-simple,
+    .Quotation-modal-footer-simple,
+    .Quotation-btn-add-row,
+    .Quotation-btn-delete-row,
+    .Quotation-btn-upload-small,
+    .Quotation-btn-remove-file {
+        display: none !important;
+    }
+
+    /* Force background colors to print */
+    .Quotation-view-bill-to,
+    .Quotation-view-meta-table,
+    .Quotation-view-totals-row.Quotation-view-grand-total {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Header Spacing */
+    .Quotation-view-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+
+    .Quotation-view-logo-text {
+        font-size: 1.8rem !important;
+        margin: 0 !important;
+    }
+
+    .Quotation-view-company-name {
+        font-size: 1.1rem !important;
+        margin-bottom: 0.1rem !important;
+    }
+
+    .Quotation-view-company-info p {
+        margin: 0.05rem 0 !important;
+        font-size: 0.8rem !important;
+        color: #475569 !important;
+    }
+
+    .Quotation-view-meta {
+        flex: 0 0 250px !important;
+    }
+
+    .Quotation-view-title {
+        font-size: 1.6rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    .Quotation-view-meta-table {
+        margin-top: 0.25rem !important;
+        padding: 0.25rem 0.5rem !important;
+        border-radius: 6px !important;
+    }
+
+    .Quotation-view-meta-row {
+        padding: 0.2rem 0 !important;
+        font-size: 0.8rem !important;
+    }
+
+    .Quotation-view-divider {
+        margin: 0.5rem 0 !important;
+        border-color: #cbd5e1 !important;
+    }
+
+    /* Bill To Spacing */
+    .Quotation-view-bill-to {
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .Quotation-view-section-title {
+        font-size: 0.7rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    .Quotation-view-cust-name {
+        font-size: 0.95rem !important;
+        margin-bottom: 0.2rem !important;
+    }
+
+    .Quotation-view-customer-details p {
+        margin: 0.05rem 0 !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Items Table Spacing */
+    .Quotation-view-items-section {
+        margin-top: 0.5rem !important;
+    }
+
+    /* Format tables cleanly for print */
+    .Quotation-view-items-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-top: 0.25rem !important;
+    }
+
+    .Quotation-view-items-table th,
+    .Quotation-view-items-table td {
+        border: 1px solid #e2e8f0 !important;
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Bottom Grid Spacing */
+    .Quotation-view-bottom-grid {
+        display: grid !important;
+        grid-template-columns: 1.5fr 1fr !important;
+        gap: 1.5rem !important;
+        margin-top: 0.75rem !important;
+    }
+
+    .Quotation-view-sub-title {
+        font-size: 0.8rem !important;
+        margin-bottom: 0.4rem !important;
+        padding-bottom: 0.15rem !important;
+    }
+
+    .Quotation-view-bank-details,
+    .Quotation-view-notes,
+    .Quotation-view-terms {
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        margin-bottom: 0.4rem !important;
+    }
+
+    .Quotation-view-bank-details p {
+        margin: 0.1rem 0 !important;
+        font-size: 0.8rem !important;
+    }
+
+    .Quotation-view-notes p,
+    .Quotation-view-terms p {
+        font-size: 0.8rem !important;
+    }
+
+    /* Totals Box Spacing */
+    .Quotation-view-totals-box {
+        border-radius: 6px !important;
+        min-width: 240px !important;
+    }
+
+    .Quotation-view-totals-row {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    .Quotation-view-grand-total {
+        font-size: 0.95rem !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+
+    .Quotation-thank-you-note {
+        margin-top: 0.5rem !important;
+        padding-top: 0.4rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    .Quotation-view-bill-to,
+    .Quotation-view-items-table tr,
+    .Quotation-view-bottom-grid,
+    .Quotation-thank-you-note {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+}
+
+.Quotation-attachment-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+}
+
+.Quotation-attachment-name {
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.Quotation-btn-remove-file {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+}
+
+.Quotation-btn-remove-file:hover {
+    color: #dc2626;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Smaller (Max-width: 991px) */
+@media (max-width: 991.98px) {
+    .Quotation-quotation-page {
+        padding: 1rem;
+    }
+
+    .Quotation-meta-header-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .Quotation-customer-section-compact {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .Quotation-bottom-layout-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .Quotation-bottom-right-col {
+        justify-content: flex-start;
+    }
+
+    .Quotation-totals-box-container {
+        max-width: 100%;
+    }
+}
+
+/* Mobile (Max-width: 640px) */
+@media (max-width: 640.98px) {
+    .Quotation-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .Quotation-btn-add {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .Quotation-tracker-wrapper {
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .Quotation-tracker-divider {
+        display: none;
+    }
+
+    /* Modal Adjustments */
+    .Quotation-quotation-form-modal {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        max-width: 100%;
+    }
+
+    .Quotation-modal-header-simple {
+        padding: 1rem;
+    }
+
+    .Quotation-modal-body-scrollable {
+        padding: 1rem;
+    }
+
+    .Quotation-bottom-textareas-row {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .Quotation-meta-header-row {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .Quotation-customer-section-compact {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    /* Items Table Responsive */
+    .Quotation-table-responsive {
+        overflow-x: auto;
+    }
+
+    .Quotation-new-items-table {
+        min-width: 600px;
+        /* Ensure table doesn't squash */
+    }
+
+    .Quotation-totals-box {
+        width: 100%;
+    }
+
+    .Quotation-modal-footer-simple {
+        padding: 1rem;
+        flex-direction: column-reverse;
+    }
+
+    .Quotation-btn-plain,
+    .Quotation-btn-primary-green {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .Quotation-view-header {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .Quotation-view-meta {
+        width: 100%;
+    }
+
+    .Quotation-view-bottom-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .Quotation-view-totals-box {
+        max-width: 100% !important;
+    }
+}
+
+/* ==========================================
+   VIEW DOCUMENT MODE PREMIUM STYLES
+   ========================================== */
+
+.Quotation-view-document {
+    background: #ffffff;
+    font-family: 'Inter', sans-serif;
+    color: #1e293b;
+    padding: 0.5rem;
+}
+
+.Quotation-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+.Quotation-view-company {
+    flex: 1;
+}
+
+.Quotation-view-logo-text {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #1e293b;
+    letter-spacing: -1.5px;
+    margin: 0;
+}
+
+.Quotation-view-company-info p {
+    margin: 0.15rem 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.Quotation-view-meta {
+    flex: 0 0 300px;
+}
+
+.Quotation-view-title {
+    font-size: 2rem;
+    font-weight: 950;
+    color: #1e293b;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.Quotation-view-meta-table {
+    margin-top: 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+}
+
+.Quotation-view-meta-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.Quotation-view-meta-row:last-child {
+    border-bottom: none;
+}
+
+.Quotation-view-meta-row span:first-child {
+    font-weight: bold;
+    color: #475569;
+}
+
+.Quotation-view-meta-row span:last-child {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.Quotation-view-divider {
+    border: none;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 1.5rem 0;
+}
+
+.Quotation-view-bill-to {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.Quotation-view-section-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+.Quotation-view-cust-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 0.4rem 0;
+}
+
+.Quotation-view-customer-details p {
+    margin: 0.2rem 0;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.Quotation-view-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.Quotation-view-items-table th {
+    background: #f1f5f9;
+    color: #000000;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.Quotation-view-items-table td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+
+.Quotation-view-items-table tr:hover {
+    background: #f8fafc;
+}
+
+.Quotation-view-bottom-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2.5rem;
+    margin-top: 1.5rem;
+}
+
+.Quotation-view-sub-title {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #000;
+    border-bottom: 1.5px solid #1e293b;
+    padding-bottom: 0.25rem;
+    margin: 0 0 0.75rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.Quotation-view-bank-details,
+.Quotation-view-notes,
+.Quotation-view-terms {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.Quotation-view-bank-details p {
+    margin: 0.3rem 0;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.Quotation-view-bank-details p span {
+    font-weight: bold;
+    color: #64748b;
+    margin-right: 0.25rem;
+}
+
+.Quotation-view-notes p,
+.Quotation-view-terms p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.Quotation-view-totals-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.Quotation-view-totals-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #000000;
+}
+
+.Quotation-view-totals-row:last-child {
+    border-bottom: none;
+}
+
+.Quotation-view-grand-total {
+    background: #f8fafc;
+    border-top: 1.5px solid #e2e8f0;
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: #000;
+}
+
+/* Hide browser native number spinner controls (dropdown num wala) */
+.Quotation-qty-input::-webkit-outer-spin-button,
+.Quotation-qty-input::-webkit-inner-spin-button,
+.Quotation-rate-input::-webkit-outer-spin-button,
+.Quotation-rate-input::-webkit-inner-spin-button,
+.Quotation-tax-input::-webkit-outer-spin-button,
+.Quotation-tax-input::-webkit-inner-spin-button,
+.Quotation-discount-input::-webkit-outer-spin-button,
+.Quotation-discount-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.Quotation-qty-input[type="number"],
+.Quotation-rate-input[type="number"],
+.Quotation-tax-input[type="number"],
+.Quotation-discount-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* --- Premium Compact Full-Page Create Styles (Aligned with Invoice Page) --- */
+
+.Quotation-quotation-full-page-create {
+    min-height: 100vh;
+    background-color: #f8fafc;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 2rem;
+}
+
+.Quotation-btn-back {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    border: 1px solid #cbd5e1;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.Quotation-btn-back:hover {
+    color: #1e293b;
+    background: #334155;
+    border-color: #94a3b8;
+}
+
+.Quotation-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+}
+
+.Quotation-quotation-form-modal {
+    background: white !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    overflow: visible !important;
+    border: 1px solid #e2e8f0;
+}
+
+.Quotation-customer-select,
+.Quotation-form-select-compact {
+    height: 38px !important;
+    padding: 4px 12px !important;
+    font-size: 0.875rem !important;
+    line-height: 1.4 !important;
+    box-sizing: border-box !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    outline: none !important;
+}
+
+.Quotation-customer-select option {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    color: #1e293b;
+}

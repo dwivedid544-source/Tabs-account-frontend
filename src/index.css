@@ -1,0 +1,217 @@
+:root {
+    --primary: #1e293b;
+    --primary-hover: #334155;
+    --secondary: #f1f5f9;
+    --background: #f8fafc;
+    --surface: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --accent-light: #f1f5f9;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    --font-family: 'Poppins', 'Nunito Sans', system-ui, -apple-system, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--background);
+    color: var(--text-main);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+}
+
+input,
+select,
+textarea {
+    font-family: inherit;
+    outline: none;
+}
+
+.text-primary {
+    color: var(--primary);
+}
+
+.text-success {
+    color: var(--success) !important;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.bg-white {
+    background-color: var(--surface);
+}
+
+.shadow {
+    box-shadow: var(--shadow);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Disable outer and inner spin buttons in input[type="number"] */
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* ==========================================================================
+   Hide Google Translate Top Banner & Popups Completely
+   ========================================================================== */
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+iframe.skiptranslate,
+#goog-gt-tt,
+.goog-te-balloon-frame,
+.VIpgJd-yDtffd-Lg4t8b,
+.VIpgJd-yDtffd-Lg4t8b-span,
+.VIpgJd-yDtffd-Lg4t8b-gsl1,
+.VIpgJd-yDtffd-Lg4t8b-Lg4t8b,
+.goog-te-gadget,
+.goog-te-gadget-icon,
+.goog-te-gadget-simple,
+.goog-te-spinner-pos,
+#google_translate_element,
+img[src*="translate.googleapis.com"],
+img[src*="gstatic.com/images/branding/product/"],
+img[src*="google"],
+[class*="VIpgJd"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    overflow: hidden !important;
+}
+
+/* Exception for ZirakBook logo image */
+#zirak-logo, img#zirak-logo {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: 35px !important;
+    width: auto !important;
+    max-width: 100% !important;
+    max-height: 35px !important;
+    position: static !important;
+}
+
+body {
+    top: 0px !important;
+    position: static !important;
+}
+
+.goog-tooltip,
+.goog-tooltip:hover {
+    display: none !important;
+}
+
+.goog-text-highlight {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Global Slate / Grey Button Theme Overrides
+   ========================================================================== */
+.btn-success,
+.btn-primary,
+button.btn-success,
+button.btn-primary,
+button.btn-save,
+button.btn-create,
+button.btn-submit {
+    background-color: #1e293b !important;
+    border-color: #1e293b !important;
+    color: #ffffff !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.btn-success:hover,
+.btn-success:focus,
+.btn-primary:hover,
+.btn-primary:focus,
+button.btn-success:hover,
+button.btn-success:focus,
+button.btn-primary:hover,
+button.btn-primary:focus,
+button.btn-save:hover,
+button.btn-save:focus,
+button.btn-create:hover,
+button.btn-create:focus,
+button.btn-submit:hover,
+button.btn-submit:focus {
+    background-color: #334155 !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25) !important;
+}
+
+.btn-outline-success,
+button.btn-outline-success {
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    background-color: transparent !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+button.btn-outline-success:hover,
+button.btn-outline-success:focus {
+    background-color: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}

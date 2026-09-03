@@ -1,0 +1,395 @@
+/* Balance Sheet Styles */
+.bs-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.bs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.bs-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.bs-subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.bs-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.bs-date-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.bs-date-input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e293b;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+}
+
+.bs-btn-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.bs-btn-icon:hover {
+    background: #334155;
+    color: #1e293b;
+}
+
+.bs-btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    background: #1e293b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Sheet Layout */
+.bs-sheet-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .bs-sheet-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+.bs-col-header {
+    font-size: 1rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+    border-left: 4px solid;
+}
+
+.bs-col-header.assets {
+    border-left-color: #10b981;
+    color: #10b981;
+}
+
+.bs-col-header.liabilities {
+    border-left-color: #ef4444;
+    color: #ef4444;
+}
+
+.bs-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 0.5rem 0;
+}
+
+.bs-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.bs-section-header:first-child {
+    border-top: none;
+}
+
+.bs-section-header:hover {
+    background: #f1f5f9;
+}
+
+.bs-flex-center {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #475569;
+}
+
+.bs-section-title-text {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.bs-section-total {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.bs-section-content {
+    padding: 0.5rem 0;
+}
+
+.bs-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+}
+
+.bs-row:hover {
+    background: #fcfcfc;
+}
+
+.bs-row-name {
+    color: #64748b;
+}
+
+.clickable-row {
+    cursor: pointer !important;
+    transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+    background: #f1f5f9 !important;
+}
+
+.clickable-row:hover .bs-row-name {
+    color: #2563eb !important;
+    text-decoration: underline;
+}
+
+.bs-row-value {
+    color: #334155;
+    font-weight: 500;
+}
+
+.bs-divider {
+    height: 1rem;
+}
+
+.bs-total-row {
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+}
+
+.bs-total-row.sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed #e2e8f0;
+    font-weight: 600;
+    color: #475569;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.bs-total-row.main {
+    background: #1e293b;
+    color: white;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    margin-top: -1px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: auto;
+}
+
+.bs-row-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bs-label-total {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #cbd5e1;
+}
+
+.bs-total-amount {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #ffffff;
+}
+
+.bs-label-section {
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+
+/* Balance Status */
+.bs-status {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-left: 6px solid;
+    margin-top: 1rem;
+}
+
+.bs-status.status-balanced {
+    border-left-color: #10b981;
+}
+
+.bs-status.status-unbalanced {
+    border-left-color: #ef4444;
+}
+
+.bs-status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bs-status-icon.success {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.bs-status-icon.error {
+    background: #fee2e2;
+    color: #dc2626;
+    font-weight: 800;
+}
+
+.bs-status-text h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.05rem;
+    color: #1e293b;
+}
+
+.bs-status-text p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .bs-page {
+        padding: 1rem;
+    }
+
+    .bs-sheet-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .bs-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .bs-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .bs-date-wrapper {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .bs-btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .bs-btn-icon {
+        flex: 1;
+        /* Allow icons to grow or stay fixed depending on design preferance, here keep standard sizing but maybe center valid */
+    }
+
+    /* Sheet Content */
+    .bs-section-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .bs-row {
+        padding: 0.75rem 1rem;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .bs-row-value {
+        align-self: flex-end;
+        /* Align values to right */
+    }
+
+    .bs-total-row {
+        padding: 1rem;
+    }
+
+    .bs-total-row.main {
+        align-items: flex-start;
+    }
+
+    .bs-status {
+        flex-direction: column;
+        text-align: center;
+        padding: 1rem;
+    }
+}

@@ -1,0 +1,376 @@
+.company-dashboard {
+    padding: 1.5rem;
+    background-color: #f8fafe;
+    min-height: 100%;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* Metric Cards Grid (Top Row) */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* Increased shadow */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.metric-info h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 0.25rem 0;
+}
+
+.metric-info p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.metric-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+/* Specific icon background colors based on Image 1 icons */
+.icon-yellow {
+    background-color: #fef9c3;
+    color: #ca8a04;
+}
+
+.icon-green {
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.icon-blue {
+    background-color: #dbeafe;
+    color: #2563eb;
+}
+
+.icon-red {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+/* Secondary Metrics Grid (Customers, Vendors etc) */
+.secondary-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.secondary-card {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* Increased shadow */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.secondary-info h4 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 0.2rem 0;
+    color: var(--text-main);
+}
+
+.secondary-info span {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.secondary-icon {
+    color: #f59e0b;
+    /* Default accent logic from image 1 seems varied, but lets stick to a system */
+}
+
+/* Charts Section */
+.charts-section {
+    margin-bottom: 2rem;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* Increased shadow */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    height: 100%;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    /* The "Image 2" style vertical green line */
+    border-left: 4px solid #1e293b;
+    padding-left: 1rem;
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.chart-actions select {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    outline: none;
+}
+
+/* Sales Stats Specific Styles */
+.stats-summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding: 0 1rem;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 0.25rem 0;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+/* Grid for bottom widgets */
+.widgets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.full-width {
+    grid-column: span 2;
+}
+
+/* Lists (Top Selling, Recent Sales etc) */
+.list-card {
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    /* Padding handled in header/body */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* Increased shadow */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.list-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    /* Image 2 style marker */
+    border-left: 4px solid #ef4444;
+    /* Image 1 uses red for 'Top Selling' marker? Or stick to green? User said "design second image". Second image uses Green markers. I'll use Green for standard, but Image 1 has Dot markers. I will combine: Green Border Left as the primary "Card" style requested. */
+    border-left-color: #1e293b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.list-body {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.empty-message {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Recent Transactions List Styles */
+.recent-list {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.recent-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.recent-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.recent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.recent-desc {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.recent-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.recent-amount {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.text-success {
+    color: #10b981;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+/* Generic List Styles */
+.data-list {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.list-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    object-fit: cover;
+}
+
+.list-img-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+}
+
+.list-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.list-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.list-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.list-value {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 1200px) {
+
+    .metrics-grid,
+    .secondary-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .metrics-grid,
+    .secondary-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .widgets-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: span 1;
+    }
+}

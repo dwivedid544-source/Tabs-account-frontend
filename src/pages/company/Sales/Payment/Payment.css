@@ -1,0 +1,1472 @@
+/* Consistent with Premium Designs */
+.SalesPayment-payment-page {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.SalesPayment-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.SalesPayment-payment-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.SalesPayment-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.SalesPayment-page-subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.SalesPayment-btn-add {
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+}
+
+.SalesPayment-btn-add:hover {
+    background: #334155;
+}
+
+/* Process Tracker */
+.SalesPayment-process-tracker-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.SalesPayment-tracker-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.SalesPayment-tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+    z-index: 1;
+}
+
+.SalesPayment-step-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.SalesPayment-status-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: white;
+    border-radius: 50%;
+    padding: 1px;
+}
+
+.SalesPayment-step-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+/* Tracker States */
+.SalesPayment-tracker-step.SalesPayment-completed .SalesPayment-step-icon-wrapper {
+    background: #f8fafc;
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.SalesPayment-tracker-step.SalesPayment-completed .SalesPayment-step-label {
+    color: #10b981;
+}
+
+.SalesPayment-tracker-step.SalesPayment-completed .SalesPayment-status-badge {
+    color: #10b981;
+}
+
+.SalesPayment-tracker-step.SalesPayment-active .SalesPayment-step-icon-wrapper {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 4px rgba(30, 41, 59, 0.1);
+}
+
+.SalesPayment-tracker-step.SalesPayment-active .SalesPayment-step-label {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.SalesPayment-tracker-step.SalesPayment-active .SalesPayment-status-badge {
+    color: #1e293b;
+}
+
+.SalesPayment-tracker-divider {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    margin: 0 1rem;
+    margin-top: -24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e2e8f0;
+}
+
+.SalesPayment-tracker-divider.SalesPayment-active {
+    background: #1e293b;
+    color: #10b981;
+}
+
+/* Table Card */
+.SalesPayment-table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    margin-top: 1.5rem;
+}
+
+.SalesPayment-table-controls {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.SalesPayment-search-control {
+    position: relative;
+    max-width: 400px;
+}
+
+.SalesPayment-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.SalesPayment-search-input {
+    width: 100%;
+    padding: 0.6rem 0.6rem 0.6rem 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.SalesPayment-filter-date {
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.SalesPayment-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.SalesPayment-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Selection Step Styles */
+.SalesPayment-selection-container {
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.SalesPayment-modal-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.SalesPayment-selection-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+    max-width: 250px;
+}
+
+.SalesPayment-selection-search input {
+    border: none;
+    padding: 0.5rem 0;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+}
+
+.SalesPayment-customer-grid,
+.SalesPayment-invoice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.SalesPayment-selection-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.SalesPayment-selection-card:hover {
+    border-color: #1e293b;
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.SalesPayment-selection-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+}
+
+.SalesPayment-selection-card:hover .SalesPayment-selection-card-icon {
+    background: #1e293b;
+    color: white;
+}
+
+.SalesPayment-selection-card-info {
+    flex: 1;
+}
+
+.SalesPayment-selection-card-title {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.SalesPayment-selection-card-subtitle {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.SalesPayment-invoice-card {
+    justify-content: space-between;
+}
+
+.SalesPayment-amount-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.SalesPayment-amount-value {
+    font-weight: 800;
+    color: #ef4444;
+    font-size: 1rem;
+}
+
+.SalesPayment-no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    color: #94a3b8;
+    background: white;
+    border-radius: 8px;
+    border: 1px dashed #e2e8f0;
+}
+
+.SalesPayment-btn-text {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.SalesPayment-btn-text:hover {
+    text-decoration: underline;
+}
+
+.SalesPayment-table-container {
+    overflow-x: auto;
+}
+
+.SalesPayment-payment-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.SalesPayment-payment-table th {
+    text-align: left;
+    padding: 1rem;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.SalesPayment-payment-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+/* Modal */
+.SalesPayment-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.SalesPayment-payment-modal {
+    background: white;
+    width: 90vw;
+    max-width: 1000px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 90vh;
+}
+
+.SalesPayment-modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #fff;
+}
+
+.SalesPayment-modal-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.SalesPayment-modal-subtitle {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.SalesPayment-close-btn {
+    background: #f1f5f9;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.SalesPayment-close-btn:hover {
+    background: #334155;
+    color: #ef4444;
+}
+
+.SalesPayment-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+/* Invoice Selection */
+.SalesPayment-invoice-link-container {
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 2rem;
+}
+
+.SalesPayment-invoice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.SalesPayment-invoice-link-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.SalesPayment-invoice-link-card:hover {
+    border-color: #1e293b;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    background: #f8fafc;
+}
+
+.SalesPayment-i-card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.SalesPayment-i-id {
+    font-weight: 600;
+    color: #3b82f6;
+}
+
+.SalesPayment-i-customer {
+    font-weight: 700;
+    color: #1e293b;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+/* Form Styles */
+.SalesPayment-form-container {
+    /* max-width: 600px; */
+    margin: 0 auto;
+}
+
+.SalesPayment-company-info-readonly {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.SalesPayment-company-logo-fixed,
+.SalesPayment-logo-placeholder-fixed {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: 8px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem;
+}
+
+.SalesPayment-logo-placeholder-fixed {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: white;
+    border: none;
+    padding: 0;
+}
+
+.SalesPayment-brand-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.SalesPayment-company-name {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+}
+
+.SalesPayment-company-address {
+    font-size: 0.875rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+    word-wrap: break-word;
+}
+
+.SalesPayment-company-contact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #64748b;
+    flex-wrap: wrap;
+}
+
+.SalesPayment-contact-separator {
+    color: #cbd5e1;
+    font-weight: 300;
+}
+
+.SalesPayment-linked-indicator {
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #bfdbfe;
+}
+
+.SalesPayment-change-link-btn {
+    background: white;
+    border: 1px solid #93c5fd;
+    color: #1d4ed8;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.SalesPayment-change-link-btn:hover {
+    background: #334155;
+    border-color: #60a5fa;
+}
+
+.SalesPayment-form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+
+.SalesPayment-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+.SalesPayment-form-group {
+    margin-bottom: 0.5rem;
+}
+
+.SalesPayment-form-input,
+.SalesPayment-form-select,
+.SalesPayment-form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+    color: #1e293b;
+}
+
+.SalesPayment-form-input:disabled,
+.SalesPayment-form-textarea:disabled {
+    background: #f8fafc;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.SalesPayment-form-input:focus:not(:disabled),
+.SalesPayment-form-select:focus:not(:disabled),
+.SalesPayment-form-textarea:focus:not(:disabled) {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.SalesPayment-form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.SalesPayment-form-input:focus,
+.SalesPayment-form-select:focus,
+.SalesPayment-form-textarea:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.SalesPayment-modal-footer {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+}
+
+.SalesPayment-footer-right {
+    display: flex;
+    gap: 1rem;
+}
+
+.SalesPayment-btn-secondary {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.SalesPayment-btn-cancel {
+    background: transparent;
+    color: #64748b;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+}
+
+.SalesPayment-btn-submit {
+    color: #ffffff;
+    border: none;
+    padding: 0.6rem 2rem;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+}
+
+.SalesPayment-btn-submit:disabled {
+    background: #cbd5e1 !important;
+    color: white;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Action Buttons */
+.SalesPayment-action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.SalesPayment-btn-icon-edit,
+.SalesPayment-btn-icon-delete {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.SalesPayment-btn-icon-edit {
+    color: #64748b;
+}
+
+.SalesPayment-btn-icon-edit:hover {
+    background: #334155;
+    color: #3b82f6;
+}
+
+.SalesPayment-btn-icon-delete {
+    color: #cbd5e1;
+}
+
+.SalesPayment-btn-icon-delete:hover {
+    background: #334155;
+    color: #ef4444;
+}
+
+.SalesPayment-source-link {
+    color: #3b82f6;
+    font-weight: 600;
+    background: #eff6ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+/* Delete Modal */
+.SalesPayment-delete-modal-content {
+    background: white;
+    width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.SalesPayment-delete-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #fee2e2;
+    border-bottom: 1px solid #fecaca;
+}
+
+.SalesPayment-close-btn-simple {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.SalesPayment-delete-modal-body {
+    padding: 1.5rem;
+}
+
+.SalesPayment-delete-modal-footer {
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.SalesPayment-btn-plain {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.SalesPayment-btn-delete-confirm {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.SalesPayment-btn-delete-confirm:hover {
+    background: #334155;
+}
+
+/* View Mode Styles */
+.SalesPayment-view-mode-overlay {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.SalesPayment-view-mode-modal {
+    width: 95vw;
+    max-width: 1000px;
+    max-height: 95vh;
+    background: white;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.SalesPayment-view-mode-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.SalesPayment-view-mode-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.SalesPayment-view-mode-body {
+    padding: 0;
+    background: white;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Invoice View Template Styles - Matches Print Layout */
+.SalesPayment-invoice-view-template {
+    padding: 2.5rem;
+    background: white;
+    margin: 0 auto;
+    width: 100%;
+    box-shadow: none;
+}
+
+/* Make view mode look like printed document */
+.SalesPayment-view-mode-body .SalesPayment-invoice-view-template {
+    background: white;
+    color: #000;
+}
+
+.SalesPayment-invoice-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.SalesPayment-invoice-company-info {
+    flex: 1;
+}
+
+.SalesPayment-invoice-logo,
+.SalesPayment-invoice-logo-placeholder {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 1rem;
+    object-fit: contain;
+}
+
+.SalesPayment-invoice-logo-placeholder {
+    background: #f1f5f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #94a3b8;
+}
+
+.SalesPayment-invoice-company-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.SalesPayment-invoice-company-details {
+    font-size: 0.875rem;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+.SalesPayment-invoice-company-details p {
+    margin: 0.25rem 0;
+}
+
+.SalesPayment-invoice-meta-section {
+    text-align: right;
+}
+
+.SalesPayment-invoice-title {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.SalesPayment-invoice-meta-details {
+    font-size: 0.875rem;
+    color: #475569;
+    margin-bottom: 1rem;
+}
+
+.SalesPayment-invoice-meta-details p {
+    margin: 0.25rem 0;
+}
+
+.SalesPayment-invoice-meta-label {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.SalesPayment-invoice-qr-code {
+    margin-top: 1rem;
+}
+
+.SalesPayment-invoice-qr-code img {
+    width: 100px;
+    height: 100px;
+}
+
+/* Bill To & Ship To Sections */
+.SalesPayment-invoice-addresses-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 2rem;
+    padding-top: 1.5rem;
+}
+
+.SalesPayment-invoice-bill-to-section,
+.SalesPayment-invoice-ship-to-section {
+    flex: 1;
+}
+
+.SalesPayment-invoice-section-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.SalesPayment-invoice-customer-name {
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.SalesPayment-invoice-customer-address,
+.SalesPayment-invoice-customer-city {
+    color: #475569;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 0.25rem;
+}
+
+/* Items Table */
+.SalesPayment-invoice-items-section {
+    margin: 2rem 0;
+}
+
+.SalesPayment-invoice-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.SalesPayment-invoice-items-table thead {
+    background: #1e293b;
+}
+
+.SalesPayment-invoice-items-table th {
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.SalesPayment-invoice-items-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.SalesPayment-invoice-items-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Totals Section */
+.SalesPayment-invoice-totals-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: 2rem;
+    margin-left: auto;
+    width: 300px;
+}
+
+.SalesPayment-invoice-total-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.SalesPayment-invoice-total-label {
+    font-weight: 500;
+}
+
+.SalesPayment-invoice-total-value {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.SalesPayment-invoice-total-final {
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid #e2e8f0;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+/* Notes Section */
+.SalesPayment-invoice-notes-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.SalesPayment-invoice-notes-text {
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-top: 0.5rem;
+}
+
+/* Payment Information Section */
+.SalesPayment-invoice-payment-info-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.SalesPayment-invoice-payment-details {
+    margin-top: 1rem;
+}
+
+.SalesPayment-payment-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.SalesPayment-payment-detail-label {
+    font-weight: 500;
+    color: #64748b;
+}
+
+.SalesPayment-payment-detail-value {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.SalesPayment-payment-status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.SalesPayment-payment-status-badge.SalesPayment-paid {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.SalesPayment-payment-status-badge.SalesPayment-unpaid {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.SalesPayment-payment-status-badge.SalesPayment-partial {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Receipt Format Specifics */
+.SalesPayment-receipt-amount-box {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.SalesPayment-receipt-amount-text {
+    font-size: 1rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.SalesPayment-receipt-amount-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #334155;
+}
+
+.SalesPayment-receipt-signature-section {
+    margin-top: 4rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.SalesPayment-receipt-signature-box {
+    width: 200px;
+    text-align: center;
+}
+
+.SalesPayment-receipt-signature-line {
+    border-top: 1px solid #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.SalesPayment-receipt-signature-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+/* Print Styles */
+@media print {
+
+    /* Set body to hidden but printable area to visible */
+    body {
+        visibility: hidden !important;
+        background: white !important;
+    }
+
+    /* Target the specific print container */
+    #invoice-print-content,
+    #invoice-print-content * {
+        visibility: visible !important;
+    }
+
+    /* Position the printable area at the absolute top-left of the physical page */
+    #invoice-print-content {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 2rem !important;
+        background: white !important;
+        display: block !important;
+    }
+
+    /* Hide any UI elements that might accidentally show up */
+    .SalesPayment-modal-header,
+    .SalesPayment-modal-footer,
+    .SalesPayment-view-mode-header,
+    .SalesPayment-view-mode-actions,
+    .SalesPayment-no-print,
+    .SalesPayment-close-btn {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Ensure table colors print correctly */
+    .SalesPayment-invoice-items-table thead {
+        background-color: #f8fafc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .SalesPayment-invoice-items-table th {
+        color: #1e293b !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Fix page breaks */
+    .SalesPayment-invoice-header-section,
+    .SalesPayment-invoice-addresses-section,
+    .SalesPayment-receipt-amount-box,
+    .SalesPayment-invoice-items-section,
+    .SalesPayment-invoice-payment-info-section,
+    .SalesPayment-receipt-signature-section {
+        page-break-inside: avoid;
+    }
+}
+
+.SalesPayment-payment-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-view {
+    background-color: #f59e0b;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-view:hover {
+    background-color: #334155;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-edit {
+    background-color: #3b82f6;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-edit:hover {
+    background-color: #334155;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-delete {
+    background-color: #f43f5e;
+}
+
+.SalesPayment-payment-action-btn.SalesPayment-delete:hover {
+    background-color: #334155;
+}
+
+.SalesPayment-payment-action-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: white;
+    display: block;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .SalesPayment-payment-page {
+        padding: 1rem;
+    }
+
+    .SalesPayment-form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .SalesPayment-invoice-addresses-section {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
+
+/* Mobile (max-width: 640px) */
+@media (max-width: 640.98px) {
+    .SalesPayment-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .SalesPayment-payment-action-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .SalesPayment-btn-add {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Process Tracker */
+    .SalesPayment-tracker-wrapper {
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .SalesPayment-tracker-divider {
+        display: none;
+    }
+
+    /* Table */
+    .SalesPayment-table-container {
+        overflow-x: auto;
+    }
+
+    /* Modal */
+    .SalesPayment-payment-modal {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .SalesPayment-modal-header {
+        padding: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .SalesPayment-modal-body {
+        padding: 1rem;
+    }
+
+    .SalesPayment-company-info-readonly {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .SalesPayment-linked-indicator {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .SalesPayment-change-link-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .SalesPayment-invoice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .SalesPayment-modal-footer {
+        flex-direction: column-reverse;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .SalesPayment-footer-right {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .SalesPayment-btn-secondary,
+    .SalesPayment-btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .SalesPayment-btn-cancel {
+        width: 100%;
+    }
+
+    /* View Mode Mobile */
+    .SalesPayment-view-mode-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    .SalesPayment-view-mode-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .SalesPayment-invoice-view-template {
+        padding: 1rem;
+    }
+
+    .SalesPayment-invoice-header-section {
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .SalesPayment-invoice-meta-section {
+        text-align: left;
+    }
+
+    .SalesPayment-invoice-totals-section {
+        width: 100%;
+        align-items: flex-start;
+    }
+}
+
+/* Hide number input spinners/arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Full-Page Create/Edit/View Container for Payment */
+.SalesPayment-sales-order-full-page-create {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin: 0 auto;
+    width: 100%;
+}
+
+.SalesPayment-view-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}

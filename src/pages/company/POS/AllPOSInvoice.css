@@ -1,0 +1,982 @@
+/* Scoped CSS for POS Invoices Page */
+
+.posinv-page-root {
+    padding: 1.5rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Header Section */
+.posinv-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.posinv-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.posinv-btn-icon-back {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.posinv-btn-icon-back:hover {
+    background: #334155;
+    color: #0f172a;
+    transform: translateX(-2px);
+}
+
+.posinv-page-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.025em;
+}
+
+.posinv-page-desc {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.posinv-btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s;
+}
+
+.posinv-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+}
+
+/* Filter Layer */
+.posinv-filter-layer {
+    background: white;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.posinv-search-container {
+    position: relative;
+    flex: 1;
+    min-width: 260px;
+    max-width: 400px;
+}
+
+.posinv-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.posinv-search-input {
+    width: 100%;
+    padding: 0.625rem 1rem 0.625rem 2.5rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.posinv-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.posinv-date-filters {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.posinv-date-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.posinv-date-input {
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.85rem;
+    outline: none;
+    color: #1e293b;
+    background: #f8fafc;
+    transition: all 0.2s;
+}
+
+.posinv-date-input:focus {
+    border-color: #2563eb;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.posinv-btn-clear {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.posinv-btn-clear:hover {
+    background: #334155;
+    color: #0f172a;
+}
+
+/* List Card */
+.posinv-list-card {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.posinv-table-scroll {
+    overflow-x: auto;
+}
+
+.posinv-main-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.posinv-main-table th {
+    background: #f8fafc;
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.posinv-row {
+    transition: background 0.2s;
+}
+
+.posinv-row:hover {
+    background: #f8fafc;
+}
+
+.posinv-main-table td {
+    padding: 1.125rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.875rem;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.posinv-cell-bold {
+    font-weight: 700;
+    color: #0f172a !important;
+}
+
+.posinv-cell-customer {
+    font-weight: 500;
+}
+
+.posinv-cell-amount {
+    font-weight: 600;
+}
+
+.posinv-cell-paid {
+    color: #334155;
+    font-weight: 600;
+}
+
+.posinv-cell-due {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* Badges */
+.posinv-badge {
+    padding: 0.25rem 0.625rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.posinv-badge-paid {
+    background: #f8fafc;
+    color: #334155;
+}
+
+.posinv-badge-partial {
+    background: #fff7ed;
+    color: #d97706;
+}
+
+.posinv-badge-returned {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+.posinv-badge-partial-returned {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+/* Actions */
+.posinv-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.posinv-action-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.posinv-view-btn {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.posinv-view-btn:hover {
+    background: #334155;
+    color: #1e293b;
+}
+
+.posinv-void-btn {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+.posinv-void-btn:hover {
+    background: #334155;
+    color: #dc2626;
+}
+
+/* View Mode / Receipt Detail */
+.posinv-view-root {
+    background: #ffffff;
+    min-height: 100vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.posinv-top-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 1.5rem 3rem;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 1.5rem;
+}
+
+.posinv-btn-back-square {
+    width: 42px;
+    height: 42px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.posinv-btn-back-square:hover {
+    background: #334155;
+    color: #0f172a;
+    transform: translateX(-4px);
+}
+
+.posinv-header-info {
+    flex: 1;
+}
+
+.posinv-title-main {
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.posinv-subtitle {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.posinv-btn-print-action {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 0.65rem 1.15rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.posinv-receipt-card {
+    width: 100%;
+    background: white;
+    padding: 50px 80px;
+    box-shadow: none;
+    min-height: calc(100vh - 80px);
+}
+
+.posinv-receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.posinv-receipt-title {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.04em;
+}
+
+.posinv-receipt-badge {
+    background: #f1f5f9;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 700;
+    color: #475569;
+    font-size: 0.875rem;
+}
+
+.posinv-receipt-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* Grid Info */
+.posinv-receipt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.posinv-grid-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.posinv-value-bold {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.posinv-value-sub {
+    color: #64748b;
+    margin: 0;
+}
+
+.posinv-status-tag {
+    color: #2563eb;
+    font-weight: 700;
+}
+
+/* Receipt Table */
+.posinv-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 3rem;
+}
+
+.posinv-preview-table th {
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.posinv-preview-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.posinv-item-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.posinv-item-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.posinv-item-total {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.posinv-center { text-align: center; }
+.posinv-right { text-align: right; }
+
+/* Summary */
+.posinv-receipt-footer {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 4rem;
+}
+
+.posinv-notes-section label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #0f172a;
+}
+
+.posinv-notes-section p {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.posinv-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.posinv-grand-total {
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid #0f172a;
+    font-size: 1.25rem;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+}
+
+.posinv-summary-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 1rem 0;
+}
+
+.posinv-paid-row span:last-child {
+    color: #334155;
+    font-weight: 700;
+}
+
+.posinv-due-row span:last-child {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+/* Empty State */
+.posinv-empty {
+    padding: 5rem 0;
+}
+
+.posinv-empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #94a3b8;
+    gap: 1rem;
+}
+
+/* Text alignment helpers */
+.posinv-text-right { text-align: right; }
+
+/* Printing Logic */
+@media print {
+    /* Hide everything on the body */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Force show the POS receipt and all its internal elements */
+    .posinv-receipt-card,
+    .posinv-receipt-card * {
+        visibility: visible !important;
+    }
+
+    /* Position the receipt precisely at the top-left of the printed page */
+    .posinv-receipt-card {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        min-height: auto !important;
+    }
+
+    /* Remove the fixed header bars and other UI elements from print */
+    .no-print, 
+    .posinv-top-bar, 
+    .posinv-main-header, 
+    .posinv-filter-layer,
+    .posinv-view-root::before {
+        display: none !important;
+    }
+
+    /* Force the Bill To and Ship To addresses to be in the same row */
+    .Invoice-invoice-addresses {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        gap: 0 !important;
+        width: 100% !important;
+    }
+
+    .Invoice-invoice-bill-to,
+    .Invoice-invoice-ship-to {
+        width: 48% !important;
+        display: block !important;
+    }
+
+    /* Ensure text alignment stays consistent in print */
+    .Invoice-invoice-ship-to {
+        text-align: right !important;
+    }
+
+    /* Ensure background colors and images are included in the print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* ==========================================================================
+   UNIQUE DELETE CONFIRMATION MODAL STYLES (POSINV-Unique-Delete)
+   ========================================================================== */
+
+.POSINV-unique-delete-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    padding: 1.5rem;
+    animation: POSINVFadeIn 0.3s ease-out;
+}
+
+.POSINV-unique-delete-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    animation: POSINVSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.POSINV-unique-delete-header {
+    padding: 1.75rem 2rem 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.POSINV-unique-delete-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.025em;
+    margin: 0;
+}
+
+.POSINV-unique-delete-close {
+    background: #f1f5f9;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.POSINV-unique-delete-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: rotate(90deg);
+}
+
+.POSINV-unique-delete-body {
+    padding: 0 2rem 2rem 2rem;
+}
+
+.POSINV-unique-delete-message {
+    font-size: 1rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.POSINV-unique-delete-footer {
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    display: flex;
+    gap: 1rem;
+    justify-content: stretch;
+}
+
+.POSINV-unique-delete-btn {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.POSINV-unique-delete-cancel {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+}
+
+.POSINV-unique-delete-cancel:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
+    transform: translateY(-2px);
+}
+
+.POSINV-unique-delete-confirm {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 10px 15px -3px rgba(30, 41, 59, 0.3);
+}
+
+.POSINV-unique-delete-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(30, 41, 59, 0.4);
+}
+
+.POSINV-unique-delete-confirm:active {
+    transform: translateY(0);
+}
+
+@keyframes POSINVFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes POSINVSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ==========================================================================
+   COLLECT PAYMENT MODAL STYLES (POSINV-Payment)
+   ========================================================================== */
+
+.POSINV-payment-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    padding: 1.5rem;
+    overflow-y: auto;
+    animation: POSINVFadeIn 0.3s ease-out;
+}
+
+.POSINV-payment-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    animation: POSINVSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.POSINV-payment-header {
+    padding: 1.75rem 2rem 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.POSINV-payment-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.025em;
+    margin: 0;
+}
+
+.POSINV-payment-close {
+    background: #f1f5f9;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.POSINV-payment-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: rotate(90deg);
+}
+
+.POSINV-payment-body {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+@media (max-width: 480px) {
+    .POSINV-payment-modal {
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+    .POSINV-payment-body {
+        padding: 1.25rem;
+    }
+    .POSINV-payment-header {
+        padding: 1.25rem;
+    }
+    .POSINV-payment-footer {
+        padding: 1.25rem;
+    }
+}
+
+.POSINV-payment-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.POSINV-payment-info-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.POSINV-payment-info-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.POSINV-payment-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.POSINV-payment-field label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    text-align: left;
+}
+
+.POSINV-payment-input,
+.POSINV-payment-select {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s;
+    background-color: #ffffff;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.POSINV-payment-input:focus,
+.POSINV-payment-select:focus {
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.15);
+}
+
+.POSINV-payment-footer {
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    display: flex;
+    gap: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.POSINV-payment-btn-cancel {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.POSINV-payment-btn-cancel:hover {
+    background: #334155;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.POSINV-payment-btn-submit {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border: none;
+    color: #ffffff;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.POSINV-payment-btn-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(30, 41, 59, 0.35);
+}
+
+.POSINV-payment-btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

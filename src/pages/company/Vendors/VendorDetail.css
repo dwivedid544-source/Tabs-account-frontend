@@ -1,0 +1,621 @@
+.VendorDetail-vendor-detail-page {
+    padding: 1.5rem;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.VendorDetail-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.VendorDetail-page-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+
+.VendorDetail-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.VendorDetail-btn-action {
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.VendorDetail-btn-icon {
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.VendorDetail-bg-green {
+    background-color: #1e293b;
+}
+
+.VendorDetail-bg-cyan {
+    background-color: #00bcd4;
+}
+
+.VendorDetail-bg-red {
+    background-color: #f53d5d;
+}
+
+.VendorDetail-bg-blue {
+    background-color: #2196f3;
+}
+
+.VendorDetail-bg-orange {
+    background-color: #ff9800;
+}
+
+.VendorDetail-bg-gray {
+    background-color: #607d8b;
+}
+
+.VendorDetail-info-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.VendorDetail-info-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.VendorDetail-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 0.75rem;
+}
+
+.VendorDetail-card-content .VendorDetail-primary-text {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+}
+
+.VendorDetail-card-content .VendorDetail-secondary-text {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 0.4rem;
+    line-height: 1.4;
+}
+
+.VendorDetail-address-text {
+    max-width: 250px;
+}
+
+/* Company Info Card */
+.VendorDetail-company-info-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.VendorDetail-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.VendorDetail-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.VendorDetail-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+}
+
+.VendorDetail-item-label {
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
+.VendorDetail-item-value {
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.VendorDetail-text-bold {
+    font-weight: 700;
+}
+
+.VendorDetail-text-red {
+    color: #f53d5d;
+}
+
+/* Detail Sections */
+.VendorDetail-detail-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.VendorDetail-section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 1.5rem;
+}
+
+.VendorDetail-table-responsive {
+    overflow-x: auto;
+}
+
+.VendorDetail-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.VendorDetail-detail-table th {
+    text-align: left;
+    padding: 1rem;
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.VendorDetail-detail-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.85rem;
+    color: #4b5563;
+}
+
+.VendorDetail-id-badge {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #1e293b;
+    color: #1e293b;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.VendorDetail-table-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.VendorDetail-table-icon-btn {
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.VendorDetail-table-icon-btn:hover,
+.VendorDetail-btn-action:hover,
+.VendorDetail-btn-icon:hover {
+    opacity: 0.85;
+}
+
+/* Tabs Section */
+.VendorDetail-tabs-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.VendorDetail-tabs-header {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.VendorDetail-tab-btn {
+    padding: 1rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    border-right: 1px solid #e2e8f0;
+}
+
+.VendorDetail-tab-btn:hover {
+    color: #1e293b;
+    background: #334155;
+}
+
+.VendorDetail-tab-btn.active {
+    color: #1e293b;
+    background: #ffffff;
+    box-shadow: inset 0 -2px 0 #1e293b;
+}
+
+.VendorDetail-section-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.VendorDetail-btn-outline-small {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+/* Ledger & Vouchers */
+.statement-table th {
+    background: #f1f5f9;
+}
+
+.VendorDetail-voucher-tag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.VendorDetail-voucher-tag.purchase,
+.VendorDetail-voucher-tag.bill {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.VendorDetail-voucher-tag.payment {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.VendorDetail-voucher-tag.purchase-return,
+.VendorDetail-voucher-tag.debit-note {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.VendorDetail-voucher-tag.journal {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.VendorDetail-status-pill {
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.VendorDetail-status-pill.unpaid,
+.VendorDetail-status-pill.pending {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.VendorDetail-status-pill.partial,
+.VendorDetail-status-pill.partially-paid {
+    background: #fef9c3;
+    color: #a16207;
+}
+
+.VendorDetail-status-pill.paid,
+.VendorDetail-status-pill.received,
+.VendorDetail-status-pill.accepted {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.text-red-600 {
+    color: #dc2626;
+}
+
+.text-green-600 {
+    color: #334155;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Filters Bar Styling */
+.VendorDetail-filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.VendorDetail-filters-bar .flex {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.VendorDetail-filters-bar label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.VendorDetail-filters-bar input[type="date"],
+.VendorDetail-filters-bar input[type="text"] {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: #1e293b;
+    background-color: white;
+    transition: all 0.2s;
+}
+
+.VendorDetail-filters-bar input:focus {
+    outline: none;
+    border-color: #1e293b;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+@media (max-width: 640px) {
+    .VendorDetail-filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .VendorDetail-filters-bar .flex-1 {
+        width: 100%;
+    }
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
+
+.mt-8 {
+    margin-top: 2rem;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem;
+}
+
+@media print {
+    /* 1. Global Hierarchy Reset - Force all parents to be visible and unconstrained */
+    html, body, #root, 
+    .layout-container, 
+    .main-content, 
+    .page-content, 
+    .VendorDetail-vendor-detail-page {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: #fff !important;
+        float: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 2. Hide everything except our target components */
+    .no-print, 
+    .Sidebar, .sidebar, 
+    .Navbar, .navbar, .navbar-container,
+    .sidebar-overlay, .Toaster, .no-print-section,
+    .VendorDetail-tabs-container,
+    .VendorDetail-detail-header,
+    .VendorDetail-info-cards-grid,
+    .VendorDetail-company-info-card,
+    .VendorDetail-detail-section {
+        display: none !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        visibility: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 3. Show our designated Printable Statement */
+    .printable-only, #printable-statement {
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+        background: white !important;
+        color: black !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #printable-statement * {
+        visibility: visible !important;
+    }
+
+    /* 4. Layout for Print */
+    .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #333;
+    }
+
+    .company-info {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .print-logo {
+        height: 80px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    .company-text h2 {
+        font-size: 24px;
+        margin: 0 0 5px 0;
+        text-transform: uppercase;
+        color: #000;
+    }
+
+    .company-text p {
+        margin: 2px 0;
+        font-size: 11px;
+        color: #444;
+    }
+
+    .statement-title {
+        text-align: right;
+    }
+
+    .statement-title h1 {
+        font-size: 20px;
+        margin: 0 0 5px 0;
+        color: #000;
+    }
+
+    .print-customer-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        background: #f9fafb;
+        padding: 15px;
+        border: 1px solid #eee;
+    }
+
+    .info-block h3 {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #666;
+        margin: 0 0 8px 0;
+    }
+
+    .info-block p {
+        margin: 3px 0;
+        font-size: 12px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        margin-bottom: 5px;
+        font-size: 12px;
+    }
+
+    .summary-row.closing {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #ddd;
+        font-size: 14px;
+    }
+
+    /* 5. Professional Table for Print */
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+    }
+
+    .print-table th {
+        background: #eee !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 10px;
+        text-align: left;
+        font-size: 11px;
+        border: 1px solid #000;
+    }
+
+    .print-table td {
+        padding: 10px;
+        border: 1px solid #000;
+        font-size: 11px;
+    }
+
+    .print-footer {
+        margin-top: 50px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        text-align: center;
+        font-size: 10px;
+        color: #888;
+    }
+
+    .bold { font-weight: bold; }
+    .italic { font-style: italic; }
+}
+
+.printable-only {
+    display: none;
+}

@@ -1,0 +1,54 @@
+/* Overlay for Mobile */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+    /* Just below sidebar (1050) but above everything else */
+    backdrop-filter: blur(2px);
+    transition: opacity 0.3s ease;
+}
+
+.layout-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--background);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.3s ease;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.main-content.sidebar-open {
+    margin-left: 260px;
+}
+
+.main-content.sidebar-closed {
+    margin-left: 80px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+
+    .main-content.sidebar-open,
+    .main-content.sidebar-closed {
+        margin-left: 0 !important;
+        /* Don't push content on mobile/tablet */
+    }
+}
+
+.page-content {
+   
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+}

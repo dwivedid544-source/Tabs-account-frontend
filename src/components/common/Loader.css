@@ -1,0 +1,119 @@
+:root {
+  --loader-primary: #007bff;
+  --loader-bg: rgba(255, 255, 255, 0.85);
+  --loader-text: #1a1a1a;
+  --loader-accent: rgba(0, 123, 255, 0.4);
+}
+
+[data-theme='dark'] {
+  --loader-bg: rgba(10, 10, 10, 0.9);
+  --loader-text: #ffffff;
+}
+
+.global-loader-container {
+  position: fixed;
+  /* Default values, will be overridden by inline styles if sidebar is open/closed */
+  top: var(--loader-top, 70px);
+  left: var(--loader-left, 260px);
+  width: calc(100vw - var(--loader-left, 260px));
+  height: calc(100vh - var(--loader-top, 70px));
+  background: var(--loader-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 500;
+  /* High enough for modals in the content area */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.4s ease-in-out, left 0.3s ease, width 0.3s ease;
+}
+
+@media (max-width: 991.98px) {
+  .global-loader-container {
+    left: 0;
+    width: 100vw;
+    top: var(--loader-top, 64px);
+    height: calc(100vh - var(--loader-top, 64px));
+  }
+}
+
+.loader-content {
+  text-align: center;
+  scale: 1.2;
+}
+
+.loader-logo {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  color: var(--loader-text);
+}
+
+.text-zirak {
+  color: #1e293b;
+}
+
+.text-book {
+  color: #000000;
+}
+
+[data-theme='dark'] .text-book {
+  color: #ffffff;
+  /* Visibility in dark mode */
+}
+
+.cursor {
+  font-weight: 300;
+  color: #1e293b;
+  animation: blink 0.8s infinite;
+}
+
+.loader-bar-container {
+  width: 200px;
+  height: 4px;
+  background: rgba(30, 41, 59, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.loader-bar {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #1e293b, transparent);
+  animation: loading-bar 1.5s infinite linear;
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.fade-in {
+  opacity: 1;
+}
+
+.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}

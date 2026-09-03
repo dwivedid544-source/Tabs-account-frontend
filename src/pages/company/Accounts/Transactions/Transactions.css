@@ -1,0 +1,665 @@
+/* Reusing styles from Customers.css for consistency */
+/* @import '../../Customers/Customers.css'; */
+/* Commented out import to ensure full control over this page's style without conflicts */
+
+.transactions-page {
+    padding: 2rem;
+    background-color: #f3f4f6;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    background: #1e293b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.export-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    min-width: 180px;
+    overflow: hidden;
+}
+
+.export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 0.85rem;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.export-menu button:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.export-menu button:not(:last-child) {
+    border-bottom: 1px solid #f9fafb;
+}
+
+.transactions-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Controls Row */
+.controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.entries-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.date-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.date-input-clean {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1f2937;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.entries-select {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: white;
+    color: #374151;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.entries-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-control {
+    position: relative;
+    width: 300px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    /* Space for icon if added in JSX */
+    padding-left: 1rem;
+    /* Adjust if no icon inside input, but component puts explicit Search icon outside? */
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s;
+    background-color: #f9fafb;
+}
+
+.search-input:focus {
+    background-color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Table Styles */
+.transactions-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.transactions-table th {
+    text-align: left;
+    padding: 1rem;
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap !important;
+}
+
+.transactions-table th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.transactions-table th:last-child {
+    border-top-right-radius: 8px;
+}
+
+.transactions-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+    color: #1f2937;
+    vertical-align: middle;
+    white-space: nowrap !important;
+}
+
+.transactions-table tr:hover td {
+    background-color: #f9fafb;
+}
+
+.voucher-badge {
+    border: 1px solid #1e293b;
+    color: #1e293b;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: inline-block;
+}
+
+.note-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text-success {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.text-danger {
+    color: #ff5252;
+    font-weight: 600;
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    box-sizing: border-box;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-view {
+    background-color: #ffb74d;
+    color: white;
+}
+
+.btn-view:hover {
+    background-color: #334155;
+    transform: translateY(-1px);
+}
+
+.btn-edit {
+    background-color: #e0e7ff;
+    color: #4f46e5;
+}
+
+.btn-edit:hover {
+    background-color: #334155;
+    transform: translateY(-1px);
+}
+
+.btn-delete {
+    background-color: #f06292;
+    color: white;
+}
+
+/* STatus Badges */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-block;
+    letter-spacing: 0.3px;
+    text-transform: capitalize;
+    /* Ensure Debit/Credit looks normal */
+}
+
+.status-debit {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+}
+
+.status-credit {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.transactions-table td.note-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #6b7280;
+}
+
+.voucher-type-cell {
+    text-transform: capitalize;
+}
+
+/* Modal Styles */
+.txn-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    overflow-y: auto !important;
+    padding: 20px 10px;
+}
+
+.txn-modal-card {
+    background: white;
+    padding: 0;
+    border-radius: 8px;
+    width: 600px;
+    max-width: 90%;
+    max-height: 90vh !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.txn-modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.txn-modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #1f2937;
+}
+
+.txn-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.txn-close-btn:hover {
+    background-color: #334155;
+    color: #374151;
+}
+
+.txn-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto !important;
+    flex: 1 !important;
+}
+
+.txn-detail-row {
+    display: flex;
+    margin-bottom: 1rem;
+    align-items: center;
+    border-bottom: 1px solid #f9fafb;
+    padding-bottom: 0.5rem;
+}
+
+.txn-detail-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.txn-detail-label {
+    width: 140px;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.txn-detail-value {
+    color: #111827;
+    font-size: 0.95rem;
+    flex: 1;
+}
+
+.txn-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    background-color: #f9fafb;
+}
+
+.txn-btn-close {
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.txn-btn-close:hover {
+    background-color: #334155;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Mobile Layout (max-width: 991px) */
+@media (max-width: 991.98px) {
+    .transactions-page {
+        padding: 1rem;
+    }
+
+    .controls-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+}
+
+/* Mobile Specific (max-width: 640px) */
+@media (max-width: 640.98px) {
+
+    /* Header */
+    .page-header {
+        text-align: left;
+        margin-bottom: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .export-dropdown-wrapper,
+    .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    /* Controls */
+    .entries-control {
+        justify-content: space-between;
+    }
+
+    .search-control {
+        width: 100%;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    /* Table */
+    .transactions-card {
+        padding: 0;
+        /* Remove padding to maximize space for table */
+        overflow: hidden;
+    }
+
+    .transactions-table {
+        display: table !important;
+        width: 100% !important;
+    }
+
+    .transactions-table th,
+    .transactions-table td {
+        white-space: nowrap;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Modal */
+    .txn-modal-card {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .txn-modal-body {
+        overflow-y: auto;
+    }
+
+    .txn-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .txn-detail-label {
+        width: auto;
+        font-size: 0.85rem;
+    }
+
+    .txn-detail-value {
+        font-size: 1rem;
+    }
+}
+
+/* ============================
+   PAGINATION STYLES
+   ============================ */
+.pagination-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 1.5rem;
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pagination-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #e5e7eb;
+    background-color: white;
+    color: #374151;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.pagination-btn.active {
+    background-color: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Pagination Responsive */
+@media (max-width: 640.98px) {
+    .pagination-row {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+        text-align: center;
+    }
+
+    .pagination-controls {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        /* Handle many pages if needed */
+    }
+}
+
+/* ============================
+   PRINT MEDIA STYLES
+   ============================ */
+@media print {
+    /* Hide layout chrome and controls */
+    .sidebar,
+    .navbar,
+    .page-header .header-actions,
+    .sticky-filter-panel,
+    .pagination-row,
+    .export-dropdown-wrapper {
+        display: none !important;
+    }
+
+    body,
+    .main-content,
+    .transactions-page,
+    .transactions-card {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        box-shadow: none !important;
+    }
+
+    .table-responsive {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .transactions-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    .transactions-table th {
+        background-color: #f1f5f9 !important;
+        color: #1e293b !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .transactions-table td {
+        border: 1px solid #cbd5e1 !important;
+        white-space: nowrap !important;
+    }
+}

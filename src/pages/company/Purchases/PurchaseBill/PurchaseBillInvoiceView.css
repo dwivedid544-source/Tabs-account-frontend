@@ -1,0 +1,258 @@
+/* Invoice View Styles - Clean Professional Layout */
+.PBILL-invoice-view-container {
+    padding: 60px;
+    background: white;
+    width: 100%;
+    margin: 0 auto;
+    color: #1e293b;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Invoice Header */
+.PBILL-invoice-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 60px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.PBILL-invoice-company-section {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.PBILL-invoice-logo {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+}
+
+.PBILL-invoice-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.PBILL-invoice-company-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.PBILL-invoice-company-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+}
+
+.PBILL-invoice-company-text {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.PBILL-invoice-meta-section {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.PBILL-invoice-title {
+    font-size: 32px;
+    font-weight: 900;
+    color: #1e293b;
+    margin: 0 0 16px 0;
+    letter-spacing: 2px;
+}
+
+.PBILL-invoice-meta-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.PBILL-invoice-meta-details p {
+    margin: 0;
+    color: #475569;
+}
+
+.PBILL-invoice-meta-label {
+    font-weight: 600;
+    color: #64748b;
+    margin-right: 8px;
+}
+
+.PBILL-invoice-qr-code {
+    margin-top: 12px;
+}
+
+.PBILL-invoice-qr-code img {
+    width: 80px;
+    height: 80px;
+}
+
+/* Bill To / Ship To Section */
+.PBILL-invoice-addresses {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 50px;
+}
+
+.PBILL-invoice-bill-to,
+.PBILL-invoice-ship-to {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.PBILL-invoice-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 12px 0;
+}
+
+.PBILL-invoice-vendor-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.PBILL-invoice-vendor-address,
+.PBILL-invoice-vendor-city {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Items Table */
+.PBILL-invoice-items-section {
+    margin-bottom: 40px;
+}
+
+.PBILL-invoice-items-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.PBILL-invoice-items-table thead {
+    border-bottom: 2px solid #0f172a;
+}
+
+.PBILL-invoice-items-table th {
+    text-align: left;
+    padding: 12px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.PBILL-invoice-items-table th:last-child,
+.PBILL-invoice-items-table td:last-child {
+    text-align: right;
+}
+
+.PBILL-invoice-items-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.PBILL-invoice-items-table td {
+    padding: 16px 8px;
+    font-size: 14px;
+    color: #334155;
+}
+
+/* Totals Section */
+.PBILL-invoice-totals-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-bottom: 50px;
+    padding-top: 20px;
+}
+
+.PBILL-invoice-total-row {
+    display: flex;
+    justify-content: space-between;
+    min-width: 300px;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.PBILL-invoice-total-label {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.PBILL-invoice-total-value {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.PBILL-invoice-total-final {
+    border-top: 2px solid #0f172a;
+    margin-top: 8px;
+    padding-top: 16px;
+    font-size: 18px;
+}
+
+.PBILL-invoice-total-final .PBILL-invoice-total-label,
+.PBILL-invoice-total-final .PBILL-invoice-total-value {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* Notes Section */
+.PBILL-invoice-notes-section {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.PBILL-invoice-notes-text {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.7;
+    margin: 12px 0 0 0;
+}
+
+/* Print Styles */
+@media print {
+    .PBILL-invoice-view-container {
+        padding: 40px;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    #print-area,
+    #print-area * {
+        visibility: visible;
+    }
+
+    #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}

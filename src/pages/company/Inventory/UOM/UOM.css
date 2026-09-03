@@ -1,0 +1,640 @@
+/* UOM.css - Unique Class Names */
+.Zirak-UOM-page {
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 64px);
+    font-family: 'Inter', sans-serif;
+}
+
+.Zirak-UOM-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.Zirak-UOM-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.Zirak-UOM-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.Zirak-UOM-add-btn:hover {
+    background-color: #334155;
+    transform: translateY(-1px);
+}
+
+.Zirak-UOM-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.Zirak-UOM-summary-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #f1f5f9;
+    transition: transform 0.2s ease;
+}
+
+.Zirak-UOM-summary-card:hover {
+    transform: translateY(-3px);
+    border-color: #1e293b;
+}
+
+.Zirak-UOM-summary-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.Zirak-UOM-summary-count {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.Zirak-UOM-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+}
+
+.Zirak-UOM-table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.Zirak-UOM-entries-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.Zirak-UOM-entries-select select {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    outline: none;
+    background: white;
+}
+
+.Zirak-UOM-search-box {
+    position: relative;
+    width: 250px;
+}
+
+.Zirak-UOM-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.Zirak-UOM-search-box input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.Zirak-UOM-search-box input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.Zirak-UOM-table-wrapper {
+    overflow-x: auto;
+}
+
+.Zirak-UOM-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.Zirak-UOM-table th {
+    background: #f8fafc;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.Zirak-UOM-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.Zirak-UOM-table tr:hover td {
+    background-color: #f8fafc;
+}
+
+.Zirak-UOM-category-badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.Zirak-UOM-category-badge.Zirak-UOM-weight {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.Zirak-UOM-category-badge.Zirak-UOM-area {
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.Zirak-UOM-category-badge.Zirak-UOM-volume {
+    background-color: #fff1f2;
+    color: #be123c;
+}
+
+.Zirak-UOM-category-badge.Zirak-UOM-length {
+    background-color: #fefce8;
+    color: #854d0e;
+}
+
+.Zirak-UOM-category-badge.Zirak-UOM-count {
+    background-color: #f5f3ff;
+    color: #6d28d9;
+}
+
+.Zirak-UOM-actions-cell {
+    display: flex;
+    gap: 8px;
+}
+
+.Zirak-UOM-edit-btn,
+.Zirak-UOM-delete-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.Zirak-UOM-edit-btn {
+    background-color: #59d5e0;
+    color: white;
+}
+
+.Zirak-UOM-edit-btn:hover {
+    background-color: #334155;
+}
+
+.Zirak-UOM-delete-btn {
+    background-color: #f4538a;
+    color: white;
+}
+
+.Zirak-UOM-delete-btn:hover {
+    background-color: #334155;
+}
+
+.Zirak-UOM-table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.Zirak-UOM-pagination {
+    display: flex;
+    gap: 4px;
+}
+
+.Zirak-UOM-page-btn {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.Zirak-UOM-page-btn:hover:not(:disabled) {
+    background-color: #f1f5f9;
+}
+
+.Zirak-UOM-page-btn.Zirak-UOM-active {
+    background-color: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+
+.Zirak-UOM-page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Modal Styles */
+.Zirak-UOM-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30000;
+}
+
+.Zirak-UOM-modal {
+    background: white;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.Zirak-UOM-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.Zirak-UOM-modal-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.Zirak-UOM-close-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.Zirak-UOM-modal-body {
+    padding: 1.5rem;
+}
+
+.Zirak-UOM-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.Zirak-UOM-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.Zirak-UOM-form-group select,
+.Zirak-UOM-form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.Zirak-UOM-form-group select:focus,
+.Zirak-UOM-form-group input:focus {
+    border-color: #6366f1;
+}
+
+.Zirak-UOM-modal-footer {
+    padding: 1rem 1.5rem;
+    background-color: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.Zirak-UOM-footer-close-btn {
+    background-color: #64748b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.Zirak-UOM-save-btn {
+    background-color: #1e293b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Utilities */
+.Zirak-UOM-text-center {
+    text-align: center;
+}
+
+/* ============================
+   RESPONSIVE STYLES
+   ============================ */
+
+/* Tablet & Smaller (Max-width: 991px) */
+@media (max-width: 991.98px) {
+    .Zirak-UOM-page {
+        padding: 1rem;
+    }
+}
+
+/* Mobile (Max-width: 640px) */
+@media (max-width: 640.98px) {
+    .Zirak-UOM-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .Zirak-UOM-add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .Zirak-UOM-table-controls {
+        flex-direction: column;
+        grid-gap: 1rem;
+        align-items: stretch;
+    }
+
+    .Zirak-UOM-entries-select {
+        justify-content: space-between;
+    }
+
+    .Zirak-UOM-search-box {
+        width: 100%;
+    }
+
+    .Zirak-UOM-table-footer {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+        text-align: center;
+    }
+
+    .Zirak-UOM-pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Modal Adjustments */
+    .Zirak-UOM-modal {
+        width: 95%;
+        max-width: 95%;
+    }
+}
+
+/* ==========================================================================
+   UNIQUE DELETE CONFIRMATION MODAL STYLES (UOM-Unique-Delete)
+   ========================================================================== */
+
+.UOM-unique-delete-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    padding: 1.5rem;
+    animation: UOMFadeIn 0.3s ease-out;
+}
+
+.UOM-unique-delete-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    animation: UOMSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.UOM-unique-delete-header {
+    padding: 1.75rem 2rem 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.UOM-unique-delete-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    letter-spacing: -0.025em;
+    margin: 0;
+}
+
+.UOM-unique-delete-close {
+    background: #f1f5f9;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.UOM-unique-delete-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: rotate(90deg);
+}
+
+.UOM-unique-delete-body {
+    padding: 0 2rem 2rem 2rem;
+}
+
+.UOM-unique-delete-message {
+    font-size: 1rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.UOM-unique-delete-footer {
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    display: flex;
+    gap: 1rem;
+    justify-content: stretch;
+}
+
+.UOM-unique-delete-btn {
+    flex: 1;
+    padding: 0.85rem 1.5rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.UOM-unique-delete-cancel {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+}
+
+.UOM-unique-delete-cancel:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
+    transform: translateY(-2px);
+}
+
+.UOM-unique-delete-confirm {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 10px 15px -3px rgba(30, 41, 59, 0.3);
+}
+
+.UOM-unique-delete-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(30, 41, 59, 0.4);
+}
+
+.UOM-unique-delete-confirm:active {
+    transform: translateY(0);
+}
+
+@keyframes UOMFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes UOMSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.UOM-type-badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.UOM-type-badge.UOM-type-simple {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.UOM-type-badge.UOM-type-compound {
+    background-color: #fff1f2;
+    color: #be123c;
+}
+
+.UOM-relation-formula {
+    font-family: monospace;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.UOM-relation-standalone {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.UOM-compound-formula-preview {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-weight: 600;
+    font-size: 14px;
+}

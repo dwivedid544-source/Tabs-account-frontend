@@ -1,0 +1,284 @@
+.user-dashboard-container {
+    padding: 2rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+}
+
+.welcome-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+}
+
+.welcome-text h1 {
+    font-size: 2rem;
+    color: #1e293b;
+    margin: 0;
+    font-weight: 700;
+}
+
+.welcome-text p {
+    color: #64748b;
+    margin: 0.5rem 0 0;
+}
+
+.current-date {
+    color: #64748b;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.user-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.user-stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s;
+}
+
+.user-stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.revenue .stat-icon { background: #f1f5f9; color: #334155; }
+.expenses .stat-icon { background: #fee2e2; color: #dc2626; }
+.profit .stat-icon { background: #e0e7ff; color: #4f46e5; }
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    color: #1e293b;
+    margin: 0.25rem 0 0;
+    font-weight: 700;
+}
+
+.dashboard-content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.recent-activity-card, .quick-actions-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    font-size: 1.125rem;
+    color: #1e293b;
+    margin: 0;
+    font-weight: 600;
+}
+
+.view-all-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #4f46e5;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.view-all-btn:hover {
+    background: #334155;
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.transaction-item:hover {
+    background: #f8fafc;
+}
+
+.icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-circle.income { background: #f8fafc; color: #334155; }
+.icon-circle.expense { background: #fff1f2; color: #e11d48; }
+
+.tx-details {
+    flex: 1;
+}
+
+.tx-desc {
+    font-weight: 500;
+    color: #334155;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.tx-date {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 2px 0 0;
+}
+
+.tx-amount {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.tx-amount.positive { color: #334155; }
+.tx-amount.negative { color: #e11d48; }
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.action-item {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 1.25rem 1rem;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-item:hover {
+    background: white;
+    border-color: #4f46e5;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+    transform: translateY(-2px);
+}
+
+.action-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-icon.sales { background: #f8fafc; color: #334155; }
+.action-icon.purchase { background: #fff1f2; color: #e11d48; }
+.action-icon.customers { background: #fdf4ff; color: #a21caf; }
+.action-icon.vendors { background: #f8fafc; color: #334155; }
+.action-icon.settings { background: #f1f5f9; color: #475569; }
+
+.action-item span {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.empty-state {
+    padding: 3rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #94a3b8;
+}
+
+.empty-icon {
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .welcome-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.user-dashboard-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 80vh;
+    color: #64748b;
+}
+
+.loader-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f1f5f9;
+    border-top: 3px solid #4f46e5;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
