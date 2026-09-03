@@ -408,13 +408,13 @@ const SalesOrder = () => {
                         billingCity: c.billingCity || '',
                         billingState: c.billingState || '',
                         billingZip: c.billingZipCode || c.billingZip || '',
-                        billingCountry: c.billingCountry || 'India',
+                        billingCountry: c.billingCountry || '',
                         shippingName: c.shippingName || c.name || '',
                         shippingAddress: c.shippingAddress || '',
                         shippingCity: c.shippingCity || '',
                         shippingState: c.shippingState || '',
                         shippingZip: c.shippingZipCode || c.shippingZip || '',
-                        shippingCountry: c.shippingCountry || 'India',
+                        shippingCountry: c.shippingCountry || '',
                         email: c.email || '',
                         phone: c.phone || ''
                     });
@@ -2840,12 +2840,12 @@ const SalesOrder = () => {
                                         />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">HSN</label>
+                                        <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                         <input
                                             type="text"
                                             className="Zirak-Inventory-form-input"
                                             name="hsn"
-                                            placeholder="Enter HSN code"
+                                            placeholder="Enter Item Code / SKU"
                                             value={productFormData.hsn}
                                             onChange={handleProductInputChange}
                                         />

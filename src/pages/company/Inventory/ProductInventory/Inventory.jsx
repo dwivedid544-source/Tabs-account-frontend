@@ -554,10 +554,10 @@ const Inventory = () => {
                                         />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">HSN</label>
+                                        <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                         <input
                                             name="hsn" type="text" className="Zirak-Inventory-form-input"
-                                            placeholder="Enter HSN code"
+                                            placeholder="Enter Item Code / SKU"
                                             value={formData.hsn} onChange={handleInputChange}
                                         />
                                     </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Plus, TrendingUp, DollarSign, Calendar, BarChart2, ArrowUpRight, ArrowDownRight, X, AlertCircle } from 'lucide-react';
+import { Plus, TrendingUp, DollarSign, Calendar, BarChart2, ArrowUpRight, ArrowDownRight, X, AlertCircle, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import advancedAccountingService from '../../../../services/advancedAccountingService';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
@@ -19,7 +20,7 @@ const Budgets = () => {
     // Modal state
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [budgetName, setBudgetName] = useState('');
-    const [budgetYear, setBudgetYear] = useState(2026);
+    const [budgetYear, setBudgetYear] = useState(new Date().getFullYear());
     const [budgetRows, setBudgetRows] = useState([]);
 
     const fetchData = async () => {
@@ -115,6 +116,29 @@ const Budgets = () => {
         }
     };
 
+    const handleExportExcel = () => {
+        if (!varianceData?.comparison || varianceData.comparison.length === 0) {
+            toast.error('No budget data to export');
+            return;
+        }
+
+        const dataToExport = varianceData.comparison.map(row => ({
+            'Account Name': row.ledgerName,
+            'Category': row.groupName || row.groupType,
+            'Budgeted Amount': row.budgetedAmount,
+            'Actual Spent': row.actualAmount,
+            'Variance Amount': row.variance,
+            'Variance (%)': `${row.variancePercent}%`,
+            'Status': row.status === 'UNDER_BUDGET' ? 'Under Budget (Favorable)' : 'Over Budget (Unfavorable)'
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Budget vs Actuals');
+        XLSX.writeFile(wb, `Budget_vs_Actuals_${varianceData.budget?.name || 'Report'}.xlsx`);
+        toast.success('Budget variance report exported to Excel!');
+    };
+
     return (
         <div className="BUD-page-container">
             <div className="BUD-header">
@@ -123,6 +147,15 @@ const Budgets = () => {
                     <p>Set operational budgets, monitor real-time variance against ledger actuals, and forecast cash runway</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
+                    {activeTab === 'variance' && varianceData?.comparison?.length > 0 && (
+                        <button 
+                            className="BUD-btn-primary" 
+                            style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}
+                            onClick={handleExportExcel}
+                        >
+                            <Download size={16} /> Export to Excel
+                        </button>
+                    )}
                     <button className="BUD-btn-primary" onClick={() => setShowCreateModal(true)}>
                         <Plus size={16} /> Create New Budget
                     </button>
@@ -190,6 +223,27 @@ const Budgets = () => {
                             </div>
                         </div>
                     </div>
+
+                    {varianceData?.comparison?.some(c => c.status === 'OVER_BUDGET') && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            background: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            borderRadius: '8px',
+                            padding: '12px 16px',
+                            marginBottom: '20px',
+                            color: '#b91c1c',
+                            fontSize: '13px',
+                            fontWeight: 500
+                        }}>
+                            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                            <span>
+                                <strong>Budget Warning:</strong> One or more expense accounts have exceeded their allocated expenditure target. Review the table below for unfavorable variances.
+                            </span>
+                        </div>
+                    )}
 
                     {/* Variance Table */}
                     <div className="BUD-card">

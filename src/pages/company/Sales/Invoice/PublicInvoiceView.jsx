@@ -27,13 +27,13 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     const [error, setError] = useState(null);
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || document?.currency || companySettings?.currency || 'USD';
+        const docCurrency = currencyCode || document?.currency || companySettings?.currency || 'EUR';
 
         const localeMap = {
             'INR': 'en-IN',
             'AED': 'ar-AE',
             'SAR': 'ar-SA',
-            'EUR': 'de-DE',
+            'EUR': 'en-IE',
             'GBP': 'en-GB',
             'JPY': 'ja-JP',
             'CNY': 'zh-CN',
@@ -45,7 +45,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
             'BDT': 'en-BD'
         };
 
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
 
         try {
             return new Intl.NumberFormat(locale, {
@@ -55,7 +55,8 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
 
@@ -108,14 +109,19 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     const companyDetails = document.company || {};
 
+    const sanitizeEnglishOnly = (text) => {
+        if (typeof text !== 'string') return text;
+        return text.replace(/[\u0600-\u06FF]/g, '').replace(/\s+/g, ' ').trim();
+    };
+
     const getTableHeader = (key, defaultVal) => {
         const defaults = {
             item: 'Item',
             quantity: 'Quantity',
             rate: 'Rate',
             discount: 'Discount',
-            tax: 'Tax (%)',
-            price: 'Price',
+            tax: 'VAT (%)',
+            price: 'Amount',
             warehouse: 'Warehouse',
             uom: 'UOM'
         };
@@ -125,30 +131,31 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     ? JSON.parse(companyDetails.invoiceTableHeaders)
                     : companyDetails.invoiceTableHeaders;
                 if (headers[key] !== undefined) {
-                    return headers[key];
+                    return sanitizeEnglishOnly(headers[key]);
                 }
             } catch (e) {
                 console.error(e);
             }
         }
-        return defaultVal || defaults[key] || key;
+        return sanitizeEnglishOnly(defaultVal || defaults[key] || key);
     };
 
     const getCustomLabel = (key) => {
+        if (key === 'showWarehouse' || key === 'showUom') return false;
         const defaults = {
             billTo: 'Bill To:',
             shipTo: 'Ship To:',
-            subTotal: 'Sub Total',
-            tax: 'Tax',
+            subTotal: 'Subtotal',
+            tax: 'VAT',
             total: 'Total',
-            number: 'Number:',
-            issue: 'Issue:',
+            number: 'Invoice #:',
+            issue: 'Date:',
             dueDate: 'Due Date:',
             showHeader: true,
             showFooter: true,
-            showWarehouse: true,
+            showWarehouse: false,
             showQty: true,
-            showUom: true,
+            showUom: false,
             showRate: true,
             showTax: true,
             showDiscount: true
@@ -159,11 +166,11 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     ? JSON.parse(companyDetails.invoiceLabels)
                     : companyDetails.invoiceLabels;
                 if (labels[key] !== undefined) {
-                    return labels[key];
+                    return sanitizeEnglishOnly(labels[key]);
                 }
             } catch (e) {}
         }
-        return defaults[key] !== undefined ? defaults[key] : key;
+        return sanitizeEnglishOnly(defaults[key] !== undefined ? defaults[key] : key);
     };
 
     const items = type === 'pos' ? (document.posinvoiceitem || []) : (document.invoiceitem || []);
@@ -183,7 +190,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
         });
     }
     const netTotal = Math.max(0, document.totalAmount - totalReturned);
-    const viewRate = getSyncRate(document?.currency || 'USD', companySettings?.currency || 'USD') || 1.0;
+    const viewRate = getSyncRate(document?.currency || 'USD', companySettings?.currency || 'EUR') || 1.0;
 
     const parsedOtherCharges = (() => {
         try {
@@ -247,6 +254,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
         : rawItems.reduce((acc, it) => acc + ((it.quantity || 1) * (it.rate || 0)), 0);
 
     const isFullyPaid = (document?.balanceAmount === 0 || (document?.paidAmount >= document?.totalAmount && document?.totalAmount > 0));
+    const paymentReceivedDate = document?.paymentDate || document?.receipt?.[0]?.date || document?.allocations?.[0]?.receipt?.date;
 
     return (
         <div className="public-invoice-page bg-slate-100 min-h-screen p-4 md:p-10">
@@ -391,7 +399,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 <th style={{ width: '13%' }}>DATE</th>
                                 <th style={{ width: '22%' }}>ACTIVITY</th>
                                 <th style={{ width: '27%' }}>DESCRIPTION</th>
-                                <th style={{ width: '8%', textAlign: 'center' }}>TAX</th>
+                                <th style={{ width: '8%', textAlign: 'center' }}>VAT</th>
                                 <th style={{ width: '8%', textAlign: 'center' }}>QTY</th>
                                 <th style={{ width: '11%', textAlign: 'right' }}>RATE</th>
                                 <th style={{ width: '11%', textAlign: 'right' }}>AMOUNT</th>
@@ -449,6 +457,9 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     ))}
                                 </tbody>
                             </table>
+                            <div style={{ marginTop: '1.25rem', fontStyle: 'italic', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
+                                We appreciate your business.
+                            </div>
                         </div>
 
                         {/* Right: Totals Card */}
@@ -469,7 +480,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <span>{formatDocCurrency(document?.totalAmount || 0, document?.currency)}</span>
                                 </div>
                                 <div className="invoice-cea-total-row">
-                                    <span>PAYMENT RECEIVED</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                        <span>PAYMENT RECEIVED</span>
+                                        {paymentReceivedDate && (document?.paidAmount || 0) > 0 && (
+                                            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
+                                                (Paid on {new Date(paymentReceivedDate).toLocaleDateString()})
+                                            </span>
+                                        )}
+                                    </div>
                                     <span>{formatDocCurrency(document?.paidAmount || 0, document?.currency)}</span>
                                 </div>
                                 <div className="invoice-cea-total-row balance-due">

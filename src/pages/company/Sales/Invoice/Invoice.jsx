@@ -39,6 +39,9 @@ import { Upload, Loader2 } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../../utils/excelService';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { BASE_URL } from '../../../../api/axiosInstance';
 
 const getCompanyLogoSrc = (logoVal) => {
     if (!logoVal) return tabAccountsLogo;
@@ -47,13 +50,15 @@ const getCompanyLogoSrc = (logoVal) => {
             return logoVal;
         }
         const cleanPath = logoVal.startsWith('/') ? logoVal : `/${logoVal}`;
-        return `http://localhost:8080${cleanPath}`;
+        const serverUrl = BASE_URL || 'http://localhost:8080';
+        return `${serverUrl}${cleanPath}`;
     }
     return tabAccountsLogo;
 };
 
 const Invoice = () => {
     const { companySettings, formatCurrency, getInvoiceLabel, getTableHeader, getDocumentTitle, getExchangeRateFor, getSyncRate } = useContext(CompanyContext);
+    const defaultVat = companySettings?.defaultVatRate !== undefined ? parseFloat(companySettings.defaultVatRate) : 23;
     const { hasPermission } = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
@@ -68,7 +73,11 @@ const Invoice = () => {
     };
     // --- State Management ---
     const [invoices, setInvoices] = useState([]);
-    const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'USD');
+    const [customerViewOption, setCustomerViewOption] = useState('all'); // 'all' (Combined for all customers) | 'single' (For one selected customer only)
+    const [selectedCustomerIdFilter, setSelectedCustomerIdFilter] = useState('');
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportScope, setExportScope] = useState('filtered'); // 'filtered' | 'all'
+    const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'EUR');
     const [exchangeRate, setExchangeRate] = useState(1.0);
     const [customFieldValues, setCustomFieldValues] = useState({});
 
@@ -97,9 +106,9 @@ const Invoice = () => {
     const handleCurrencyChange = async (cur) => {
         setSelectedCurrency(cur);
         let rateVal = 1.0;
-        if (cur !== (companySettings?.currency || 'USD')) {
+        if (cur !== (companySettings?.currency || 'EUR')) {
             try {
-                rateVal = await getExchangeRateFor(cur, companySettings?.currency || 'USD');
+                rateVal = await getExchangeRateFor(cur, companySettings?.currency || 'EUR');
             } catch (e) {
                 rateVal = 1.0;
             }
@@ -165,13 +174,13 @@ const Invoice = () => {
     };
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || selectedCurrency || companySettings?.currency || 'USD';
+        const docCurrency = currencyCode || selectedCurrency || companySettings?.currency || 'EUR';
 
         const localeMap = {
             'INR': 'en-IN',
             'AED': 'ar-AE',
             'SAR': 'ar-SA',
-            'EUR': 'de-DE',
+            'EUR': 'en-IE',
             'GBP': 'en-GB',
             'JPY': 'ja-JP',
             'CNY': 'zh-CN',
@@ -183,7 +192,7 @@ const Invoice = () => {
             'BDT': 'en-BD'
         };
 
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
 
         try {
             return new Intl.NumberFormat(locale, {
@@ -193,7 +202,8 @@ const Invoice = () => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
     const [nextInvoiceNumber, setNextInvoiceNumber] = useState('');
@@ -354,7 +364,7 @@ const Invoice = () => {
     // View Request State
     const [viewMode, setViewMode] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
-    const viewRate = getSyncRate(selectedInvoice?.currency || 'USD', companySettings?.currency || 'USD');
+    const viewRate = getSyncRate(selectedInvoice?.currency || 'USD', companySettings?.currency || 'EUR');
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [invoiceFilterCustomerId, setInvoiceFilterCustomerId] = useState('');
@@ -406,7 +416,7 @@ const Invoice = () => {
 
     useEffect(() => {
         if (!showCurrencyField) {
-            setSelectedCurrency(companySettings?.currency || 'USD');
+            setSelectedCurrency(companySettings?.currency || 'EUR');
             setExchangeRate(1.0);
         }
     }, [showCurrencyField, companySettings]);
@@ -479,7 +489,7 @@ const Invoice = () => {
                 });
                 setOverallDiscount(inv.overallDiscount || 0);
                 setOverallDiscountType(inv.overallDiscountType || 'percentage');
-                setSelectedCurrency(inv.currency || companySettings?.currency || 'USD');
+                setSelectedCurrency(inv.currency || companySettings?.currency || 'EUR');
                 setExchangeRate(inv.exchangeRate || 1.0);
                 setManualStatus(inv.manualStatus || false);
                 setOverrideStatus(inv.status || 'UNPAID');
@@ -499,7 +509,7 @@ const Invoice = () => {
                 setSalespersonId(inv.salespersonId || '');
                 setShowSalespersonField(!!inv.salespersonId);
                 setShowDeliveryFields(!!fieldValues.deliveryPersonName);
-                setShowCurrencyField(!!inv.currency && inv.currency !== (companySettings?.currency || 'USD'));
+                setShowCurrencyField(!!inv.currency && inv.currency !== (companySettings?.currency || 'EUR'));
 
                 // Match delivery person from list by name if possible
                 const matchingDp = (deliverypersonsList || []).find(dp => dp.name === (fieldValues.deliveryPersonName || ''));
@@ -665,7 +675,7 @@ const Invoice = () => {
     const [selectedCustomerCreditPeriod, setSelectedCustomerCreditPeriod] = useState(0);
 
     const [items, setItems] = useState([
-        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
+        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, total: 0, description: '' }
     ]);
 
     const [billingDetails, setBillingDetails] = useState({
@@ -1008,16 +1018,16 @@ const Invoice = () => {
                         billingCity: c.billingCity || '',
                         billingState: c.billingState || '',
                         billingZip: c.billingZipCode || c.billingZip || '',
-                        billingCountry: c.billingCountry || 'India',
+                        billingCountry: c.billingCountry || '',
                         shippingName: c.shippingName || c.name || '',
                         shippingAddress: c.shippingAddress || '',
                         shippingCity: c.shippingCity || '',
                         shippingState: c.shippingState || '',
                         shippingZip: c.shippingZipCode || c.shippingZip || '',
-                        shippingCountry: c.shippingCountry || 'India',
+                        shippingCountry: c.shippingCountry || '',
                         email: c.email || '',
                         phone: c.phone || '',
-                        gstin: c.gstNumber || c.gstin || '',
+                        gstin: c.vatNumber || c.gstNumber || c.gstin || '',
                         creditPeriod: c.creditPeriod || 0
                     });
                 }
@@ -1324,7 +1334,7 @@ const Invoice = () => {
     const resetForm = () => {
         setCustomerId('');
         setSelectedCustomerCreditPeriod(0);
-        setSelectedCurrency(companySettings?.currency || 'USD');
+        setSelectedCurrency(companySettings?.currency || 'EUR');
         setExchangeRate(1.0);
         setBillingDetails({ name: '', address: '', city: '', state: '', zipCode: '', country: '' });
         setShippingDetails({ name: '', address: '', city: '', state: '', zipCode: '', country: '' });
@@ -1363,7 +1373,7 @@ const Invoice = () => {
                 console.error(e);
             }
         }
-        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
         setNotes(companyDetails.notes || '');
         setTerms(companyDetails.termsInvoice || companyDetails.terms || '');
         setAvailableReceipts([]);
@@ -1503,7 +1513,7 @@ const Invoice = () => {
                 console.error(e);
             }
         }
-        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
     };
 
     const handleAutoAddNextRow = (itemId) => {
@@ -1524,7 +1534,7 @@ const Invoice = () => {
                             console.error(e);
                         }
                     }
-                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }];
+                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }];
                 }
             }
             return prevItems;
@@ -1679,7 +1689,7 @@ const Invoice = () => {
 
         group.invoices.forEach(inv => {
             const items = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
-            const curr = inv.currency || companySettings?.currency || 'USD';
+            const curr = inv.currency || companySettings?.currency || 'EUR';
 
             if (!currencyTotals[curr]) {
                 currencyTotals[curr] = {
@@ -2789,6 +2799,285 @@ const Invoice = () => {
                     </div>
                 </div>
             )}
+
+            {/* Export Format Selection Modal */}
+            {showExportModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 999999,
+                    padding: '20px'
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        maxWidth: '520px',
+                        width: '100%',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        border: '1px solid #e2e8f0'
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            background: '#1e293b',
+                            color: '#ffffff',
+                            padding: '18px 24px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Download size={20} style={{ color: '#38bdf8' }} />
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#ffffff' }}>Export Invoices</h3>
+                                    <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>Choose your preferred export file format</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowExportModal(false)}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ padding: '24px' }}>
+                            {/* Scope Selector (if filters applied) */}
+                            {(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter)) && (
+                                <div style={{
+                                    marginBottom: '20px',
+                                    padding: '12px 16px',
+                                    background: '#f8fafc',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e2e8f0'
+                                }}>
+                                    <span style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: '700',
+                                        color: '#64748b',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.025em',
+                                        display: 'block',
+                                        marginBottom: '8px'
+                                    }}>
+                                        Select Export Range
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '18px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                            <input
+                                                type="radio"
+                                                name="invoiceExportScope"
+                                                checked={exportScope === 'filtered'}
+                                                onChange={() => setExportScope('filtered')}
+                                            />
+                                            <span>Current Filtered ({getInvoicesForExport().length} invoices)</span>
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                            <input
+                                                type="radio"
+                                                name="invoiceExportScope"
+                                                checked={exportScope === 'all'}
+                                                onChange={() => setExportScope('all')}
+                                            />
+                                            <span>All Invoices ({invoices.length} invoices)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Format Cards */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                {/* Excel Card */}
+                                <div
+                                    onClick={() => handleExportExcel(exportScope)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '16px',
+                                        padding: '16px 18px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        background: '#ffffff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = '#10b981';
+                                        e.currentTarget.style.backgroundColor = '#f0fdf4';
+                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.backgroundColor = '#ffffff';
+                                        e.currentTarget.style.transform = 'none';
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '46px',
+                                        height: '46px',
+                                        borderRadius: '10px',
+                                        background: '#dcfce7',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#15803d',
+                                        flexShrink: 0
+                                    }}>
+                                        <FileSpreadsheet size={24} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: '700', fontSize: '0.98rem', color: '#1e293b' }}>
+                                                Excel Spreadsheet (.xlsx)
+                                            </span>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: '700', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#15803d' }}>
+                                                XLSX
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                                            Full data spreadsheet for accounting, analysis, and custom formulas.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleExportExcel(exportScope); }}
+                                        style={{
+                                            background: '#10b981',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            fontSize: '0.84rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        Export Excel
+                                    </button>
+                                </div>
+
+                                {/* PDF Card */}
+                                <div
+                                    onClick={() => handleExportPDF(exportScope)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '16px',
+                                        padding: '16px 18px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        background: '#ffffff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = '#ef4444';
+                                        e.currentTarget.style.backgroundColor = '#fef2f2';
+                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.backgroundColor = '#ffffff';
+                                        e.currentTarget.style.transform = 'none';
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '46px',
+                                        height: '46px',
+                                        borderRadius: '10px',
+                                        background: '#fee2e2',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: '#b91c1c',
+                                        flexShrink: 0
+                                    }}>
+                                        <FileText size={24} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: '700', fontSize: '0.98rem', color: '#1e293b' }}>
+                                                PDF Document (.pdf)
+                                            </span>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: '700', padding: '2px 6px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c' }}>
+                                                PDF
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                                            Printable formal invoice register with headers, totals, and statuses.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleExportPDF(exportScope); }}
+                                        style={{
+                                            background: '#ef4444',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            fontSize: '0.84rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        Export PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{
+                            padding: '14px 24px',
+                            background: '#f8fafc',
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowExportModal(false)}
+                                style={{
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    border: '1px solid #cbd5e1',
+                                    padding: '8px 18px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.86rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 
@@ -2890,6 +3179,14 @@ const Invoice = () => {
                         </button>
                         <button className="Invoice-btn-print" onClick={handlePrint}>
                             <Printer size={18} /> Print
+                        </button>
+                        <button
+                            className="Invoice-btn-print"
+                            onClick={() => setShowExportModal(true)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#0284c7', color: '#ffffff', border: 'none' }}
+                            title="Export Invoices"
+                        >
+                            <Download size={18} /> Export
                         </button>
                     </div>
                 </div>
@@ -3084,6 +3381,7 @@ const Invoice = () => {
                                 : rawItems.reduce((acc, it) => acc + ((it.quantity || 1) * (it.rate || 0)), 0);
 
                             const isFullyPaid = (selectedInvoice?.balanceAmount === 0 || (selectedInvoice?.paidAmount >= selectedInvoice?.totalAmount && selectedInvoice?.totalAmount > 0));
+                            const paymentReceivedDate = selectedInvoice?.paymentDate || selectedInvoice?.receipt?.[0]?.date || selectedInvoice?.allocations?.[0]?.receipt?.date;
 
                             return (
                                 <div className="invoice-cea-summary-wrap">
@@ -3108,6 +3406,9 @@ const Invoice = () => {
                                                 ))}
                                             </tbody>
                                         </table>
+                                        <div style={{ marginTop: '1.25rem', fontStyle: 'italic', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
+                                            We appreciate your business.
+                                        </div>
                                     </div>
 
                                     {/* Right: Totals Card */}
@@ -3128,7 +3429,14 @@ const Invoice = () => {
                                                 <span>{formatDocCurrency(selectedInvoice?.totalAmount || 0, selectedInvoice?.currency)}</span>
                                             </div>
                                             <div className="invoice-cea-total-row">
-                                                <span>PAYMENT RECEIVED</span>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                                    <span>PAYMENT RECEIVED</span>
+                                                    {paymentReceivedDate && (selectedInvoice?.paidAmount || 0) > 0 && (
+                                                        <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
+                                                            (Paid on {new Date(paymentReceivedDate).toLocaleDateString()})
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <span>{formatDocCurrency(selectedInvoice?.paidAmount || 0, selectedInvoice?.currency)}</span>
                                             </div>
                                             <div className="invoice-cea-total-row balance-due">
@@ -3330,24 +3638,124 @@ const Invoice = () => {
             );
         }
 
-    const handleExportExcel = () => {
-        if (!invoices.length) {
+    const getInvoicesForExport = () => {
+        return invoices.filter(inv => {
+            const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inv.totalAmount?.toString().includes(searchTerm));
+            const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
+            const matchStart = startDate ? invoiceDate >= new Date(startDate).setHours(0, 0, 0, 0) : true;
+            const matchEnd = endDate ? invoiceDate <= new Date(endDate).setHours(0, 0, 0, 0) : true;
+            const matchCust = (customerViewOption === 'single' && selectedCustomerIdFilter)
+                ? inv.customerId === parseInt(selectedCustomerIdFilter)
+                : true;
+            return matchesSearch && matchStart && matchEnd && matchCust;
+        });
+    };
+
+    const handleExportExcel = (scope = exportScope) => {
+        const targetInvoices = (scope === 'all' || (!searchTerm && !startDate && !endDate && (customerViewOption !== 'single' || !selectedCustomerIdFilter)))
+            ? invoices
+            : getInvoicesForExport();
+
+        if (!targetInvoices.length) {
             toast.error('No invoices available to export');
             return;
         }
-        const exportData = invoices.map(inv => ({
-            'Invoice #': inv.invoiceNumber,
-            'Customer Name': inv.customer?.name || inv.billingName || '',
+
+        const exportData = targetInvoices.map(inv => ({
+            'Invoice #': inv.invoiceNumber || 'N/A',
+            'Type': inv.type === 'POS_INVOICE' ? 'POS' : 'Sales Invoice',
+            'Customer Name': inv.customer?.name || inv.billingName || 'Walk-in Customer',
             'Date': inv.date ? new Date(inv.date).toLocaleDateString() : '',
             'Due Date': inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '',
             'Total Amount': inv.totalAmount || 0,
             'Paid Amount': inv.paidAmount || 0,
-            'Balance Due': inv.balanceAmount || 0,
+            'Balance Due': inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0)),
             'Status': inv.status || 'UNPAID',
-            'Currency': inv.currency || 'USD'
+            'Payment Date': inv.paymentDate ? new Date(inv.paymentDate).toLocaleDateString() : 'N/A',
+            'Currency': inv.currency || companySettings?.currency || 'EUR'
         }));
-        exportToExcel(exportData, 'Sales_Invoices_Export.xlsx', 'Invoices');
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        exportToExcel(exportData, `Sales_Invoices_${dateStr}.xlsx`, 'Invoices');
         toast.success(`Exported ${exportData.length} invoices to Excel.`);
+        setShowExportModal(false);
+    };
+
+    const handleExportPDF = (scope = exportScope) => {
+        const targetInvoices = (scope === 'all' || (!searchTerm && !startDate && !endDate && (customerViewOption !== 'single' || !selectedCustomerIdFilter)))
+            ? invoices
+            : getInvoicesForExport();
+
+        if (!targetInvoices.length) {
+            toast.error('No invoices available to export');
+            return;
+        }
+
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const companyName = companySettings?.name || 'TAB ACCOUNTS';
+
+        // Header
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(`${companyName} - Sales Invoices Register`, 14, 15);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        let filterSummary = `Export Date: ${new Date().toLocaleDateString()} | Total Records: ${targetInvoices.length}`;
+        if (startDate || endDate) {
+            filterSummary += ` | Period: ${startDate || 'Start'} to ${endDate || 'Current'}`;
+        }
+        if (customerViewOption === 'single' && selectedCustomerIdFilter) {
+            const cust = customers.find(c => c.id === parseInt(selectedCustomerIdFilter));
+            if (cust) filterSummary += ` | Customer: ${cust.name}`;
+        }
+        doc.text(filterSummary, 14, 22);
+
+        const headers = [["Invoice #", "Type", "Customer", "Date", "Due Date", "Total Amount", "Paid", "Balance Due", "Status"]];
+        const body = targetInvoices.map(inv => [
+            inv.invoiceNumber || 'N/A',
+            inv.type === 'POS_INVOICE' ? 'POS' : 'INV',
+            inv.customer?.name || inv.billingName || 'Walk-in Customer',
+            inv.date ? new Date(inv.date).toLocaleDateString() : '',
+            inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A',
+            formatDocCurrency(inv.totalAmount || 0, inv.currency),
+            formatDocCurrency(inv.paidAmount || 0, inv.currency),
+            formatDocCurrency(inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0)), inv.currency),
+            inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID')
+                ? `${inv.status} (${new Date(inv.paymentDate).toLocaleDateString()})`
+                : (inv.status || 'UNPAID')
+        ]);
+
+        autoTable(doc, {
+            head: headers,
+            body: body,
+            startY: 26,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [30, 41, 59],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 8.5
+            },
+            bodyStyles: {
+                fontSize: 8,
+                textColor: [30, 41, 59]
+            },
+            alternateRowStyles: {
+                fillColor: [248, 250, 252]
+            },
+            margin: { top: 26, left: 14, right: 14 }
+        });
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        doc.save(`Sales_Invoices_${dateStr}.pdf`);
+        toast.success(`Exported ${targetInvoices.length} invoices to PDF.`);
+        setShowExportModal(false);
     };
 
     // --- DEFAULT RENDER (LIST) ---
@@ -3364,9 +3772,9 @@ const Invoice = () => {
                             <button
                                 className="Invoice-btn-add"
                                 style={{ background: '#334155' }}
-                                onClick={handleExportExcel}
+                                onClick={() => setShowExportModal(true)}
                             >
-                                <Download size={18} className="mr-2" /> Export Excel
+                                <Download size={18} className="mr-2" /> Export
                             </button>
                             {hasPermission('create sales invoice') && (
                                 <button
@@ -3415,8 +3823,42 @@ const Invoice = () => {
                                     onChange={(e) => setEndDate(e.target.value)}
                                 />
                             </div>
+                            <div className="Invoice-filter-group select-view">
+                                <label>Customer Invoices View</label>
+                                <select
+                                    className="Invoice-filter-select"
+                                    value={customerViewOption}
+                                    onChange={(e) => {
+                                        const opt = e.target.value;
+                                        setCustomerViewOption(opt);
+                                        if (opt === 'all') {
+                                            setSelectedCustomerIdFilter('');
+                                        } else if (opt === 'single' && !selectedCustomerIdFilter && customers.length > 0) {
+                                            setSelectedCustomerIdFilter(customers[0].id.toString());
+                                        }
+                                    }}
+                                >
+                                    <option value="all">Combined for all customers</option>
+                                    <option value="single">For one selected customer only</option>
+                                </select>
+                            </div>
+                            {customerViewOption === 'single' && (
+                                <div className="Invoice-filter-group select-customer">
+                                    <label>Select Customer</label>
+                                    <select
+                                        className="Invoice-filter-select"
+                                        value={selectedCustomerIdFilter}
+                                        onChange={(e) => setSelectedCustomerIdFilter(e.target.value)}
+                                    >
+                                        <option value="">-- Choose Customer --</option>
+                                        {customers.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div className="Invoice-filter-group actions">
-                                <button className="Invoice-btn-reset" onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); }}>
+                                <button className="Invoice-btn-reset" onClick={() => { setSearchTerm(''); setStartDate(''); setEndDate(''); setCustomerViewOption('all'); setSelectedCustomerIdFilter(''); }}>
                                     Clear Filters
                                 </button>
                             </div>
@@ -3464,6 +3906,161 @@ const Invoice = () => {
                                 </thead>
                                 <tbody>
                                     {(() => {
+                                        if (customerViewOption === 'single') {
+                                            const singleCustInvoices = invoices.filter(inv => {
+                                                const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    inv.totalAmount?.toString().includes(searchTerm));
+                                                const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
+                                                const matchStart = startDate ? invoiceDate >= new Date(startDate).setHours(0, 0, 0, 0) : true;
+                                                const matchEnd = endDate ? invoiceDate <= new Date(endDate).setHours(0, 0, 0, 0) : true;
+                                                const matchCust = selectedCustomerIdFilter ? inv.customerId === parseInt(selectedCustomerIdFilter) : true;
+                                                return matchesSearch && matchStart && matchEnd && matchCust;
+                                            });
+
+                                            if (singleCustInvoices.length === 0) {
+                                                return (
+                                                    <tr>
+                                                        <td colSpan="7" style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                                                            {selectedCustomerIdFilter ? 'No invoices found for the selected customer.' : 'Please select a customer from the dropdown above to view their invoices.'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            }
+
+                                            return singleCustInvoices.map(inv => {
+                                                const invRate = getSyncRate(inv.currency || 'USD', companySettings?.currency || 'EUR');
+                                                return (
+                                                    <tr key={`single-inv-${inv.type || 'INV'}-${inv.id}`} className="Invoice-row">
+                                                        <td className="px-4 py-3">
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{
+                                                                    fontSize: '10px',
+                                                                    padding: '2px 6px',
+                                                                    borderRadius: '4px',
+                                                                    background: inv.type === 'POS_INVOICE' ? '#f8fafc' : '#eff6ff',
+                                                                    color: inv.type === 'POS_INVOICE' ? '#334155' : '#2563eb',
+                                                                    fontWeight: '800',
+                                                                    border: `1px solid ${inv.type === 'POS_INVOICE' ? '#e2e8f0' : '#bfdbfe'}`
+                                                                }}>
+                                                                    {inv.type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
+                                                                </span>
+                                                                <span 
+                                                                    className="font-bold text-blue-600" 
+                                                                    style={{ cursor: 'pointer' }} 
+                                                                    onClick={() => handleView(inv)}
+                                                                    title="Click to view invoice"
+                                                                >
+                                                                    {inv.invoiceNumber}
+                                                                </span>
+                                                                {inv.manualReference && (
+                                                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({inv.manualReference})</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td>{inv.customer?.name || 'Walk-in Customer'}</td>
+                                                        <td>{new Date(inv.date).toLocaleDateString()}</td>
+                                                        <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}</td>
+                                                        <td className="font-bold">
+                                                            <div>
+                                                                {formatDocCurrency(inv.balanceAmount !== undefined ? inv.balanceAmount : inv.totalAmount, inv.currency)}
+                                                                {inv.currency && inv.currency !== (companySettings?.currency || 'EUR') && (
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                        ({formatDocCurrency((inv.balanceAmount !== undefined ? inv.balanceAmount : inv.totalAmount) * invRate, companySettings?.currency || 'EUR')})
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                <select
+                                                                    value={inv.manualStatus ? inv.status : 'AUTO'}
+                                                                    onChange={(e) => handleStatusChange(inv.id, inv.type === 'POS_INVOICE', e.target.value)}
+                                                                    className="Invoice-invoice-status-pill"
+                                                                    style={getStatusStyle(inv.manualStatus ? inv.status : 'AUTO')}
+                                                                >
+                                                                    <option value="AUTO">Auto ({inv.status})</option>
+                                                                    <option value="UNPAID">UNPAID</option>
+                                                                    <option value="PARTIAL">PARTIAL</option>
+                                                                    <option value="PAID">PAID</option>
+                                                                    <option value="CANCELLED">CANCELLED</option>
+                                                                </select>
+                                                                {inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && (
+                                                                    <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: '600' }}>
+                                                                        Paid: {new Date(inv.paymentDate).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-right">
+                                                            <div className="Invoice-invoice-action-buttons text-nowrap">
+                                                                <button 
+                                                                    className="Invoice-invoice-action-btn Invoice-view" 
+                                                                    onClick={() => handleView(inv)}
+                                                                    title="View Invoice"
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                {inv.type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
+                                                                    <button 
+                                                                        className="Invoice-invoice-action-btn Invoice-edit" 
+                                                                        onClick={() => handleEdit(inv)}
+                                                                        title="Edit Invoice"
+                                                                    >
+                                                                        <Pencil size={16} />
+                                                                    </button>
+                                                                )}
+                                                                {hasPermission('delete sales invoice') && (
+                                                                    <button 
+                                                                        className="Invoice-invoice-action-btn Invoice-delete" 
+                                                                        onClick={() => handleDelete(inv)}
+                                                                        title="Delete Invoice"
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
+                                                                {inv.balanceAmount > 0 && hasPermission('create sales payment') && (
+                                                                    <button
+                                                                        className="Invoice-invoice-action-btn Invoice-payment"
+                                                                        onClick={() => navigate('/company/sales/payment', { 
+                                                                            state: { 
+                                                                                targetInvoiceId: inv.id, 
+                                                                                invoiceType: inv.type, 
+                                                                                customerId: inv.customerId 
+                                                                            } 
+                                                                        })}
+                                                                        title="Receive Payment"
+                                                                        style={{ color: '#10b981' }}
+                                                                    >
+                                                                        <CreditCard size={16} />
+                                                                    </button>
+                                                                )}
+                                                                {inv.type !== 'POS_INVOICE' && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && hasPermission('edit sales invoice') && (
+                                                                    <button
+                                                                        className="Invoice-invoice-action-btn"
+                                                                        onClick={() => handleUnpay(inv)}
+                                                                        title="Mark as Unpaid & Revert Payments"
+                                                                        style={{ color: '#ef4444' }}
+                                                                    >
+                                                                        <RotateCcw size={16} />
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    className="Invoice-invoice-action-btn"
+                                                                    onClick={() => handleOpenEmailModal(inv)}
+                                                                    title="Email Invoice to Customer"
+                                                                    style={{ color: '#0284c7' }}
+                                                                >
+                                                                    <Mail size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            });
+                                        }
+
                                         // Grouping Logic (Now by Customer)
                                         const groupedMap = {};
 
@@ -3494,14 +4091,14 @@ const Invoice = () => {
                                                     isSingle: false
                                                 };
                                             }
-                                            const rate = getSyncRate(inv.currency || 'USD', companySettings?.currency || 'USD');
+                                            const rate = getSyncRate(inv.currency || 'USD', companySettings?.currency || 'EUR');
                                             groupedMap[key].invoices.push(inv);
                                             groupedMap[key].totalInvoiceAmount += inv.totalAmount * rate;
                                             groupedMap[key].balanceAmount += (inv.balanceAmount || 0) * rate;
                                             const effectivePaid = inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0));
                                             groupedMap[key].totalPaidAmount += effectivePaid * rate;
 
-                                            const curr = inv.currency || companySettings?.currency || 'USD';
+                                            const curr = inv.currency || companySettings?.currency || 'EUR';
                                             if (!groupedMap[key].currencyTotals) {
                                                 groupedMap[key].currencyTotals = {};
                                             }
@@ -3513,7 +4110,7 @@ const Invoice = () => {
                                             if (inv.salesreturn) {
                                                 inv.salesreturn.forEach(ret => {
                                                     groupedMap[key].returns.push(ret);
-                                                    const retRate = getSyncRate(ret.currency || inv.currency || 'USD', companySettings?.currency || 'USD');
+                                                    const retRate = getSyncRate(ret.currency || inv.currency || 'USD', companySettings?.currency || 'EUR');
                                                     groupedMap[key].totalReturnAmount += (ret.totalAmount || 0) * retRate;
                                                 });
                                             }
@@ -3533,20 +4130,55 @@ const Invoice = () => {
                                                 <tr className="Invoice-group-row">
                                                     <td className="px-4 py-3">
                                                         <div className="Invoice-flex Invoice-items-center Invoice-gap-2">
-                                                            <button
-                                                                className={`Invoice-toggle-btn ${expandedGroups[group.id] ? 'expanded' : ''}`}
-                                                                onClick={(e) => { e.stopPropagation(); toggleGroup(group.id); }}
-                                                            >
-                                                                <ChevronDown size={14} />
-                                                            </button>
-                                                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                                                                <span className="font-bold text-blue-600">
-                                                                    {group.customer?.name}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '500', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px' }}>
-                                                                    ({group.invoices.length} Total Records)
-                                                                </span>
-                                                            </div>
+                                                            {!group.isSingle && (
+                                                                <button
+                                                                    className={`Invoice-toggle-btn ${expandedGroups[group.id] ? 'expanded' : ''}`}
+                                                                    onClick={(e) => { e.stopPropagation(); toggleGroup(group.id); }}
+                                                                    title="Click to expand/collapse invoices"
+                                                                >
+                                                                    <ChevronDown size={14} />
+                                                                </button>
+                                                            )}
+                                                            {group.isSingle ? (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <span style={{
+                                                                        fontSize: '10px',
+                                                                        padding: '2px 6px',
+                                                                        borderRadius: '4px',
+                                                                        background: group.invoices[0].type === 'POS_INVOICE' ? '#f8fafc' : '#eff6ff',
+                                                                        color: group.invoices[0].type === 'POS_INVOICE' ? '#334155' : '#2563eb',
+                                                                        fontWeight: '800',
+                                                                        border: `1px solid ${group.invoices[0].type === 'POS_INVOICE' ? '#e2e8f0' : '#bfdbfe'}`
+                                                                    }}>
+                                                                        {group.invoices[0].type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
+                                                                    </span>
+                                                                    <span 
+                                                                        className="font-bold text-blue-600" 
+                                                                        style={{ cursor: 'pointer' }} 
+                                                                        onClick={() => handleView(group.invoices[0])}
+                                                                        title="Click to view invoice"
+                                                                    >
+                                                                        {group.invoices[0].invoiceNumber}
+                                                                    </span>
+                                                                    {group.invoices[0].manualReference && (
+                                                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({group.invoices[0].manualReference})</span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                                                                        <span className="font-bold text-blue-600">
+                                                                            {group.customer?.name}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '500', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px' }}>
+                                                                            ({group.invoices.length} Invoices)
+                                                                        </span>
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                                                        {group.invoices.map(i => i.invoiceNumber).join(', ')}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td>{group.customer?.name}</td>
@@ -3556,7 +4188,7 @@ const Invoice = () => {
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                             {(() => {
                                                                 const currs = Object.keys(group.currencyTotals || {});
-                                                                const baseCurr = companySettings?.currency || 'USD';
+                                                                const baseCurr = companySettings?.currency || 'EUR';
                                                                 if (currs.length === 1) {
                                                                     const curr = currs[0];
                                                                     const originalAmount = group.currencyTotals[curr];
@@ -3633,29 +4265,60 @@ const Invoice = () => {
                                                     <td className="text-right">
                                                         <div className="Invoice-invoice-action-buttons text-nowrap">
                                                             {!group.isSingle ? (
-                                                                <button
-                                                                    className="Invoice-btn-combined-view"
-                                                                    onClick={() => handleCombinedView(group)}
-                                                                    style={{
-                                                                        background: '#f59e0b',
-                                                                        color: 'white',
-                                                                        padding: '6px 16px',
-                                                                        borderRadius: '6px',
-                                                                        fontSize: '0.75rem',
-                                                                        fontWeight: '700',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-
-                                                                        boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.3)'
-                                                                    }}
-                                                                >
-                                                                    View
-                                                                </button>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <button
+                                                                        className="Invoice-btn-combined-view"
+                                                                        onClick={() => handleCombinedView(group)}
+                                                                        title="View Combined Customer Statement"
+                                                                        style={{
+                                                                            background: '#f59e0b',
+                                                                            color: 'white',
+                                                                            padding: '6px 14px',
+                                                                            borderRadius: '6px',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: '700',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer',
+                                                                            boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.3)'
+                                                                        }}
+                                                                    >
+                                                                        View Combined
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`Invoice-invoice-action-btn ${expandedGroups[group.id] ? 'active' : ''}`}
+                                                                        onClick={() => toggleGroup(group.id)}
+                                                                        title={expandedGroups[group.id] ? "Collapse Invoices" : "Expand to View / Edit / Delete Invoices"}
+                                                                        style={{
+                                                                            background: '#f1f5f9',
+                                                                            color: '#1e293b',
+                                                                            border: '1px solid #cbd5e1',
+                                                                            padding: '5px 10px',
+                                                                            borderRadius: '6px',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: '600',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        <Pencil size={12} />
+                                                                        <Trash2 size={12} />
+                                                                        <span>Invoices ({group.invoices.length})</span>
+                                                                    </button>
+                                                                </div>
                                                             ) : (
-                                                                <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(group.invoices[0])}><Eye size={16} /></button>
+                                                                <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(group.invoices[0])} title="View Invoice"><Eye size={16} /></button>
                                                             )}
                                                             {group.isSingle && (
                                                                 <>
+                                                                    {group.invoices[0].type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
+                                                                        <button className="Invoice-invoice-action-btn Invoice-edit" onClick={() => handleEdit(group.invoices[0])} title="Edit Invoice"><Pencil size={16} /></button>
+                                                                    )}
+                                                                    {hasPermission('delete sales invoice') && (
+                                                                        <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(group.invoices[0])} title="Delete Invoice"><Trash2 size={16} /></button>
+                                                                    )}
                                                                     {group.invoices[0].type !== 'POS_INVOICE' && group.invoices[0].balanceAmount > 0 && hasPermission('create sales payment') && (
                                                                         <button
                                                                             className="Invoice-invoice-action-btn Invoice-payment"
@@ -3676,9 +4339,6 @@ const Invoice = () => {
                                                                             <CreditCard size={16} />
                                                                         </button>
                                                                     )}
-                                                                    {group.invoices[0].type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
-                                                                        <button className="Invoice-invoice-action-btn Invoice-edit" onClick={() => handleEdit(group.invoices[0])}><Pencil size={16} /></button>
-                                                                    )}
                                                                     {group.invoices[0].type !== 'POS_INVOICE' && (group.invoices[0].paidAmount > 0 || group.invoices[0].status === 'PAID' || group.invoices[0].status === 'PARTIAL') && hasPermission('edit sales invoice') && (
                                                                         <button
                                                                             className="Invoice-invoice-action-btn"
@@ -3697,9 +4357,6 @@ const Invoice = () => {
                                                                     >
                                                                         <Mail size={16} />
                                                                     </button>
-                                                                    {hasPermission('delete sales invoice') && (
-                                                                        <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(group.invoices[0])}><Trash2 size={16} /></button>
-                                                                    )}
                                                                 </>
                                                             )}
                                                         </div>
@@ -3763,18 +4420,25 @@ const Invoice = () => {
                                                                                             )}
                                                                                         </td>
                                                                                         <td>
-                                                                                            <select
-                                                                                                value={si.manualStatus ? si.status : 'AUTO'}
-                                                                                                onChange={(e) => handleStatusChange(si.id, si.type === 'POS_INVOICE', e.target.value)}
-                                                                                                className="Invoice-invoice-status-pill"
-                                                                                                style={getStatusStyle(si.manualStatus ? si.status : 'AUTO')}
-                                                                                            >
-                                                                                                <option value="AUTO">Auto ({si.status})</option>
-                                                                                                <option value="UNPAID">UNPAID</option>
-                                                                                                <option value="PARTIAL">PARTIAL</option>
-                                                                                                <option value="PAID">PAID</option>
-                                                                                                <option value="CANCELLED">CANCELLED</option>
-                                                                                            </select>
+                                                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                                                <select
+                                                                                                    value={si.manualStatus ? si.status : 'AUTO'}
+                                                                                                    onChange={(e) => handleStatusChange(si.id, si.type === 'POS_INVOICE', e.target.value)}
+                                                                                                    className="Invoice-invoice-status-pill"
+                                                                                                    style={getStatusStyle(si.manualStatus ? si.status : 'AUTO')}
+                                                                                                >
+                                                                                                    <option value="AUTO">Auto ({si.status})</option>
+                                                                                                    <option value="UNPAID">UNPAID</option>
+                                                                                                    <option value="PARTIAL">PARTIAL</option>
+                                                                                                    <option value="PAID">PAID</option>
+                                                                                                    <option value="CANCELLED">CANCELLED</option>
+                                                                                                </select>
+                                                                                                {si.paymentDate && (si.paidAmount > 0 || si.status === 'PAID' || si.status === 'PARTIAL') && (
+                                                                                                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                                                                        Paid: {new Date(si.paymentDate).toLocaleDateString()}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
                                                                                         </td>
                                                                                         <td className="text-right">
                                                                                             <div className="Invoice-invoice-action-buttons">
@@ -3874,9 +4538,16 @@ const Invoice = () => {
                     <div className="Invoice-view-page-header Invoice-no-print" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {companyDetails.logo && (
-                                    <img src={companyDetails.logo} alt="Company Logo" className="Invoice-modal-logo-img" style={{ height: '26px', objectFit: 'contain' }} />
-                                )}
+                                <img
+                                    src={getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo)}
+                                    alt={companyDetails.name || "Company Logo"}
+                                    className="Invoice-modal-logo-img"
+                                    style={{ height: '32px', maxWidth: '140px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0 }}>
                                     {editingId ? 'Edit Invoice' : 'New Invoice'}
                                 </h2>
@@ -3906,10 +4577,6 @@ const Invoice = () => {
                                 alignItems: 'center'
                             }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Optional Fields:</span>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={showSalespersonField} onChange={(e) => setShowSalespersonField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
-                                    Show Salesperson
-                                </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={showCurrencyField} onChange={(e) => setShowCurrencyField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
                                     Show Currency
@@ -4059,47 +4726,7 @@ const Invoice = () => {
 
                                 {/* RIGHT COLUMN */}
                                 <div className="Invoice-header-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '300px' }}>
-                                    {showSalespersonField && (
-                                        <div className="Invoice-meta-col">
-                                            <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>SALESPERSON</label>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '280px' }}>
-                                                <SearchableSelect
-                                                    options={salespersonsList}
-                                                    value={salespersonId}
-                                                    onChange={(val) => setSalespersonId(val)}
-                                                    onDeleteOption={handleDeleteSalesperson}
-                                                    placeholder="-- Select Salesperson --"
-                                                    groupKey=""
-                                                    clearable={true}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSalespersonFormData({ name: '', phone: '', email: '' });
-                                                        setShowAddSalespersonModal(true);
-                                                    }}
-                                                    title="Add Salesperson"
-                                                    style={{
-                                                        backgroundColor: '#1e293b',
-                                                        color: '#ffffff',
-                                                        border: 'none',
-                                                        borderRadius: '4px',
-                                                        padding: '0',
-                                                        cursor: 'pointer',
-                                                        fontWeight: 'bold',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        height: '34px',
-                                                        width: '34px',
-                                                        flexShrink: 0
-                                                    }}
-                                                >
-                                                    <Plus size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+
 
                                     <div className="Invoice-meta-col">
                                         <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>DUE DATE</label>
@@ -4118,162 +4745,13 @@ const Invoice = () => {
                                                     onChange={(e) => handleCurrencyChange(e.target.value)}
                                                     className="Invoice-compact-select"
                                                 >
-                                                    <option value="AFN">AFN (؋)</option>
-                                                    <option value="ALL">ALL (L)</option>
-                                                    <option value="AMD">AMD (֏)</option>
-                                                    <option value="ANG">ANG (ƒ)</option>
-                                                    <option value="AOA">AOA (Kz)</option>
-                                                    <option value="ARS">ARS ($)</option>
-                                                    <option value="AUD">AUD ($)</option>
-                                                    <option value="AWG">AWG (ƒ)</option>
-                                                    <option value="AZN">AZN (₼)</option>
-                                                    <option value="BAM">BAM (KM)</option>
-                                                    <option value="BBD">BBD ($)</option>
-                                                    <option value="BDT">BDT (৳)</option>
-                                                    <option value="BGN">BGN (лв)</option>
-                                                    <option value="BHD">BHD (.د.ب)</option>
-                                                    <option value="BIF">BIF (FBu)</option>
-                                                    <option value="BMD">BMD ($)</option>
-                                                    <option value="BND">BND ($)</option>
-                                                    <option value="BOB">BOB ($b)</option>
-                                                    <option value="BRL">BRL (R$)</option>
-                                                    <option value="BSD">BSD ($)</option>
-                                                    <option value="BTN">BTN (Nu.)</option>
-                                                    <option value="BWP">BWP (P)</option>
-                                                    <option value="BYN">BYN (Br)</option>
-                                                    <option value="BZD">BZD (BZ$)</option>
-                                                    <option value="CAD">CAD ($)</option>
-                                                    <option value="CDF">CDF (FC)</option>
-                                                    <option value="CHF">CHF (CHF)</option>
-                                                    <option value="CLP">CLP ($)</option>
-                                                    <option value="CNY">CNY (¥)</option>
-                                                    <option value="COP">COP ($)</option>
-                                                    <option value="CRC">CRC (₡)</option>
-                                                    <option value="CUP">CUP (₱)</option>
-                                                    <option value="CVE">CVE ($)</option>
-                                                    <option value="CZK">CZK (Kč)</option>
-                                                    <option value="DJF">DJF (Fdj)</option>
-                                                    <option value="DKK">DKK (kr)</option>
-                                                    <option value="DOP">DOP (RD$)</option>
-                                                    <option value="DZD">DZD (دج)</option>
-                                                    <option value="EGP">EGP (£)</option>
-                                                    <option value="ERN">ERN (Nfk)</option>
-                                                    <option value="ETB">ETB (Br)</option>
                                                     <option value="EUR">EUR (€)</option>
-                                                    <option value="FJD">FJD ($)</option>
-                                                    <option value="FKP">FKP (£)</option>
                                                     <option value="GBP">GBP (£)</option>
-                                                    <option value="GEL">GEL (₾)</option>
-                                                    <option value="GHS">GHS (¢)</option>
-                                                    <option value="GIP">GIP (£)</option>
-                                                    <option value="GMD">GMD (D)</option>
-                                                    <option value="GNF">GNF (FG)</option>
-                                                    <option value="GTQ">GTQ (Q)</option>
-                                                    <option value="GYD">GYD ($)</option>
-                                                    <option value="HKD">HKD ($)</option>
-                                                    <option value="HNL">HNL (L)</option>
-                                                    <option value="HRK">HRK (kn)</option>
-                                                    <option value="HTG">HTG (G)</option>
-                                                    <option value="HUF">HUF (Ft)</option>
-                                                    <option value="IDR">IDR (Rp)</option>
-                                                    <option value="ILS">ILS (₪)</option>
-                                                    <option value="INR">INR (₹)</option>
-                                                    <option value="IQD">IQD (ع.د)</option>
-                                                    <option value="IRR">IRR (﷼)</option>
-                                                    <option value="ISK">ISK (kr)</option>
-                                                    <option value="JMD">JMD (J$)</option>
-                                                    <option value="JOD">JOD (د.ا)</option>
-                                                    <option value="JPY">JPY (¥)</option>
-                                                    <option value="KES">KES (KSh)</option>
-                                                    <option value="KGS">KGS (лв)</option>
-                                                    <option value="KHR">KHR (៛)</option>
-                                                    <option value="KMF">KMF (CF)</option>
-                                                    <option value="KPW">KPW (₩)</option>
-                                                    <option value="KRW">KRW (₩)</option>
-                                                    <option value="KWD">KWD (د.ك)</option>
-                                                    <option value="KYD">KYD ($)</option>
-                                                    <option value="KZT">KZT (₸)</option>
-                                                    <option value="LAK">LAK (₭)</option>
-                                                    <option value="LBP">LBP (£)</option>
-                                                    <option value="LKR">LKR (₨)</option>
-                                                    <option value="LRD">LRD ($)</option>
-                                                    <option value="LSL">LSL (L)</option>
-                                                    <option value="LYD">LYD (ل.د)</option>
-                                                    <option value="MAD">MAD (د.م.)</option>
-                                                    <option value="MDL">MDL (L)</option>
-                                                    <option value="MGA">MGA (Ar)</option>
-                                                    <option value="MKD">MKD (ден)</option>
-                                                    <option value="MMK">MMK (K)</option>
-                                                    <option value="MNT">MNT (₮)</option>
-                                                    <option value="MOP">MOP (MOP$)</option>
-                                                    <option value="MRU">MRU (UM)</option>
-                                                    <option value="MUR">MUR (₨)</option>
-                                                    <option value="MVR">MVR (.ރ)</option>
-                                                    <option value="MWK">MWK (MK)</option>
-                                                    <option value="MXN">MXN ($)</option>
-                                                    <option value="MYR">MYR (RM)</option>
-                                                    <option value="MZN">MZN (MT)</option>
-                                                    <option value="NAD">NAD ($)</option>
-                                                    <option value="NGN">NGN (₦)</option>
-                                                    <option value="NIO">NIO (C$)</option>
-                                                    <option value="NOK">NOK (kr)</option>
-                                                    <option value="NPR">NPR (₨)</option>
-                                                    <option value="NZD">NZD ($)</option>
-                                                    <option value="OMR">OMR (ر.ع.)</option>
-                                                    <option value="PAB">PAB (B/.)</option>
-                                                    <option value="PEN">PEN (S/.)</option>
-                                                    <option value="PGK">PGK (K)</option>
-                                                    <option value="PHP">PHP (₱)</option>
-                                                    <option value="PKR">PKR (₨)</option>
-                                                    <option value="PLN">PLN (zł)</option>
-                                                    <option value="PYG">PYG (Gs)</option>
-                                                    <option value="QAR">QAR (ر.ق)</option>
-                                                    <option value="RON">RON (lei)</option>
-                                                    <option value="RSD">RSD (Дин.)</option>
-                                                    <option value="RUB">RUB (₽)</option>
-                                                    <option value="RWF">RWF (Rf)</option>
-                                                    <option value="SAR">SAR (ر.س)</option>
-                                                    <option value="SBD">SBD ($)</option>
-                                                    <option value="SCR">SCR (₨)</option>
-                                                    <option value="SDG">SDG (ج.س.)</option>
-                                                    <option value="SEK">SEK (kr)</option>
-                                                    <option value="SGD">SGD ($)</option>
-                                                    <option value="SHP">SHP (£)</option>
-                                                    <option value="SLL">SLL (Le)</option>
-                                                    <option value="SOS">SOS (S)</option>
-                                                    <option value="SRD">SRD ($)</option>
-                                                    <option value="SSP">SSP (£)</option>
-                                                    <option value="STN">STN (Db)</option>
-                                                    <option value="SYP">SYP (£)</option>
-                                                    <option value="SZL">SZL (L)</option>
-                                                    <option value="THB">THB (฿)</option>
-                                                    <option value="TJS">TJS (SM)</option>
-                                                    <option value="TMT">TMT (T)</option>
-                                                    <option value="TND">TND (د.ت)</option>
-                                                    <option value="TOP">TOP (T$)</option>
-                                                    <option value="TRY">TRY (₺)</option>
-                                                    <option value="TTD">TTD (TT$)</option>
-                                                    <option value="TWD">TWD (NT$)</option>
-                                                    <option value="TZS">TZS (TSh)</option>
-                                                    <option value="UAH">UAH (₴)</option>
-                                                    <option value="UGX">UGX (USh)</option>
                                                     <option value="USD">USD ($)</option>
-                                                    <option value="UYU">UYU ($U)</option>
-                                                    <option value="UZS">UZS (лв)</option>
-                                                    <option value="VES">VES (Bs.S)</option>
-                                                    <option value="VND">VND (₫)</option>
-                                                    <option value="WST">WST (WS$)</option>
-                                                    <option value="XAF">XAF (FCFA)</option>
-                                                    <option value="XCD">XCD ($)</option>
-                                                    <option value="XOF">XOF (CFAF)</option>
-                                                    <option value="XPF">XPF (CFPF)</option>
-                                                    <option value="YER">YER (﷼)</option>
-                                                    <option value="ZAR">ZAR (R)</option>
-                                                    <option value="ZMW">ZMW (ZK)</option>
-                                                    <option value="ZWL">ZWL ($)</option>
+                                                    <option value="INR">INR (₹)</option>
                                                 </select>
                                             </div>
-                                            {selectedCurrency !== (companySettings?.currency || 'USD') && (
+                                            {selectedCurrency !== (companySettings?.currency || 'EUR') && (
                                                 <div className="Invoice-meta-col">
                                                     <label style={{ fontWeight: '600', fontSize: '0.8rem', color: '#334155', marginBottom: '3px', display: 'block' }}>Exchange Rate</label>
                                                     <input type="number"
@@ -4486,14 +4964,12 @@ const Invoice = () => {
                                     <table className="Invoice-compact-items-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '20%' }}>{getTableHeader('item', 'ITEM DETAIL').toUpperCase()}</th>
-                                                {getInvoiceLabel('showWarehouse') !== false && <th style={{ width: '13%' }}>{getTableHeader('warehouse', 'WAREHOUSE').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '7%' }}>{getTableHeader('quantity', 'QTY').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showUom') !== false && <th style={{ width: '7%' }}>{getTableHeader('uom', 'UOM').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showRate') !== false && <th style={{ width: '7%' }}>{getTableHeader('rate', 'RATE').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '7%' }}>{getTableHeader('tax', 'TAX %').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '7%' }}>{getTableHeader('discount', 'DISC.').toUpperCase()}</th>}
-                                                <th style={{ width: '11%' }}>{getTableHeader('price', 'AMOUNT').toUpperCase()}</th>
+                                                <th style={{ width: '34%' }}>{getTableHeader('item', 'ITEM DETAIL').toUpperCase()}</th>
+                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '12%' }}>{getTableHeader('quantity', 'QTY').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showRate') !== false && <th style={{ width: '14%' }}>{getTableHeader('rate', 'RATE').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '14%' }}>{getTableHeader('tax', 'VAT %').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '10%' }}>{getTableHeader('discount', 'DISC.').toUpperCase()}</th>}
+                                                <th style={{ width: '16%' }}>{getTableHeader('price', 'AMOUNT').toUpperCase()}</th>
                                                 <th style={{ width: '4%' }}></th>
                                             </tr>
                                         </thead>
@@ -4534,7 +5010,7 @@ const Invoice = () => {
                                                                             serviceId: '',
                                                                             uomId: p.salesUomId || p.uomId || '',
                                                                             rate: Number(convertedPrice.toFixed(2)) || 0,
-                                                                            tax: p.taxRate || 0,
+                                                                            tax: p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' ? parseFloat(p.taxRate) : defaultVat,
                                                                             description: item.description || p.name,
                                                                             warehouseId: autoWarehouseId
                                                                         });
@@ -4549,7 +5025,7 @@ const Invoice = () => {
                                                                             serviceId: sId,
                                                                             productId: '',
                                                                             rate: Number(convertedPrice.toFixed(2)) || 0,
-                                                                            tax: s.taxRate || 0,
+                                                                            tax: s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' ? parseFloat(s.taxRate) : defaultVat,
                                                                             description: item.description || s.name
                                                                         });
                                                                     }
@@ -4572,31 +5048,6 @@ const Invoice = () => {
                                                             onEnterPress={() => handleAutoAddNextRow(item.id)}
                                                         />
                                                     </td>
-                                                    {getInvoiceLabel('showWarehouse') !== false && (
-                                                        <td>
-                                                            <SearchableSelect
-                                                                options={allWarehouses.map(w => {
-                                                                    const prodId = item.productId ? (String(item.productId).startsWith('p-') ? parseInt(String(item.productId).replace('p-', '')) : parseInt(item.productId)) : null;
-                                                                    const prod = prodId ? allProducts.find(p => p.id === prodId) : null;
-                                                                    const stockItem = prod?.stock?.find(s => Number(s.warehouseId) === Number(w.id));
-                                                                    const count = stockItem ? stockItem.quantity : 0;
-                                                                    return {
-                                                                        id: String(w.id),
-                                                                        name: `${w.name} (${count})`
-                                                                    };
-                                                                })}
-                                                                value={item.warehouseId ? String(item.warehouseId) : ''}
-                                                                onChange={(val) => updateItem(item.id, 'warehouseId', val)}
-                                                                placeholder="Select Warehouse..."
-                                                                searchPlaceholder="Search warehouse..."
-                                                                labelKey="name"
-                                                                valueKey="id"
-                                                                groupKey=""
-                                                                disabled={!!selectedChallan}
-                                                                clearable={false}
-                                                            />
-                                                        </td>
-                                                    )}
                                                     {getInvoiceLabel('showQty') !== false && (
                                                         <td>
                                                             <input type="number" className="Invoice-compact-input text-center" value={item.qty}
@@ -4608,30 +5059,7 @@ const Invoice = () => {
                                                                 onChange={(e) => updateItem(item.id, 'qty', e.target.value.replace(/-/g, ''))} />
                                                         </td>
                                                     )}
-                                                    {getInvoiceLabel('showUom') !== false && (
-                                                        <td>
-                                                            {item.productId ? (
-                                                                <select className="Invoice-compact-select" value={item.uomId}
-                                                                    disabled
-                                                                    onChange={(e) => updateItem(item.id, 'uomId', e.target.value)}>
-                                                                    <option value="">Select UOM...</option>
-                                                                    {allUoms
-                                                                        .filter(u => {
-                                                                            const prod = allProducts.find(p => p.id === (String(item.productId).startsWith('p-') ? parseInt(String(item.productId).replace('p-', '')) : parseInt(item.productId)));
-                                                                            return u.category === prod?.uom?.category || u.baseUnitId === prod?.uomId;
-                                                                        })
-                                                                        .map(u => (
-                                                                            <option key={u.id} value={u.id}>
-                                                                                {u.unitName}
-                                                                            </option>
-                                                                        ))
-                                                                    }
-                                                                </select>
-                                                            ) : (
-                                                                <span className="text-gray-400 text-xs flex justify-center items-center h-full">N/A</span>
-                                                            )}
-                                                        </td>
-                                                    )}
+
                                                     {getInvoiceLabel('showRate') !== false && (
                                                         <td>
                                                             <input type="number" className="Invoice-compact-input text-right" value={item.rate}
@@ -4645,13 +5073,19 @@ const Invoice = () => {
                                                     )}
                                                     {getInvoiceLabel('showTax') !== false && (
                                                         <td>
-                                                            <input type="number" className="Invoice-compact-input text-center" value={item.tax}
-                                                                min="0"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                                                    if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
-                                                                }}
-                                                                onChange={(e) => updateItem(item.id, 'tax', e.target.value.replace(/-/g, ''))} />
+                                                            <select
+                                                                className="Invoice-compact-input text-center"
+                                                                value={item.tax !== undefined && item.tax !== null ? item.tax : defaultVat}
+                                                                onChange={(e) => updateItem(item.id, 'tax', parseFloat(e.target.value) || 0)}
+                                                                style={{ fontWeight: 600, cursor: 'pointer', appearance: 'auto', padding: '2px 4px' }}
+                                                            >
+                                                                <option value="23">23% (Std)</option>
+                                                                <option value="13.5">13.5% (Red)</option>
+                                                                <option value="0">0% (Zero)</option>
+                                                                {![23, 13.5, 0, '23', '13.5', '0'].includes(item.tax) && item.tax !== undefined && item.tax !== '' && (
+                                                                    <option value={item.tax}>{item.tax}%</option>
+                                                                )}
+                                                            </select>
                                                         </td>
                                                     )}
                                                     {getInvoiceLabel('showDiscount') !== false && (
@@ -5013,7 +5447,7 @@ const Invoice = () => {
                                             <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
                                         </div>
                                         <div className="Invoice-compact-t-row">
-                                            <span>Tax Total:</span>
+                                            <span>{getInvoiceLabel('tax', 'VAT')}:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
                                         </div>
                                         <div className="Invoice-compact-t-row Invoice-totals-discount-row">
@@ -5055,10 +5489,10 @@ const Invoice = () => {
                                             </div>
                                         </>
                                     )}
-                                    {selectedCurrency !== (companySettings?.currency || 'USD') && (
+                                    {selectedCurrency !== (companySettings?.currency || 'EUR') && (
                                         <div className="Invoice-compact-t-row text-gray-500 font-semibold text-xs border-t border-dashed border-gray-200 pt-1 text-right justify-end gap-1.5">
                                             <span>Base Total:</span>
-                                            <span>{formatDocCurrency(totals.finalTotal * (parseFloat(exchangeRate) || 1.0), companySettings?.currency || 'USD')}</span>
+                                            <span>{formatDocCurrency(totals.finalTotal * (parseFloat(exchangeRate) || 1.0), companySettings?.currency || 'EUR')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -6290,12 +6724,12 @@ const Invoice = () => {
                                                 />
                                             </div>
                                             <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">HSN</label>
+                                                <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                                 <input
                                                     type="text"
                                                     className="Zirak-Inventory-form-input"
                                                     name="hsn"
-                                                    placeholder="Enter HSN code"
+                                                    placeholder="Enter Item Code / SKU"
                                                     value={productFormData.hsn}
                                                     onChange={handleProductInputChange}
                                                 />

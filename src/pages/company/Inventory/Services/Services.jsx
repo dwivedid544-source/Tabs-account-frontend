@@ -106,7 +106,11 @@ const Services = () => {
         e.preventDefault();
         try {
             const companyId = GetCompanyId();
-            const payload = { ...formData, companyId };
+            const payload = {
+                ...formData,
+                price: formData.price !== '' && formData.price !== undefined ? parseFloat(formData.price) : 0,
+                companyId
+            };
             const res = await servicesApi.createService(payload);
             if (res.success) {
                 toast.success('Service created successfully');
@@ -124,7 +128,11 @@ const Services = () => {
         e.preventDefault();
         try {
             const companyId = GetCompanyId();
-            const payload = { ...formData, companyId };
+            const payload = {
+                ...formData,
+                price: formData.price !== '' && formData.price !== undefined ? parseFloat(formData.price) : 0,
+                companyId
+            };
             const res = await servicesApi.updateService(selectedService.id, payload, companyId);
             if (res.success) {
                 toast.success('Service updated successfully');
@@ -283,8 +291,8 @@ const Services = () => {
                                     </select>
                                 </div>
                                 <div className="Zirak-Services-form-group">
-                                    <label className="Zirak-Services-form-label">Price <span className="Zirak-Services-text-red">*</span></label>
-                                    <input name="price" type="number" step="0.01" className="Zirak-Services-form-input" placeholder="Enter price" required value={formData.price} onChange={handleInputChange} />
+                                    <label className="Zirak-Services-form-label">Price (Optional - can be entered manually on invoice)</label>
+                                    <input name="price" type="number" step="0.01" className="Zirak-Services-form-input" placeholder="0.00 (Optional - enter manually on invoice)" value={formData.price} onChange={handleInputChange} />
                                 </div>
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">Default Tax %</label>
@@ -392,8 +400,8 @@ const Services = () => {
                                     </select>
                                 </div>
                                 <div className="Zirak-Services-form-group">
-                                    <label className="Zirak-Services-form-label">Price <span className="Zirak-Services-text-red">*</span></label>
-                                    <input name="price" type="number" step="0.01" className="Zirak-Services-form-input" required value={formData.price} onChange={handleInputChange} />
+                                    <label className="Zirak-Services-form-label">Price (Optional - can be entered manually on invoice)</label>
+                                    <input name="price" type="number" step="0.01" className="Zirak-Services-form-input" placeholder="0.00 (Optional - enter manually on invoice)" value={formData.price} onChange={handleInputChange} />
                                 </div>
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">Default Tax %</label>

@@ -76,21 +76,42 @@ const StatementImport = () => {
 
                 // Find header row (first non-empty row)
                 let headerRowIndex = 0;
-                while (headerRowIndex < data.length && (!data[headerRowIndex] || data[headerRowIndex].length === 0 || !data[headerRowIndex].some(c => c))) {
+                while (headerRowIndex < data.length && (!data[headerRowIndex] || data[headerRowIndex].length === 0 || !data[headerRowIndex].some(c => c && c.toString().trim().length > 0))) {
                     headerRowIndex++;
                 }
 
-                const headers = data[headerRowIndex].map(h => (h || '').toString().trim());
+                if (headerRowIndex >= data.length) {
+                    toast.error('No valid header row found in file.');
+                    return;
+                }
+
+                const rawRowHeaders = data[headerRowIndex] || [];
+                const headers = [];
+                const validHeaderIndices = [];
+
+                rawRowHeaders.forEach((h, idx) => {
+                    const cleanH = (h !== undefined && h !== null ? h.toString().trim() : '');
+                    if (cleanH.length > 0 && !headers.includes(cleanH)) {
+                        headers.push(cleanH);
+                        validHeaderIndices.push({ name: cleanH, index: idx });
+                    }
+                });
+
+                if (headers.length === 0) {
+                    toast.error('Could not detect any column headers in file.');
+                    return;
+                }
+
                 setRawHeaders(headers);
 
                 // Convert remaining rows into objects
                 const rowsData = [];
                 for (let i = headerRowIndex + 1; i < data.length; i++) {
                     const row = data[i];
-                    if (!row || row.every(cell => cell === '')) continue;
+                    if (!row || row.every(cell => cell === '' || cell === null || cell === undefined)) continue;
                     const rowObj = {};
-                    headers.forEach((h, idx) => {
-                        if (h) rowObj[h] = row[idx];
+                    validHeaderIndices.forEach(({ name, index }) => {
+                        rowObj[name] = row[index] !== undefined && row[index] !== null ? row[index] : '';
                     });
                     rowsData.push(rowObj);
                 }
@@ -108,23 +129,35 @@ const StatementImport = () => {
 
     // Auto-detect columns intelligently based on typical banking headers
     const autoDetectColumns = (headers, rows) => {
-        const lowerHeaders = headers.map(h => h.toLowerCase());
+        const lowerHeaders = headers.map(h => h.toLowerCase().trim());
 
         // Date
-        const dateIdx = lowerHeaders.findIndex(h => h.includes('date') || h.includes('time'));
+        const dateIdx = lowerHeaders.findIndex(h => h.includes('date') || h.includes('time') || h === 'dt');
         if (dateIdx !== -1) setDateCol(headers[dateIdx]);
 
         // Description
-        const descIdx = lowerHeaders.findIndex(h => h.includes('desc') || h.includes('narr') || h.includes('detail') || h.includes('payee') || h.includes('memo') || h.includes('particular'));
+        const descIdx = lowerHeaders.findIndex(h => 
+            h.includes('desc') || h.includes('narr') || h.includes('detail') || 
+            h.includes('payee') || h.includes('memo') || h.includes('particular') || h.includes('party')
+        );
         if (descIdx !== -1) setDescCol(headers[descIdx]);
 
         // Reference
-        const refIdx = lowerHeaders.findIndex(h => h.includes('ref') || h.includes('chq') || h.includes('cheque') || h.includes('trans id') || h.includes('number'));
+        const refIdx = lowerHeaders.findIndex(h => 
+            h.includes('ref') || h.includes('chq') || h.includes('cheque') || 
+            h.includes('trans id') || h.includes('txn id') || h.includes('number')
+        );
         if (refIdx !== -1) setRefCol(headers[refIdx]);
 
         // Debit / Credit vs Single Amount
-        const debitIdx = lowerHeaders.findIndex(h => h.includes('debit') || h.includes('withdrawal') || h.includes('spent') || h.includes('paid') || h.includes('dr'));
-        const creditIdx = lowerHeaders.findIndex(h => h.includes('credit') || h.includes('deposit') || h.includes('received') || h.includes('cr'));
+        const debitIdx = lowerHeaders.findIndex(h => 
+            h.includes('debit') || h.includes('withdrawal') || h.includes('spent') || 
+            h.includes('paid') || h === 'dr' || h.includes('outflow')
+        );
+        const creditIdx = lowerHeaders.findIndex(h => 
+            h.includes('credit') || h.includes('deposit') || h.includes('received') || 
+            h === 'cr' || h.includes('inflow')
+        );
 
         if (debitIdx !== -1 && creditIdx !== -1) {
             setAmountMode('split');
@@ -349,19 +382,23 @@ const StatementImport = () => {
                         </div>
                     ) : (
                         <div className="mapping-form">
-                            <div className="form-row">
-                                <div className="form-group col-6">
+                            <div className="bank-form-grid">
+                                <div className="form-group">
                                     <label>Date Column *</label>
                                     <select value={dateCol} onChange={(e) => setDateCol(e.target.value)}>
                                         <option value="">-- Select Column --</option>
-                                        {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                        {rawHeaders.map((h, idx) => (
+                                            <option key={`date-${idx}-${h}`} value={h}>{h}</option>
+                                        ))}
                                     </select>
                                 </div>
-                                <div className="form-group col-6">
+                                <div className="form-group">
                                     <label>Description / Payee Column</label>
                                     <select value={descCol} onChange={(e) => setDescCol(e.target.value)}>
                                         <option value="">-- Select Column --</option>
-                                        {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                        {rawHeaders.map((h, idx) => (
+                                            <option key={`desc-${idx}-${h}`} value={h}>{h}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -370,7 +407,9 @@ const StatementImport = () => {
                                 <label>Reference / Cheque # Column (Optional)</label>
                                 <select value={refCol} onChange={(e) => setRefCol(e.target.value)}>
                                     <option value="">-- None --</option>
-                                    {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    {rawHeaders.map((h, idx) => (
+                                        <option key={`ref-${idx}-${h}`} value={h}>{h}</option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -403,23 +442,29 @@ const StatementImport = () => {
                                     <label>Amount Column *</label>
                                     <select value={amountCol} onChange={(e) => setAmountCol(e.target.value)}>
                                         <option value="">-- Select Column --</option>
-                                        {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                        {rawHeaders.map((h, idx) => (
+                                            <option key={`amt-${idx}-${h}`} value={h}>{h}</option>
+                                        ))}
                                     </select>
                                 </div>
                             ) : (
-                                <div className="form-row">
-                                    <div className="form-group col-6">
+                                <div className="bank-form-grid">
+                                    <div className="form-group">
                                         <label>Debit (Withdrawal / Spent) Column *</label>
                                         <select value={debitCol} onChange={(e) => setDebitCol(e.target.value)}>
                                             <option value="">-- Select Column --</option>
-                                            {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                            {rawHeaders.map((h, idx) => (
+                                                <option key={`dr-${idx}-${h}`} value={h}>{h}</option>
+                                            ))}
                                         </select>
                                     </div>
-                                    <div className="form-group col-6">
+                                    <div className="form-group">
                                         <label>Credit (Deposit / Received) Column *</label>
                                         <select value={creditCol} onChange={(e) => setCreditCol(e.target.value)}>
                                             <option value="">-- Select Column --</option>
-                                            {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                            {rawHeaders.map((h, idx) => (
+                                                <option key={`cr-${idx}-${h}`} value={h}>{h}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>

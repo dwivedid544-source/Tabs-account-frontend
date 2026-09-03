@@ -228,7 +228,7 @@ const CompanySettings = () => {
         quantity: 'Quantity',
         rate: 'Rate',
         discount: 'Discount',
-        tax: 'Tax (%)',
+        tax: 'VAT (%)',
         price: 'Price',
         warehouse: 'Warehouse',
         uom: 'UOM'
@@ -239,7 +239,7 @@ const CompanySettings = () => {
         billTo: 'Bill To:',
         shipTo: 'Ship To:',
         subTotal: 'Sub Total',
-        tax: 'Tax',
+        tax: 'VAT',
         total: 'Total',
         number: 'Number:',
         issue: 'Issue:',
@@ -376,8 +376,8 @@ const CompanySettings = () => {
         city: 'New York',
         state: 'NY',
         zip: '10001',
-        country: 'United States',
-        currency: 'USD',
+        country: 'Ireland',
+        currency: 'EUR',
         bankName: '',
         accountHolder: '',
         accountName: '',
@@ -387,6 +387,7 @@ const CompanySettings = () => {
         sortCode: '',
         ifsc: '',
         vatNumber: '',
+        defaultVatRate: '23',
         defaultVatRateId: '',
         isVatRegistered: true,
         terms: '',
@@ -405,166 +406,13 @@ const CompanySettings = () => {
     ];
 
     const currencies = [
-        { code: 'USD', name: 'USD ($)' },
-        { code: 'EUR', name: 'EUR (€)' },
-        { code: 'INR', name: 'INR (₹)' },
-        { code: 'GBP', name: 'GBP (£)' },
-        { code: 'JPY', name: 'JPY (¥)' },
-        { code: 'CAD', name: 'CAD ($)' },
-        { code: 'AUD', name: 'AUD ($)' },
-        { code: 'CHF', name: 'CHF (CHF)' },
-        { code: 'CNY', name: 'CNY (¥)' },
-        { code: 'NZD', name: 'NZD ($)' },
-        { code: 'ZAR', name: 'ZAR (R)' },
-        { code: 'AED', name: 'AED (د.إ)' },
-        { code: 'SAR', name: 'SAR (ر.س)' },
-        { code: 'QAR', name: 'QAR (ر.ق)' },
-        { code: 'KWD', name: 'KWD (د.ك)' },
-        { code: 'BHD', name: 'BHD (.د.ب)' },
-        { code: 'OMR', name: 'OMR (ر.ع.)' },
-        { code: 'SGD', name: 'SGD ($)' },
-        { code: 'HKD', name: 'HKD ($)' },
-        { code: 'MYR', name: 'MYR (RM)' },
-        { code: 'THB', name: 'THB (฿)' },
-        { code: 'IDR', name: 'IDR (Rp)' },
-        { code: 'PHP', name: 'PHP (₱)' },
-        { code: 'VND', name: 'VND (₫)' },
-        { code: 'KRW', name: 'KRW (₩)' },
-        { code: 'RUB', name: 'RUB (₽)' },
-        { code: 'TRY', name: 'TRY (₺)' },
-        { code: 'BRL', name: 'BRL (R$)' },
-        { code: 'MXN', name: 'MXN ($)' },
-        { code: 'AFN', name: 'AFN (؋)' },
-        { code: 'ALL', name: 'ALL (L)' },
-        { code: 'AMD', name: 'AMD (֏)' },
-        { code: 'ANG', name: 'ANG (ƒ)' },
-        { code: 'AOA', name: 'AOA (Kz)' },
-        { code: 'ARS', name: 'ARS ($)' },
-        { code: 'AWG', name: 'AWG (ƒ)' },
-        { code: 'AZN', name: 'AZN (₼)' },
-        { code: 'BAM', name: 'BAM (KM)' },
-        { code: 'BBD', name: 'BBD ($)' },
-        { code: 'BDT', name: 'BDT (৳)' },
-        { code: 'BGN', name: 'BGN (лв)' },
-        { code: 'BIF', name: 'BIF (FBu)' },
-        { code: 'BMD', name: 'BMD ($)' },
-        { code: 'BND', name: 'BND ($)' },
-        { code: 'BOB', name: 'BOB ($b)' },
-        { code: 'BSD', name: 'BSD ($)' },
-        { code: 'BTN', name: 'BTN (Nu.)' },
-        { code: 'BWP', name: 'BWP (P)' },
-        { code: 'BYN', name: 'BYN (Br)' },
-        { code: 'BZD', name: 'BZD (BZ$)' },
-        { code: 'CDF', name: 'CDF (FC)' },
-        { code: 'CLP', name: 'CLP ($)' },
-        { code: 'COP', name: 'COP ($)' },
-        { code: 'CRC', name: 'CRC (₡)' },
-        { code: 'CUP', name: 'CUP (₱)' },
-        { code: 'CVE', name: 'CVE ($)' },
-        { code: 'CZK', name: 'CZK (Kč)' },
-        { code: 'DJF', name: 'DJF (Fdj)' },
-        { code: 'DKK', name: 'DKK (kr)' },
-        { code: 'DOP', name: 'DOP (RD$)' },
-        { code: 'DZD', name: 'DZD (دج)' },
-        { code: 'EGP', name: 'EGP (£)' },
-        { code: 'ERN', name: 'ERN (Nfk)' },
-        { code: 'ETB', name: 'ETB (Br)' },
-        { code: 'FJD', name: 'FJD ($)' },
-        { code: 'FKP', name: 'FKP (£)' },
-        { code: 'GEL', name: 'GEL (₾)' },
-        { code: 'GGP', name: 'GGP (£)' },
-        { code: 'GHS', name: 'GHS (¢)' },
-        { code: 'GIP', name: 'GIP (£)' },
-        { code: 'GMD', name: 'GMD (D)' },
-        { code: 'GNF', name: 'GNF (FG)' },
-        { code: 'GTQ', name: 'GTQ (Q)' },
-        { code: 'GYD', name: 'GYD ($)' },
-        { code: 'HNL', name: 'HNL (L)' },
-        { code: 'HRK', name: 'HRK (kn)' },
-        { code: 'HTG', name: 'HTG (G)' },
-        { code: 'HUF', name: 'HUF (Ft)' },
-        { code: 'ILS', name: 'ILS (₪)' },
-        { code: 'IMP', name: 'IMP (£)' },
-        { code: 'IQD', name: 'IQD (ع.د)' },
-        { code: 'IRR', name: 'IRR (﷼)' },
-        { code: 'ISK', name: 'ISK (kr)' },
-        { code: 'JEP', name: 'JEP (£)' },
-        { code: 'JMD', name: 'JMD (J$)' },
-        { code: 'JOD', name: 'JOD (د.ا)' },
-        { code: 'KES', name: 'KES (KSh)' },
-        { code: 'KGS', name: 'KGS (лв)' },
-        { code: 'KHR', name: 'KHR (៛)' },
-        { code: 'KMF', name: 'KMF (CF)' },
-        { code: 'KPW', name: 'KPW (₩)' },
-        { code: 'KYD', name: 'KYD ($)' },
-        { code: 'KZT', name: 'KZT (₸)' },
-        { code: 'LAK', name: 'LAK (₭)' },
-        { code: 'LBP', name: 'LBP (£)' },
-        { code: 'LKR', name: 'LKR (₨)' },
-        { code: 'LRD', name: 'LRD ($)' },
-        { code: 'LSL', name: 'LSL (L)' },
-        { code: 'LYD', name: 'LYD (ل.د)' },
-        { code: 'MAD', name: 'MAD (د.م.)' },
-        { code: 'MDL', name: 'MDL (L)' },
-        { code: 'MGA', name: 'MGA (Ar)' },
-        { code: 'MKD', name: 'MKD (ден)' },
-        { code: 'MMK', name: 'MMK (K)' },
-        { code: 'MNT', name: 'MNT (₮)' },
-        { code: 'MOP', name: 'MOP (MOP$)' },
-        { code: 'MRU', name: 'MRU (UM)' },
-        { code: 'MUR', name: 'MUR (₨)' },
-        { code: 'MVR', name: 'MVR (.ރ)' },
-        { code: 'MWK', name: 'MWK (MK)' },
-        { code: 'MZN', name: 'MZN (MT)' },
-        { code: 'NAD', name: 'NAD ($)' },
-        { code: 'NGN', name: 'NGN (₦)' },
-        { code: 'NIO', name: 'NIO (C$)' },
-        { code: 'NOK', name: 'NOK (kr)' },
-        { code: 'NPR', name: 'NPR (₨)' },
-        { code: 'PAB', name: 'PAB (B/.)' },
-        { code: 'PEN', name: 'PEN (S/.)' },
-        { code: 'PGK', name: 'PGK (K)' },
-        { code: 'PKR', name: 'PKR (₨)' },
-        { code: 'PLN', name: 'PLN (zł)' },
-        { code: 'PYG', name: 'PYG (Gs)' },
-        { code: 'RON', name: 'RON (lei)' },
-        { code: 'RSD', name: 'RSD (Дин.)' },
-        { code: 'RWF', name: 'RWF (Rf)' },
-        { code: 'SBD', name: 'SBD ($)' },
-        { code: 'SCR', name: 'SCR (₨)' },
-        { code: 'SDG', name: 'SDG (ج.س.)' },
-        { code: 'SEK', name: 'SEK (kr)' },
-        { code: 'SHP', name: 'SHP (£)' },
-        { code: 'SLL', name: 'SLL (Le)' },
-        { code: 'SOS', name: 'SOS (S)' },
-        { code: 'SRD', name: 'SRD ($)' },
-        { code: 'SSP', name: 'SSP (£)' },
-        { code: 'STN', name: 'STN (Db)' },
-        { code: 'SYP', name: 'SYP (£)' },
-        { code: 'SZL', name: 'SZL (L)' },
-        { code: 'TJS', name: 'TJS (SM)' },
-        { code: 'TMT', name: 'TMT (T)' },
-        { code: 'TND', name: 'TND (د.ت)' },
-        { code: 'TOP', name: 'TOP (T$)' },
-        { code: 'TTD', name: 'TTD (TT$)' },
-        { code: 'TWD', name: 'TWD (NT$)' },
-        { code: 'TZS', name: 'TZS (TSh)' },
-        { code: 'UAH', name: 'UAH (₴)' },
-        { code: 'UGX', name: 'UGX (USh)' },
-        { code: 'UYU', name: 'UYU ($U)' },
-        { code: 'UZS', name: 'UZS (лв)' },
-        { code: 'VES', name: 'VES (Bs.S)' },
-        { code: 'WST', name: 'WST (WS$)' },
-        { code: 'XAF', name: 'XAF (FCFA)' },
-        { code: 'XCD', name: 'XCD ($)' },
-        { code: 'XOF', name: 'XOF (CFAF)' },
-        { code: 'XPF', name: 'XPF (CFPF)' },
-        { code: 'YER', name: 'YER (﷼)' },
-        { code: 'ZMW', name: 'ZMW (ZK)' },
-        { code: 'ZWL', name: 'ZWL ($)' }
+        { code: 'EUR', name: 'Euro (EUR €)' },
+        { code: 'GBP', name: 'British Pound (GBP £)' },
+        { code: 'USD', name: 'US Dollar (USD $)' },
+        { code: 'INR', name: 'Indian Rupee (INR ₹)' }
     ];
 
-    const templates = ['New York', 'Toronto', 'Rio', 'London', 'Istanbul', 'Mumbai', 'Hong Kong', 'Tokyo', 'Sydney', 'Paris', 'Dubai', 'Berlin'];
+    const templates = ['Standard VAT (CEA)'];
 
     useEffect(() => {
         const fetchCompany = async () => {
@@ -611,6 +459,7 @@ const CompanySettings = () => {
                     sortCode: data.sortCode || '',
                     ifsc: data.ifsc || '',
                     vatNumber: data.vatNumber || data.gstNumber || '',
+                    defaultVatRate: data.defaultVatRate ? data.defaultVatRate.toString() : '23',
                     defaultVatRateId: data.defaultVatRateId || '',
                     isVatRegistered: data.isVatRegistered !== undefined ? data.isVatRegistered : true,
                     terms: data.terms || '',
@@ -641,7 +490,7 @@ const CompanySettings = () => {
                             quantity: headers.quantity || 'Quantity',
                             rate: headers.rate || 'Rate',
                             discount: headers.discount || 'Discount',
-                            tax: headers.tax || 'Tax (%)',
+                            tax: headers.tax || 'VAT (%)',
                             price: headers.price || 'Price',
                             warehouse: headers.warehouse || 'Warehouse',
                             uom: headers.uom || 'UOM'
@@ -660,7 +509,7 @@ const CompanySettings = () => {
                             billTo: labels.billTo || 'Bill To:',
                             shipTo: labels.shipTo || 'Ship To:',
                             subTotal: labels.subTotal || 'Sub Total',
-                            tax: labels.tax || 'Tax',
+                            tax: labels.tax || 'VAT',
                             total: labels.total || 'Total',
                             number: labels.number || 'Number:',
                             issue: labels.issue || 'Issue:',
@@ -1296,15 +1145,15 @@ const CompanySettings = () => {
                                 </div>
                             </div>
 
-                            {/* Card 3: Business & Financial Settings */}
+                            {/* Card 3: Business & Tax Settings */}
                             <div className="general-card">
                                 <div className="general-card-header">
                                     <div className="general-card-icon-badge">
                                         <Landmark size={18} />
                                     </div>
                                     <div>
-                                        <h3 className="general-card-title">Business &amp; Tax Settings</h3>
-                                        <p className="general-card-subtitle">Set primary accounting currency and VAT tax registration details</p>
+                                        <h3 className="general-card-title">Business &amp; VAT Settings</h3>
+                                        <p className="general-card-subtitle">Set primary accounting currency, default company VAT rate, and tax registration details</p>
                                     </div>
                                 </div>
                                 <div className="companySetting-form-grid">
@@ -1317,6 +1166,21 @@ const CompanySettings = () => {
                                         </select>
                                     </div>
                                     <div className="companySetting-form-group">
+                                        <label>Default Company VAT Rate</label>
+                                        <select 
+                                            value={formData.defaultVatRate || '23'} 
+                                            onChange={(e) => setFormData({ ...formData, defaultVatRate: e.target.value })}
+                                            style={{ fontWeight: 600 }}
+                                        >
+                                            <option value="23">23% (Standard Rate)</option>
+                                            <option value="13.5">13.5% (Reduced Rate)</option>
+                                            <option value="0">0% (Zero / Exempt Rate)</option>
+                                        </select>
+                                        <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                                            Automatically selected by default on all new line items in Invoices, Bills, Orders &amp; Quotes.
+                                        </span>
+                                    </div>
+                                    <div className="companySetting-form-group">
                                         <label>VAT Registration Number</label>
                                         <input
                                             type="text"
@@ -1324,6 +1188,22 @@ const CompanySettings = () => {
                                             onChange={(e) => setFormData({ ...formData, vatNumber: e.target.value })}
                                             placeholder="e.g. IE1234567T / GB123456789"
                                         />
+                                    </div>
+                                    <div className="companySetting-form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.isVatRegistered}
+                                                onChange={(e) => setFormData({ ...formData, isVatRegistered: e.target.checked })}
+                                                style={{ width: '16px', height: '16px', accentColor: '#1e293b', cursor: 'pointer' }}
+                                            />
+                                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
+                                                Registered for VAT
+                                            </span>
+                                        </label>
+                                        <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
+                                            Applies VAT calculations and enables 2-month VAT revenue returns.
+                                        </span>
                                     </div>
                                 </div>
                             </div>

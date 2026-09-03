@@ -31,20 +31,21 @@ const Payment = () => {
     const { companySettings, formatCurrency, getSyncRate, getReceiptPaymentLabel, getReceiptPaymentHeader, getDocumentTitle } = useContext(CompanyContext);
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || companySettings?.currency || 'USD';
+        const docCurrency = currencyCode || companySettings?.currency || 'EUR';
         const localeMap = {
-            'INR': 'en-IN', 'AED': 'ar-AE', 'SAR': 'ar-SA', 'EUR': 'de-DE',
+            'INR': 'en-IN', 'AED': 'ar-AE', 'SAR': 'ar-SA', 'EUR': 'en-IE',
             'GBP': 'en-GB', 'JPY': 'ja-JP', 'CNY': 'zh-CN', 'RUB': 'ru-RU',
             'BRL': 'pt-BR', 'CAD': 'en-CA', 'AUD': 'en-AU', 'PKR': 'en-PK', 'BDT': 'en-BD', 'USD': 'en-US'
         };
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
         try {
             return new Intl.NumberFormat(locale, {
                 style: 'currency', currency: docCurrency,
                 minimumFractionDigits: 2, maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
 
@@ -134,7 +135,7 @@ const Payment = () => {
     const [advanceAmount, setAdvanceAmount] = useState(0);
 
     useEffect(() => {
-        const baseCurrency = companySettings?.currency || 'USD';
+        const baseCurrency = companySettings?.currency || 'EUR';
         const billCurrency = selectedBill?.currency || baseCurrency;
         if (billCurrency !== baseCurrency) {
             const liveRate = getSyncRate(billCurrency, baseCurrency) || 1.0;
@@ -157,7 +158,7 @@ const Payment = () => {
 
     const getBillRate = (bill) => {
         if (!bill) return 1.0;
-        const baseCurr = companySettings?.currency || 'USD';
+        const baseCurr = companySettings?.currency || 'EUR';
         const billCurr = bill.currency || baseCurr;
         if (billCurr === baseCurr) return 1.0;
         return getSyncRate(billCurr, baseCurr) || 1.0;
@@ -881,7 +882,7 @@ const Payment = () => {
                                                 {/* <td><span className="PurchasePayment-mode-badge">{p.paymentMode}</span></td> */}
                                                 <td className="PurchasePayment-amount-text font-semibold">
                                                     {(() => {
-                                                        const baseCurr = companySettings?.currency || 'USD';
+                                                        const baseCurr = companySettings?.currency || 'EUR';
                                                         const billCurr = p.purchasebill?.currency || (p.allocations && p.allocations[0]?.purchasebill?.currency) || baseCurr;
                                                         const isForeign = billCurr !== baseCurr;
                                                         const liveRate = isForeign ? exchangeRate : 1.0;
@@ -1042,7 +1043,7 @@ const Payment = () => {
                                         </div>
                                         <div className="SalesPayment-invoice-grid">
                                             {filteredVendorBills.map(bill => {
-                                                const baseCurr = companySettings?.currency || 'USD';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 const billCurr = bill.currency || baseCurr;
                                                 const isForeign = billCurr !== baseCurr;
                                                 const liveRate = isForeign ? exchangeRate : 1.0;
@@ -1173,7 +1174,7 @@ const Payment = () => {
                                                     </div>
                                                     <div className="PurchasePayment-form-group">
                                                         {(() => {
-                                                            const baseCurr = companySettings?.currency || 'USD';
+                                                            const baseCurr = companySettings?.currency || 'EUR';
                                                             const billCurr = selectedBill?.currency || baseCurr;
                                                             const isForeign = billCurr !== baseCurr;
                                                             const liveRate = isForeign ? exchangeRate : 1.0;
@@ -1228,7 +1229,7 @@ const Payment = () => {
                                                 </div>
 
                                                 {(() => {
-                                                    const baseCurr = companySettings?.currency || 'USD';
+                                                    const baseCurr = companySettings?.currency || 'EUR';
                                                     const billCurr = selectedBill?.currency || baseCurr;
                                                     if (billCurr !== baseCurr) {
                                                         return (
@@ -1326,7 +1327,7 @@ const Payment = () => {
                                                                             }
                                                                             return rawAlloc;
                                                                         })();
-                                                                        const baseCurr = companySettings?.currency || 'USD';
+                                                                        const baseCurr = companySettings?.currency || 'EUR';
                                                                         const billCurr = bill.currency || baseCurr;
                                                                         const isForeign = billCurr !== baseCurr;
                                                                         const liveRate = isForeign ? exchangeRate : 1.0;
@@ -1411,7 +1412,7 @@ const Payment = () => {
 
                                             {/* Allocation Summary Info */}
                                             {(() => {
-                                                const baseCurr = companySettings?.currency || 'USD';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 const billCurr = selectedBill?.currency || baseCurr;
                                                 const isForeign = billCurr !== baseCurr;
                                                 const liveRate = isForeign ? exchangeRate : 1.0;
@@ -1913,7 +1914,7 @@ const Payment = () => {
                                     <div className="pp-receipt-satisfaction-banner">
                                         <p className="pp-receipt-satisfaction-text">
                                             {(() => {
-                                                const baseCurr = companySettings?.currency || 'USD';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 const billCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
                                                 const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                 const isForeign = billCurr !== baseCurr;
@@ -1932,7 +1933,7 @@ const Payment = () => {
                                         </p>
                                         <span className="pp-receipt-satisfaction-amount">
                                             {(() => {
-                                                const baseCurr = companySettings?.currency || 'USD';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 const billCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
                                                 const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                 const isForeign = billCurr !== baseCurr;
@@ -1963,7 +1964,7 @@ const Payment = () => {
                                                 <tbody>
                                                     {viewPayment.allocations && viewPayment.allocations.length > 0 ? (
                                                         viewPayment.allocations.map((alloc, index) => {
-                                                            const baseCurr = companySettings?.currency || 'USD';
+                                                            const baseCurr = companySettings?.currency || 'EUR';
                                                             const billCurr = alloc.purchasebill?.currency || baseCurr;
                                                             const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                             const isForeign = billCurr !== baseCurr;
@@ -2009,7 +2010,7 @@ const Payment = () => {
                                                     ) : (
                                                         // Fallback to legacy single bill link
                                                         (() => {
-                                                            const baseCurr = companySettings?.currency || 'USD';
+                                                            const baseCurr = companySettings?.currency || 'EUR';
                                                             const billCurr = viewPayment.purchasebill?.currency || baseCurr;
                                                             const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                             const isForeign = billCurr !== baseCurr;

@@ -36,6 +36,7 @@ import { Upload, Loader2 } from 'lucide-react';
 const Quotation = () => {
     // --- State Management ---
     const { formatCurrency, getTableHeader, getInvoiceLabel, companySettings, getDocumentTitle } = useContext(CompanyContext);
+    const defaultVat = companySettings?.defaultVatRate !== undefined ? parseFloat(companySettings.defaultVatRate) : 23;
     const { hasPermission } = useContext(AuthContext);
     const [customFieldValues, setCustomFieldValues] = useState({});
 
@@ -182,7 +183,7 @@ const Quotation = () => {
     const [customerId, setCustomerId] = useState('');
     const [customerDetails, setCustomerDetails] = useState({ address: '', email: '', phone: '' });
     const [items, setItems] = useState([
-        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
+        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, total: 0, description: '' }
     ]);
     const [allUoms, setAllUoms] = useState([]);
     const location = useLocation();
@@ -657,7 +658,7 @@ const Quotation = () => {
                 console.error(e);
             }
         }
-        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
         setNotes(companyDetails.notes || 'Thank you for your business!');
         setTerms(companyDetails.termsQuotation || companyDetails.terms || '"Payment is due within 15 days.",\n"Goods once sold will not be taken back."');
         setAttachments([]);
@@ -922,7 +923,7 @@ const Quotation = () => {
                 console.error(e);
             }
         }
-        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
     };
 
     const handleAutoAddNextRow = (itemId) => {
@@ -943,7 +944,7 @@ const Quotation = () => {
                             console.error(e);
                         }
                     }
-                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }];
+                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }];
                 }
             }
             return prevItems;
@@ -1456,8 +1457,8 @@ const Quotation = () => {
                                                     <span>-{formatCurrency(totals.discount + totals.overallDiscountAmount)}</span>
                                                 </div>
                                                 {getInvoiceLabel('showTax') !== false && (
-                                                    <div className="invoice-total-row">
-                                                        <span>{getInvoiceLabel('tax') || 'Tax Total'}</span>
+                                                    <div className="Quotation-t-row">
+                                                        <span>{getInvoiceLabel('tax', 'VAT Total')}:</span>
                                                         <span>{formatCurrency(totals.tax)}</span>
                                                     </div>
                                                 )}
@@ -1758,7 +1759,7 @@ const Quotation = () => {
                                                         {getInvoiceLabel('showQty') !== false && <th style={{ width: '8%' }}>{getTableHeader('quantity', 'Qty').toUpperCase()}</th>}
                                                         {getInvoiceLabel('showUom') !== false && <th style={{ width: '10%' }}>UOM</th>}
                                                         {getInvoiceLabel('showRate') !== false && <th style={{ width: '12%' }}>{getTableHeader('rate', 'Rate').toUpperCase()}</th>}
-                                                        {getInvoiceLabel('showTax') !== false && <th style={{ width: '10%' }}>{getTableHeader('tax', 'Tax %').toUpperCase()}</th>}
+                                                        {getInvoiceLabel('showTax') !== false && <th style={{ width: '10%' }}>{getTableHeader('tax', 'VAT %').toUpperCase()}</th>}
                                                         {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '10%' }}>{getTableHeader('discount', 'Disc.').toUpperCase()}</th>}
                                                         <th style={{ width: '12%' }}>{getTableHeader('price', 'Amount').toUpperCase()}</th>
                                                         <th style={{ width: '6%' }}></th>
@@ -1787,7 +1788,7 @@ const Quotation = () => {
                                                                                     productId: pId,
                                                                                     serviceId: '',
                                                                                     rate: p.salePrice || 0,
-                                                                                    tax: p.taxRate || 0,
+                                                                                    tax: p.taxRate || defaultVat || 0,
                                                                                     description: item.description || p.name,
                                                                                     uomId: p.salesUomId || p.uomId || ''
                                                                                 });
@@ -1800,7 +1801,7 @@ const Quotation = () => {
                                                                                     serviceId: sId,
                                                                                     productId: '',
                                                                                     rate: s.price || 0,
-                                                                                    tax: s.taxRate || 0,
+                                                                                    tax: s.taxRate || defaultVat || 0,
                                                                                     description: item.description || s.name,
                                                                                     uomId: s.uomId || ''
                                                                                 });
@@ -1810,7 +1811,7 @@ const Quotation = () => {
                                                                                 productId: '',
                                                                                 serviceId: '',
                                                                                 rate: 0,
-                                                                                tax: 0,
+                                                                                tax: defaultVat || 0,
                                                                                 description: '',
                                                                                 uomId: ''
                                                                             });
@@ -1915,19 +1916,20 @@ const Quotation = () => {
                                                             )}
                                                             {getInvoiceLabel('showTax') !== false && (
                                                                 <td>
-                                                                    <input type="number" className="Quotation-tax-input" value={item.tax}
+                                                                    <select
+                                                                        className="Quotation-tax-input"
+                                                                        value={item.tax !== undefined && item.tax !== null ? item.tax : defaultVat}
                                                                         disabled={isViewMode}
-                                                                        min="0"
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === '-' || e.key === 'e' || e.key === 'E') {
-                                                                                e.preventDefault();
-                                                                            }
-                                                                            if (e.key === 'Enter') {
-                                                                                e.preventDefault();
-                                                                                handleAutoAddNextRow(item.id);
-                                                                            }
-                                                                        }}
-                                                                        onChange={(e) => updateItem(item.id, 'tax', e.target.value)} />
+                                                                        onChange={(e) => updateItem(item.id, 'tax', parseFloat(e.target.value) || 0)}
+                                                                        style={{ fontWeight: 600, cursor: 'pointer', appearance: 'auto', padding: '2px 4px' }}
+                                                                    >
+                                                                        <option value="23">23% (Std)</option>
+                                                                        <option value="13.5">13.5% (Red)</option>
+                                                                        <option value="0">0% (Zero)</option>
+                                                                        {![23, 13.5, 0, '23', '13.5', '0'].includes(item.tax) && item.tax !== undefined && item.tax !== '' && (
+                                                                            <option value={item.tax}>{item.tax}%</option>
+                                                                        )}
+                                                                    </select>
                                                                 </td>
                                                             )}
                                                             {getInvoiceLabel('showDiscount') !== false && (
@@ -2712,10 +2714,10 @@ const Quotation = () => {
                                         />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">HSN</label>
+                                        <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                         <input
                                             name="hsn" type="text" className="Zirak-Inventory-form-input"
-                                            placeholder="Enter HSN code"
+                                            placeholder="Enter Item Code / SKU"
                                             value={productFormData.hsn} onChange={handleProductInputChange}
                                         />
                                     </div>

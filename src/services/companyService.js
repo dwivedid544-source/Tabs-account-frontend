@@ -31,12 +31,40 @@ const deleteCompany = async (id) => {
     return response.data;
 };
 
+const getUserCompanies = async () => {
+    const response = await axiosInstance.get('/companies/user-companies');
+    return response.data;
+};
+
+const createUserCompany = async (formData) => {
+    const response = await axiosInstance.post('/companies/user-company', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+};
+
+const getPeriodLockSettings = async (companyId) => {
+    const url = companyId ? `/companies/${companyId}/period-lock` : '/companies/period-lock';
+    const response = await axiosInstance.get(url);
+    return response.data;
+};
+
+const updatePeriodLockSettings = async (companyId, data) => {
+    const url = companyId ? `/companies/${companyId}/period-lock` : '/companies/period-lock';
+    const response = await axiosInstance.put(url, data);
+    return response.data;
+};
+
 const companyService = {
     getCompanies,
     getCompanyById,
     createCompany,
     updateCompany,
-    deleteCompany
+    deleteCompany,
+    getUserCompanies,
+    createUserCompany,
+    getPeriodLockSettings,
+    updatePeriodLockSettings
 };
 
 export default companyService;

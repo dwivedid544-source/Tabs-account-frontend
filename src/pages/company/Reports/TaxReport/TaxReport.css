@@ -116,6 +116,39 @@
     color: #0f172a;
 }
 
+.vat-basis-pill-wrap {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 0.25rem;
+    border: 1px solid #cbd5e1;
+    gap: 0.25rem;
+}
+
+.vat-basis-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.vat-basis-btn:hover {
+    color: #0f172a;
+}
+
+.vat-basis-btn.active {
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
 .btn-download-green {
     background: #1e293b;
     color: white;
@@ -307,6 +340,176 @@
 .py-4 {
     padding-top: 1rem;
     padding-bottom: 1rem;
+}
+
+/* ============================
+   VAT KPI & BI-MONTHLY STYLES
+   ============================ */
+.vat-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.vat-kpi-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+}
+
+.vat-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.vat-kpi-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.vat-kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vat-kpi-icon.sales {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.vat-kpi-icon.purchases {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.vat-kpi-icon.revenue {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.vat-kpi-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-bottom: 0.35rem;
+}
+
+.vat-kpi-hint {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.vat-kpi-card.highlight.payable {
+    border-left: 4px solid #dc2626;
+    background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+}
+
+.vat-kpi-card.highlight.refund {
+    border-left: 4px solid #16a34a;
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+}
+
+.vat-kpi-card.highlight.nil {
+    border-left: 4px solid #94a3b8;
+}
+
+.vat-kpi-status-badge {
+    margin-top: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    align-self: flex-start;
+}
+
+.payable .vat-kpi-status-badge {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.refund .vat-kpi-status-badge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.nil .vat-kpi-status-badge {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Bi-Monthly Table Special Styling */
+.bimonthly-table {
+    width: 100%;
+}
+
+.bimonthly-table th {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+}
+
+.cycle-badge {
+    display: inline-block;
+    background: #f1f5f9;
+    color: #334155;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.status-pill {
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-block;
+}
+
+.status-payable {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.status-refund {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-nil {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.bimonthly-total-row td {
+    background: #f8fafc;
+    border-top: 2px solid #cbd5e1;
+    font-size: 0.95rem;
+}
+
+.total-vat-row td {
+    background: #f8fafc;
+    font-weight: 700;
 }
 
 /* ============================

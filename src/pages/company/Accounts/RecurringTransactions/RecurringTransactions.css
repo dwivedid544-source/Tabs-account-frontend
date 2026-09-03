@@ -184,3 +184,13 @@
     background-color: #fef3c7;
     color: #92400e;
 }
+
+.REC-badge.type-jv {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}
+
+.REC-badge.paused {
+    background-color: #fee2e2;
+    color: #991b1b;
+}

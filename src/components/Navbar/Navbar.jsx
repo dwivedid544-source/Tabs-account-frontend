@@ -7,11 +7,13 @@ import {
     Menu, Globe, Bell, Plus, ChevronDown, LogOut, User as UserIcon,
     Search, X, Loader2, FileText, ShoppingCart, Users, Package, FileClock,
     Home, Building2, Ticket, ClipboardList, CreditCard, Key, Calculator,
-    Box, Truck, BarChart3, UserCog, Settings, Receipt
+    Box, Truck, BarChart3, UserCog, Settings, Receipt, CheckCircle2
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { useTranslation } from '../../context/LanguageContext';
+import { CompanyContext } from '../../context/CompanyContext';
+import CreateCompanyModal from './CreateCompanyModal';
 import './Navbar.css';
 
 const SUPERADMIN_MENUS = [
@@ -95,11 +97,53 @@ const COMPANY_MENUS = [
 ];
 
 const Navbar = ({ toggleSidebar }) => {
-    const { currentUser, logout, hasPermission } = useContext(AuthContext);
+    const { currentUser, logout, hasPermission, switchCompany, refreshCompanies } = useContext(AuthContext);
+    const { companySettings } = useContext(CompanyContext);
     const { language, changeLanguage, supportedLanguages } = useTranslation();
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isLangOpen, setIsLangOpen] = useState(false);
+    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+    const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
+    const companyDropdownRef = useRef(null);
+
+    // Refresh companies list if needed
+    useEffect(() => {
+        if (currentUser && (!currentUser.companies || currentUser.companies.length <= 1)) {
+            refreshCompanies();
+        }
+    }, [currentUser?.companyId]);
+
+    // Close company dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (companyDropdownRef.current && !companyDropdownRef.current.contains(e.target)) {
+                setIsCompanyOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleCompanySwitch = async (companyId) => {
+        if (Number(companyId) === Number(currentUser?.companyId)) {
+            setIsCompanyOpen(false);
+            return;
+        }
+
+        const loadToast = toast.loading('Switching company...');
+        try {
+            setIsCompanyOpen(false);
+            await switchCompany(companyId);
+            toast.success('Switched company successfully!');
+            window.location.href = '/company/dashboard';
+        } catch (error) {
+            console.error('Error switching company:', error);
+            toast.error(error.response?.data?.message || 'Failed to switch company');
+        } finally {
+            toast.dismiss(loadToast);
+        }
+    };
 
     const currentLangObj = supportedLanguages.find(l => l.code === language) || supportedLanguages[0];
 
@@ -410,6 +454,199 @@ const Navbar = ({ toggleSidebar }) => {
             </div>
 
             <div className="navbar-right">
+                {/* Company Switcher */}
+                {currentUser && currentUser.role !== 'SUPERADMIN' && (
+                    <div className="company-switcher-container" ref={companyDropdownRef} style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            className="company-switcher-btn"
+                            onClick={() => setIsCompanyOpen(!isCompanyOpen)}
+                            title="Switch Company"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: '#f8fafc',
+                                border: '1.5px solid #e2e8f0',
+                                borderRadius: '10px',
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                fontSize: '0.86rem',
+                                fontWeight: '600',
+                                color: '#1e293b',
+                                transition: 'all 0.2s',
+                                height: '38px',
+                                boxSizing: 'border-box'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = '#0284c7';
+                                e.currentTarget.style.background = '#f0f9ff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                                e.currentTarget.style.background = '#f8fafc';
+                            }}
+                        >
+                            <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '6px',
+                                background: '#0284c7',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                overflow: 'hidden',
+                                flexShrink: 0
+                            }}>
+                                {companySettings?.logo ? (
+                                    <img src={companySettings.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                ) : (
+                                    <Building2 size={14} />
+                                )}
+                            </div>
+                            <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {companySettings?.name || currentUser?.company?.name || 'Company'}
+                            </span>
+                            <ChevronDown
+                                size={14}
+                                style={{
+                                    color: '#64748b',
+                                    transition: 'transform 0.2s',
+                                    transform: isCompanyOpen ? 'rotate(180deg)' : 'none',
+                                    flexShrink: 0
+                                }}
+                            />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isCompanyOpen && (
+                            <div style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 8px)',
+                                right: 0,
+                                width: '290px',
+                                background: '#ffffff',
+                                borderRadius: '12px',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                border: '1px solid #e2e8f0',
+                                zIndex: 1000,
+                                overflow: 'hidden',
+                                animation: 'fadeIn 0.15s ease-out'
+                            }}>
+                                <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        Switch Company
+                                    </span>
+                                    <div style={{ fontSize: '0.78rem', color: '#0f172a', fontWeight: '500', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {currentUser.email}
+                                    </div>
+                                </div>
+
+                                {/* List of companies */}
+                                <div style={{ maxHeight: '220px', overflowY: 'auto', padding: '6px' }}>
+                                    {(currentUser.companies && currentUser.companies.length > 0
+                                        ? currentUser.companies
+                                        : [currentUser.company || { id: currentUser.companyId, name: companySettings?.name || 'Current Company' }]
+                                    ).map((c) => {
+                                        const isActive = Number(c.id) === Number(currentUser?.companyId);
+                                        return (
+                                            <div
+                                                key={c.id}
+                                                onClick={() => handleCompanySwitch(c.id)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '8px 12px',
+                                                    borderRadius: '8px',
+                                                    cursor: isActive ? 'default' : 'pointer',
+                                                    background: isActive ? '#f0fdf4' : 'transparent',
+                                                    border: isActive ? '1px solid #bbf7d0' : '1px solid transparent',
+                                                    marginBottom: '4px',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (!isActive) e.currentTarget.style.background = '#f8fafc';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (!isActive) e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                                    <div style={{
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '6px',
+                                                        background: isActive ? '#10b981' : '#e2e8f0',
+                                                        color: isActive ? '#ffffff' : '#475569',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: '700',
+                                                        flexShrink: 0
+                                                    }}>
+                                                        {c.name?.charAt(0).toUpperCase() || 'C'}
+                                                    </div>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {c.name}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                                            {c.currency || 'EUR'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {isActive && (
+                                                    <CheckCircle2 size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Add New Company Button */}
+                                <div style={{ padding: '8px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsCompanyOpen(false);
+                                            setShowCreateCompanyModal(true);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px',
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            border: '1px dashed #0284c7',
+                                            background: '#f0f9ff',
+                                            color: '#0284c7',
+                                            fontSize: '0.84rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#e0f2fe';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = '#f0f9ff';
+                                        }}
+                                    >
+                                        <Plus size={16} /> Add New Company
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="lang-selector-container notranslate">
                     <button className="icon-btn notranslate" onClick={() => setIsLangOpen(!isLangOpen)}>
                         <Globe size={18} />
@@ -1131,6 +1368,12 @@ const Navbar = ({ toggleSidebar }) => {
                 </div>,
                 document.body
             )}
+
+            <CreateCompanyModal
+                isOpen={showCreateCompanyModal}
+                onClose={() => setShowCreateCompanyModal(false)}
+                onSuccess={() => refreshCompanies()}
+            />
         </header>
     );
 };

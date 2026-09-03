@@ -14,7 +14,7 @@
 /* Setup Panel */
 .rec-setup-panel {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr 1.5fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     background: #ffffff;
     border: 1px solid #e2e8f0;

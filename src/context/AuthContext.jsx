@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import authService from '../services/authService';
+import axiosInstance from '../api/axiosInstance';
 
 export const AuthContext = createContext();
 
@@ -37,6 +38,29 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(userData);
     };
 
+    const switchCompany = async (companyId) => {
+        const response = await axiosInstance.post('/auth/switch-company', { companyId });
+        if (response.data && response.data.token) {
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+            setCurrentUser(response.data.user);
+        }
+        return response.data;
+    };
+
+    const refreshCompanies = async () => {
+        try {
+            const res = await axiosInstance.get('/companies/user-companies');
+            if (res.data && res.data.companies && currentUser) {
+                const updatedUser = { ...currentUser, companies: res.data.companies };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                setCurrentUser(updatedUser);
+            }
+        } catch (e) {
+            console.error("Error refreshing companies:", e);
+        }
+    };
+
     const hasPermission = (permission) => {
         if (!currentUser) return false;
         // SUPERADMIN and COMPANY (Owner) have full access
@@ -69,7 +93,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ currentUser, login, register, logout, updateCurrentUser, hasPermission }}>
+        <AuthContext.Provider value={{ currentUser, login, register, logout, updateCurrentUser, hasPermission, switchCompany, refreshCompanies }}>
             {children}
         </AuthContext.Provider>
     );

@@ -27,12 +27,12 @@ const Payment = () => {
     const [customFieldValues, setCustomFieldValues] = useState({});
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || companySettings?.currency || 'INR';
+        const docCurrency = currencyCode || companySettings?.currency || 'EUR';
         const localeMap = {
             'INR': 'en-IN',
             'AED': 'ar-AE',
             'SAR': 'ar-SA',
-            'EUR': 'de-DE',
+            'EUR': 'en-IE',
             'GBP': 'en-GB',
             'JPY': 'ja-JP',
             'CNY': 'zh-CN',
@@ -43,7 +43,7 @@ const Payment = () => {
             'PKR': 'en-PK',
             'BDT': 'en-BD'
         };
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
         try {
             return new Intl.NumberFormat(locale, {
                 style: 'currency',
@@ -52,7 +52,8 @@ const Payment = () => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
 

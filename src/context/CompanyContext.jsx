@@ -5,22 +5,18 @@ import { AuthContext } from './AuthContext';
 
 export const CompanyContext = createContext();
 
+export const ALLOWED_CURRENCIES = [
+    { code: 'EUR', name: 'Euro (EUR €)', symbol: '€' },
+    { code: 'GBP', name: 'British Pound (GBP £)', symbol: '£' },
+    { code: 'USD', name: 'US Dollar (USD $)', symbol: '$' },
+    { code: 'INR', name: 'Indian Rupee (INR ₹)', symbol: '₹' }
+];
+
 const CURRENCY_SYMBOLS = {
-    USD: '$', EUR: '€', INR: '₹', GBP: '£', JPY: '¥', CAD: '$', AUD: '$', CHF: 'CHF', CNY: '¥', NZD: '$', ZAR: 'R',
-    AED: 'د.إ', SAR: 'ر.س', QAR: 'ر.ق', KWD: 'د.ك', BHD: '.د.ب', OMR: 'ر.ع.', SGD: '$', HKD: '$', MYR: 'RM', THB: '฿',
-    IDR: 'Rp', PHP: '₱', VND: '₫', KRW: '₩', RUB: '₽', TRY: '₺', BRL: 'R$', MXN: '$', AFN: '؋', ALL: 'L', AMD: '֏',
-    ANG: 'ƒ', AOA: 'Kz', ARS: '$', AWG: 'ƒ', AZN: '₼', BAM: 'KM', BBD: '$', BDT: '৳', BGN: 'лв', BIF: 'FBu', BMD: '$',
-    BND: '$', BOB: '$b', BSD: '$', BTN: 'Nu.', BWP: 'P', BYN: 'Br', BZD: 'BZ$', CDF: 'FC', CLP: '$', COP: '$', CRC: '₡',
-    CUP: '₱', CVE: '$', CZK: 'Kč', DJF: 'Fdj', DKK: 'kr', DOP: 'RD$', DZD: 'دج', EGP: '£', ERN: 'Nfk', ETB: 'Br',
-    FJD: '$', FKP: '£', GEL: '₾', GGP: '£', GHS: '¢', GIP: '£', GMD: 'D', GNF: 'FG', GTQ: 'Q', GYD: '$', HNL: 'L',
-    HRK: 'kn', HTG: 'G', HUF: 'Ft', ILS: '₪', IMP: '£', IQD: 'ع.د', IRR: '﷼', ISK: 'kr', JEP: '£', JMD: 'J$', JOD: 'د.ا',
-    KES: 'KSh', KGS: 'лв', KHR: '៛', KMF: 'CF', KPW: '₩', KYD: '$', KZT: '₸', LAK: '₭', LBP: '£', LKR: '₨', LRD: '$',
-    LSL: 'L', LYD: 'ل.د', MAD: 'د.م.', MDL: 'L', MGA: 'Ar', MKD: 'ден', MMK: 'K', MNT: '₮', MOP: 'MOP$', MRU: 'UM',
-    MUR: '₨', MVR: '.ރ', MWK: 'MK', MZN: 'MT', NAD: '$', NGN: '₦', NIO: 'C$', NOK: 'kr', NPR: '₨', PAB: 'B/.',
-    PEN: 'S/.', PGK: 'K', PKR: '₨', PLN: 'zł', PYG: 'Gs', RON: 'lei', RSD: 'Дин.', RWF: 'Rf', SBD: '$', SCR: '₨',
-    SDG: 'ج.س.', SEK: 'kr', SHP: '£', SLL: 'Le', SOS: 'S', SRD: '$', SSP: '£', STN: 'Db', SYP: '£', SZL: 'L', TJS: 'SM',
-    TMT: 'T', TND: 'د.ت', TOP: 'T$', TTD: 'TT$', TWD: 'NT$', TZS: 'TSh', UAH: '₴', UGX: 'USh', UYU: '$U', UZS: 'лв',
-    VES: 'Bs.S', WST: 'WS$', XAF: 'FCFA', XCD: '$', XOF: 'CFAF', XPF: 'CFPF', YER: '﷼', ZMW: 'ZK', ZWL: '$'
+    EUR: '€',
+    GBP: '£',
+    USD: '$',
+    INR: '₹'
 };
 
 export const CompanyProvider = ({ children }) => {
@@ -28,21 +24,15 @@ export const CompanyProvider = ({ children }) => {
     const [companySettings, setCompanySettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [liveRates, setLiveRates] = useState(null);
-    const [currencies, setCurrencies] = useState([]);
+    const [currencies, setCurrencies] = useState(ALLOWED_CURRENCIES);
 
     useEffect(() => {
         const fetchLiveRates = async () => {
             try {
-                const res = await fetch('https://open.er-api.com/v6/latest/USD');
+                const res = await fetch('https://open.er-api.com/v6/latest/EUR');
                 const data = await res.json();
                 if (data && data.rates) {
                     setLiveRates(data.rates);
-                    const fetchedCodes = Object.keys(data.rates);
-                    const mappedCurrencies = fetchedCodes.map(code => {
-                        const symbol = CURRENCY_SYMBOLS[code] ? ` (${CURRENCY_SYMBOLS[code]})` : '';
-                        return { code, name: `${code}${symbol}` };
-                    });
-                    setCurrencies(mappedCurrencies);
                 }
             } catch (e) {
                 console.error("Error fetching live rates in CompanyContext:", e);
@@ -56,7 +46,12 @@ export const CompanyProvider = ({ children }) => {
         if (companyId) {
             try {
                 const res = await companyService.getById(companyId);
-                setCompanySettings(res.data);
+                const data = res.data || {};
+                if (!data.defaultVatRate) data.defaultVatRate = '23';
+                if (!data.currency || !['EUR', 'GBP', 'USD', 'INR'].includes(data.currency)) {
+                    data.currency = 'EUR';
+                }
+                setCompanySettings(data);
             } catch (error) {
                 console.error("Error fetching company settings:", error);
             } finally {
@@ -68,37 +63,27 @@ export const CompanyProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        if (currentUser) {
+        if (currentUser?.companyId) {
             fetchCompanySettings();
+        } else if (currentUser) {
+            setLoading(false);
         } else {
             setCompanySettings(null);
             setLoading(false);
         }
-    }, [currentUser]);
+    }, [currentUser?.companyId, currentUser?.id]);
 
     const formatCurrency = (amount) => {
-        const currencyCode = companySettings?.currency || 'USD';
+        const currencyCode = companySettings?.currency || 'EUR';
 
-        // Dynamic locale mapping to ensure proper thousand/lakh separators
-        // Most currencies can use 'en-US' formatting with their specific symbol,
-        // but some like INR have unique grouping rules.
         const localeMap = {
-            'INR': 'en-IN',
-            'AED': 'ar-AE',
-            'SAR': 'ar-SA',
-            'EUR': 'de-DE',
+            'EUR': 'en-IE',
             'GBP': 'en-GB',
-            'JPY': 'ja-JP',
-            'CNY': 'zh-CN',
-            'RUB': 'ru-RU',
-            'BRL': 'pt-BR',
-            'CAD': 'en-CA',
-            'AUD': 'en-AU',
-            'PKR': 'en-PK',
-            'BDT': 'en-BD'
+            'USD': 'en-US',
+            'INR': 'en-IN'
         };
 
-        const locale = localeMap[currencyCode] || 'en-US';
+        const locale = localeMap[currencyCode] || 'en-IE';
 
         try {
             return new Intl.NumberFormat(locale, {
@@ -108,20 +93,15 @@ export const CompanyProvider = ({ children }) => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            // Ultimate fallback for very rare or unsupported currency codes
-            return `${currencyCode} ${(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const sym = CURRENCY_SYMBOLS[currencyCode] || currencyCode;
+            return `${sym}${(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
     };
     const FRONTEND_FALLBACK_RATES = {
-        "USD": 1,
-        "AED": 3.6725,
-        "INR": 95.240603,
-        "KWD": 0.309391,
-        "EUR": 0.878331,
-        "GBP": 0.753734,
-        "SAR": 3.75,
-        "JPY": 162.547842,
-        "CNY": 6.801054
+        "EUR": 1.0,
+        "GBP": 0.857,
+        "USD": 1.092,
+        "INR": 98.45
     };
 
     const getExchangeRateFor = async (from, to) => {
@@ -138,39 +118,50 @@ export const CompanyProvider = ({ children }) => {
         return toRate / fromRate;
     };
 
+    const sanitizeEnglishOnly = (text) => {
+        if (typeof text !== 'string') return text;
+        return text.replace(/[\u0600-\u06FF]/g, '').replace(/\s+/g, ' ').trim();
+    };
+
     const DEFAULT_LABELS = {
         billTo: 'Bill To:',
         shipTo: 'Ship To:',
-        subTotal: 'Sub Total',
-        tax: 'Tax',
+        subTotal: 'Subtotal',
+        tax: 'VAT',
         total: 'Total',
-        number: 'Number:',
-        issue: 'Issue:',
+        number: 'Invoice #:',
+        issue: 'Date:',
         dueDate: 'Due Date:',
         showHeader: true,
         showFooter: true,
-        showWarehouse: true,
+        showWarehouse: false,
         showQty: true,
-        showUom: true,
+        showUom: false,
         showRate: true,
         showTax: true,
         showDiscount: true
     };
 
     const getInvoiceLabel = (key) => {
+        if (key === 'showWarehouse' || key === 'showUom') {
+            return false;
+        }
+        if (key === 'tax') {
+            return 'VAT';
+        }
         if (companySettings?.invoiceLabels) {
             try {
                 const labels = typeof companySettings.invoiceLabels === 'string'
                     ? JSON.parse(companySettings.invoiceLabels)
                     : companySettings.invoiceLabels;
                 if (labels[key] !== undefined) {
-                    return labels[key];
+                    return sanitizeEnglishOnly(labels[key]);
                 }
             } catch (e) {
                 // fall through to default
             }
         }
-        return DEFAULT_LABELS[key] !== undefined ? DEFAULT_LABELS[key] : key;
+        return sanitizeEnglishOnly(DEFAULT_LABELS[key] !== undefined ? DEFAULT_LABELS[key] : key);
     };
 
     const DEFAULT_HEADERS = {
@@ -178,24 +169,29 @@ export const CompanyProvider = ({ children }) => {
         quantity: 'Quantity',
         rate: 'Rate',
         discount: 'Discount',
-        tax: 'Tax (%)',
-        price: 'Price',
+        tax: 'VAT (%)',
+        price: 'Amount',
         warehouse: 'Warehouse',
         uom: 'UOM'
     };
 
     const getTableHeader = (key, defaultVal) => {
+        if (key === 'tax') {
+            return 'VAT (%)';
+        }
         if (companySettings?.invoiceTableHeaders) {
             try {
                 const headers = typeof companySettings.invoiceTableHeaders === 'string'
                     ? JSON.parse(companySettings.invoiceTableHeaders)
                     : companySettings.invoiceTableHeaders;
-                return headers[key] !== undefined ? headers[key] : (defaultVal || DEFAULT_HEADERS[key] || key);
+                if (headers[key] !== undefined) {
+                    return sanitizeEnglishOnly(headers[key]);
+                }
             } catch (e) {
                 // fall through to default
             }
         }
-        return defaultVal || DEFAULT_HEADERS[key] || key;
+        return sanitizeEnglishOnly(defaultVal || DEFAULT_HEADERS[key] || key);
     };
 
     const getReceiptPaymentLabel = (key, defaultVal = '') => {

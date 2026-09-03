@@ -26,13 +26,13 @@ const SalesReturn = () => {
     // --- State Management ---
     const { companySettings, formatCurrency, getDocumentTitle, getSyncRate } = useContext(CompanyContext);
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || companySettings?.currency || 'USD';
+        const docCurrency = currencyCode || companySettings?.currency || 'EUR';
         const localeMap = {
-            'INR': 'en-IN', 'AED': 'ar-AE', 'SAR': 'ar-SA', 'EUR': 'de-DE', 'GBP': 'en-GB',
+            'INR': 'en-IN', 'AED': 'ar-AE', 'SAR': 'ar-SA', 'EUR': 'en-IE', 'GBP': 'en-GB',
             'JPY': 'ja-JP', 'CNY': 'zh-CN', 'RUB': 'ru-RU', 'BRL': 'pt-BR', 'CAD': 'en-CA',
             'AUD': 'en-AU', 'PKR': 'en-PK', 'BDT': 'en-BD'
         };
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
         try {
             return new Intl.NumberFormat(locale, {
                 style: 'currency',
@@ -41,7 +41,8 @@ const SalesReturn = () => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
 

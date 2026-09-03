@@ -738,7 +738,7 @@ const Vendors = () => {
                                     </div>
                                     <div className="Vendors-form-group Vendors-half-width">
                                         <label className="Vendors-form-label">
-                                            Account Balance ({companySettings?.currency || 'USD'}) <span className="Vendors-text-red">*</span>
+                                            Account Balance ({companySettings?.currency || 'EUR'}) <span className="Vendors-text-red">*</span>
                                         </label>
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                             <span style={{
@@ -751,7 +751,7 @@ const Vendors = () => {
                                                 fontSize: '0.85rem',
                                                 whiteSpace: 'nowrap'
                                             }}>
-                                                {companySettings?.currency || 'USD'}
+                                                {companySettings?.currency || 'EUR'}
                                             </span>
                                             <input
                                                 type="number"
@@ -881,7 +881,7 @@ const Vendors = () => {
                                         />
                                         <span className="Vendors-slider Vendors-round"></span>
                                     </label>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Enable GST</span>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Enable VAT</span>
 
                                     {formData.gstEnabled && (
                                         <div className="Vendors-form-group" style={{ marginLeft: '2rem', flex: 1 }}>
@@ -892,7 +892,7 @@ const Vendors = () => {
                                                 value={formData.gstNumber}
                                                 onChange={handleInputChange}
                                                 disabled={modalMode === 'view'}
-                                                placeholder="Enter GSTIN"
+                                                placeholder="Enter VAT Number"
                                             />
                                         </div>
                                     )}

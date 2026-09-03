@@ -2792,12 +2792,12 @@ const PurchaseOrder = () => {
                                         />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">HSN</label>
+                                        <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                         <input
                                             type="text"
                                             className="Zirak-Inventory-form-input"
                                             name="hsn"
-                                            placeholder="Enter HSN code"
+                                            placeholder="Enter Item Code / SKU"
                                             value={productFormData.hsn}
                                             onChange={handleProductInputChange}
                                         />

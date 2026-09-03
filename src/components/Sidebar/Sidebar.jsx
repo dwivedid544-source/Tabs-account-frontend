@@ -225,6 +225,7 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 icon: Settings,
                 subItems: [
                     { path: '/company/settings/info', label: 'Company Info', perm: 'view settings' },
+                    { path: '/company/settings/period-lock', label: 'Period Lock & Close', perm: 'view settings' },
                     { path: '/company/settings/integrations', label: 'CRM Integrations', perm: 'view settings' },
                     { path: '/company/settings/password-requests', label: 'Password Requests', perm: 'view settings' },
                     { path: '/company/settings/audit-logs', label: 'Audit Logs', perm: 'view settings' },

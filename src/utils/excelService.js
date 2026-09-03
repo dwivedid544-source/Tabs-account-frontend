@@ -72,7 +72,6 @@ export const ENTITY_SCHEMAS = {
         fileName: 'Customers_Template.xlsx',
         fields: [
             { key: 'name', label: 'Customer Name', required: true, example: 'Apex Technologies Ltd' },
-            { key: 'nameArabic', label: 'Arabic Name', required: false, example: 'شركة التقنيات قمة' },
             { key: 'companyName', label: 'Company / Business Name', required: false, example: 'Apex Technologies Ltd' },
             { key: 'email', label: 'Email Address', required: false, example: 'billing@apextech.com' },
             { key: 'phone', label: 'Phone Number', required: false, example: '+353 1 234 5678' },
@@ -90,7 +89,6 @@ export const ENTITY_SCHEMAS = {
         sampleData: [
             {
                 'Customer Name': 'Apex Technologies Ltd',
-                'Arabic Name': 'شركة التقنيات قمة',
                 'Company / Business Name': 'Apex Tech International',
                 'Email Address': 'accounts@apextech.com',
                 'Phone Number': '+353 1 234 5678',
@@ -107,7 +105,6 @@ export const ENTITY_SCHEMAS = {
             },
             {
                 'Customer Name': 'Horizon Trading Co',
-                'Arabic Name': 'شركة هورايزون التجارية',
                 'Company / Business Name': 'Horizon Trading LLC',
                 'Email Address': 'finance@horizontrading.com',
                 'Phone Number': '+971 4 888 9999',
@@ -130,7 +127,6 @@ export const ENTITY_SCHEMAS = {
         fileName: 'Vendors_Template.xlsx',
         fields: [
             { key: 'name', label: 'Vendor Name', required: true, example: 'Global Components Supplier' },
-            { key: 'nameArabic', label: 'Arabic Name', required: false, example: 'المورد العالمي للمكونات' },
             { key: 'companyName', label: 'Company Name', required: false, example: 'Global Components Inc' },
             { key: 'email', label: 'Email Address', required: false, example: 'sales@globalcomponents.com' },
             { key: 'phone', label: 'Phone Number', required: false, example: '+44 20 7946 0912' },
@@ -147,7 +143,6 @@ export const ENTITY_SCHEMAS = {
         sampleData: [
             {
                 'Vendor Name': 'Global Components Supplier',
-                'Arabic Name': 'المورد العالمي للمكونات',
                 'Company Name': 'Global Components UK Ltd',
                 'Email Address': 'orders@globalcomponents.com',
                 'Phone Number': '+44 20 7946 0912',
@@ -170,7 +165,6 @@ export const ENTITY_SCHEMAS = {
         fields: [
             { key: 'code', label: 'Account Code', required: true, example: '1010' },
             { key: 'name', label: 'Account Name', required: true, example: 'Petty Cash' },
-            { key: 'nameArabic', label: 'Arabic Name', required: false, example: 'نثرية الصندوق' },
             { key: 'accountType', label: 'Account Type (Asset / Liability / Equity / Income / Expense)', required: true, example: 'Asset' },
             { key: 'parentAccountCode', label: 'Parent Account Code', required: false, example: '1000' },
             { key: 'openingBalance', label: 'Opening Balance', required: false, example: 500.00, type: 'number' },
@@ -181,7 +175,6 @@ export const ENTITY_SCHEMAS = {
             {
                 'Account Code': '1010',
                 'Account Name': 'Petty Cash - Main Office',
-                'Arabic Name': 'صندوق النثريات الرئيسي',
                 'Account Type (Asset / Liability / Equity / Income / Expense)': 'Asset',
                 'Parent Account Code': '1000',
                 'Opening Balance': 500.00,
@@ -191,7 +184,6 @@ export const ENTITY_SCHEMAS = {
             {
                 'Account Code': '2010',
                 'Account Name': 'VAT Payable (Output VAT)',
-                'Arabic Name': 'ضريبة القيمة المضافة المستحقة',
                 'Account Type (Asset / Liability / Equity / Income / Expense)': 'Liability',
                 'Parent Account Code': '2000',
                 'Opening Balance': 0.00,
@@ -201,7 +193,6 @@ export const ENTITY_SCHEMAS = {
             {
                 'Account Code': '4010',
                 'Account Name': 'Software Development Revenue',
-                'Arabic Name': 'إيرادات تطوير البرمجيات',
                 'Account Type (Asset / Liability / Equity / Income / Expense)': 'Income',
                 'Parent Account Code': '4000',
                 'Opening Balance': 0.00,
@@ -211,7 +202,6 @@ export const ENTITY_SCHEMAS = {
             {
                 'Account Code': '5010',
                 'Account Name': 'Office Rent Expense',
-                'Arabic Name': 'مصروف إيجار المكتب',
                 'Account Type (Asset / Liability / Equity / Income / Expense)': 'Expense',
                 'Parent Account Code': '5000',
                 'Opening Balance': 0.00,

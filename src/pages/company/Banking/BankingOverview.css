@@ -409,137 +409,252 @@
     padding: 8px;
 }
 
-/* Modals */
-.modal-overlay {
+/* ===================================================
+   BANK ACCOUNT MODALS (Spacious & Clean Modern Form)
+   =================================================== */
+.bank-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.55);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
-    backdrop-filter: blur(2px);
+    z-index: 99999;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+    box-sizing: border-box;
+    animation: bankModalFadeIn 0.2s ease-out;
 }
 
-.modal-container {
+@keyframes bankModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.bank-modal-container {
     background: #ffffff;
-    border-radius: 12px;
-    width: 520px;
-    max-width: 92vw;
+    border-radius: 16px;
+    width: 580px;
+    max-width: 100%;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    animation: bankModalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modal-sm {
-    width: 400px;
+@keyframes bankModalSlideUp {
+    from { transform: translateY(12px) scale(0.98); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-.modal-header {
+.bank-modal-sm {
+    width: 440px;
+}
+
+/* Modal Header */
+.bank-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 22px 28px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
 }
 
-.modal-header h3 {
+.bank-modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.bank-modal-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bg-red-light {
+    background: #fef2f2 !important;
+}
+
+.bank-modal-title {
     margin: 0;
     font-size: 17px;
-    font-weight: 600;
+    font-weight: 700;
     color: #0f172a;
+    letter-spacing: -0.2px;
 }
 
-.btn-close {
-    background: none;
+.bank-modal-subtitle {
+    margin: 3px 0 0 0;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.bank-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     border: none;
-    font-size: 16px;
-    cursor: pointer;
+    background: transparent;
     color: #94a3b8;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
-.btn-close:hover {
+.bank-modal-close:hover {
+    background: #f1f5f9;
     color: #0f172a;
 }
 
-.modal-body {
-    padding: 20px;
+/* Modal Body */
+.bank-modal-body {
+    padding: 24px 28px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
+    background: #ffffff;
 }
 
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 20px;
-    border-top: 1px solid #e2e8f0;
-    background: #fafafa;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-}
-
-/* Forms */
-.form-group {
+/* Form Groups & Inputs */
+.bank-form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.form-group label {
-    font-size: 12.5px;
-    font-weight: 500;
+.bank-label {
+    font-size: 13px;
+    font-weight: 600;
     color: #334155;
+    margin-bottom: 7px;
+    display: block;
 }
 
-.form-group input,
-.form-group select {
-    padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    font-size: 13.5px;
-    outline: none;
-    color: #0f172a;
+.bank-input,
+.bank-select {
+    width: 100% !important;
+    height: 42px !important;
+    padding: 0 14px !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 13.5px !important;
+    color: #0f172a !important;
+    outline: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-    border-color: #1e293b;
+.bank-input:focus,
+.bank-select:focus {
+    border-color: #1e293b !important;
+    box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.08) !important;
 }
 
-.form-row {
+.bank-input::placeholder {
+    color: #94a3b8;
+}
+
+.bank-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 16px !important;
+    padding-right: 36px !important;
+}
+
+/* Grid Layout for Rows */
+.bank-form-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Checkbox Card */
+.bank-checkbox-card {
     display: flex;
+    align-items: flex-start;
     gap: 12px;
-}
-
-.col-6 {
-    flex: 1;
-}
-
-.form-check-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
     margin-top: 4px;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.form-check-group input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: #1e293b;
-    cursor: pointer;
+.bank-checkbox-card:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
 }
 
-.form-check-group label {
-    font-size: 12.5px;
-    color: #475569;
+.bank-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    accent-color: #1e293b !important;
     cursor: pointer;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.bank-checkbox-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bank-checkbox-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    margin: 0;
+}
+
+.bank-checkbox-hint {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Modal Footer */
+.bank-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 28px;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+}
+
+.delete-warning-text {
+    font-size: 14.5px;
+    color: #1e293b;
+    margin: 0 0 8px 0;
 }
 
 .loading-container {

@@ -42,167 +42,15 @@ import { exportToExcel } from '../../../../utils/excelService';
 
 
 const ALL_CURRENCIES = [
-    { code: 'USD', name: 'USD ($)' },
     { code: 'EUR', name: 'EUR (€)' },
-    { code: 'INR', name: 'INR (₹)' },
     { code: 'GBP', name: 'GBP (£)' },
-    { code: 'JPY', name: 'JPY (¥)' },
-    { code: 'CAD', name: 'CAD ($)' },
-    { code: 'AUD', name: 'AUD ($)' },
-    { code: 'CHF', name: 'CHF (CHF)' },
-    { code: 'CNY', name: 'CNY (¥)' },
-    { code: 'NZD', name: 'NZD ($)' },
-    { code: 'ZAR', name: 'ZAR (R)' },
-    { code: 'AED', name: 'AED (د.إ)' },
-    { code: 'SAR', name: 'SAR (ر.س)' },
-    { code: 'QAR', name: 'QAR (ر.ق)' },
-    { code: 'KWD', name: 'KWD (د.ك)' },
-    { code: 'BHD', name: 'BHD (.د.ب)' },
-    { code: 'OMR', name: 'OMR (ر.ع.)' },
-    { code: 'SGD', name: 'SGD ($)' },
-    { code: 'HKD', name: 'HKD ($)' },
-    { code: 'MYR', name: 'MYR (RM)' },
-    { code: 'THB', name: 'THB (฿)' },
-    { code: 'IDR', name: 'IDR (Rp)' },
-    { code: 'PHP', name: 'PHP (₱)' },
-    { code: 'VND', name: 'VND (₫)' },
-    { code: 'KRW', name: 'KRW (₩)' },
-    { code: 'RUB', name: 'RUB (₽)' },
-    { code: 'TRY', name: 'TRY (₺)' },
-    { code: 'BRL', name: 'BRL (R$)' },
-    { code: 'MXN', name: 'MXN ($)' },
-    { code: 'AFN', name: 'AFN (؋)' },
-    { code: 'ALL', name: 'ALL (L)' },
-    { code: 'AMD', name: 'AMD (֏)' },
-    { code: 'ANG', name: 'ANG (ƒ)' },
-    { code: 'AOA', name: 'AOA (Kz)' },
-    { code: 'ARS', name: 'ARS ($)' },
-    { code: 'AWG', name: 'AWG (ƒ)' },
-    { code: 'AZN', name: 'AZN (₼)' },
-    { code: 'BAM', name: 'BAM (KM)' },
-    { code: 'BBD', name: 'BBD ($)' },
-    { code: 'BDT', name: 'BDT (৳)' },
-    { code: 'BGN', name: 'BGN (лв)' },
-    { code: 'BIF', name: 'BIF (FBu)' },
-    { code: 'BMD', name: 'BMD ($)' },
-    { code: 'BND', name: 'BND ($)' },
-    { code: 'BOB', name: 'BOB ($b)' },
-    { code: 'BSD', name: 'BSD ($)' },
-    { code: 'BTN', name: 'BTN (Nu.)' },
-    { code: 'BWP', name: 'BWP (P)' },
-    { code: 'BYN', name: 'BYN (Br)' },
-    { code: 'BZD', name: 'BZD (BZ$)' },
-    { code: 'CDF', name: 'CDF (FC)' },
-    { code: 'CLP', name: 'CLP ($)' },
-    { code: 'COP', name: 'COP ($)' },
-    { code: 'CRC', name: 'CRC (₡)' },
-    { code: 'CUP', name: 'CUP (₱)' },
-    { code: 'CVE', name: 'CVE ($)' },
-    { code: 'CZK', name: 'CZK (Kč)' },
-    { code: 'DJF', name: 'DJF (Fdj)' },
-    { code: 'DKK', name: 'DKK (kr)' },
-    { code: 'DOP', name: 'DOP (RD$)' },
-    { code: 'DZD', name: 'DZD (دج)' },
-    { code: 'EGP', name: 'EGP (£)' },
-    { code: 'ERN', name: 'ERN (Nfk)' },
-    { code: 'ETB', name: 'ETB (Br)' },
-    { code: 'FJD', name: 'FJD ($)' },
-    { code: 'FKP', name: 'FKP (£)' },
-    { code: 'GEL', name: 'GEL (₾)' },
-    { code: 'GGP', name: 'GGP (£)' },
-    { code: 'GHS', name: 'GHS (¢)' },
-    { code: 'GIP', name: 'GIP (£)' },
-    { code: 'GMD', name: 'GMD (D)' },
-    { code: 'GNF', name: 'GNF (FG)' },
-    { code: 'GTQ', name: 'GTQ (Q)' },
-    { code: 'GYD', name: 'GYD ($)' },
-    { code: 'HNL', name: 'HNL (L)' },
-    { code: 'HRK', name: 'HRK (kn)' },
-    { code: 'HTG', name: 'HTG (G)' },
-    { code: 'HUF', name: 'HUF (Ft)' },
-    { code: 'ILS', name: 'ILS (₪)' },
-    { code: 'IMP', name: 'IMP (£)' },
-    { code: 'IQD', name: 'IQD (ع.د)' },
-    { code: 'IRR', name: 'IRR (﷼)' },
-    { code: 'ISK', name: 'ISK (kr)' },
-    { code: 'JEP', name: 'JEP (£)' },
-    { code: 'JMD', name: 'JMD (J$)' },
-    { code: 'JOD', name: 'JOD (د.ا)' },
-    { code: 'KES', name: 'KES (KSh)' },
-    { code: 'KGS', name: 'KGS (лв)' },
-    { code: 'KHR', name: 'KHR (៛)' },
-    { code: 'KMF', name: 'KMF (CF)' },
-    { code: 'KPW', name: 'KPW (₩)' },
-    { code: 'KYD', name: 'KYD ($)' },
-    { code: 'KZT', name: 'KZT (₸)' },
-    { code: 'LAK', name: 'LAK (₭)' },
-    { code: 'LBP', name: 'LBP (£)' },
-    { code: 'LKR', name: 'LKR (₨)' },
-    { code: 'LRD', name: 'LRD ($)' },
-    { code: 'LSL', name: 'LSL (L)' },
-    { code: 'LYD', name: 'LYD (ل.د)' },
-    { code: 'MAD', name: 'MAD (د.م.)' },
-    { code: 'MDL', name: 'MDL (L)' },
-    { code: 'MGA', name: 'MGA (Ar)' },
-    { code: 'MKD', name: 'MKD (ден)' },
-    { code: 'MMK', name: 'MMK (K)' },
-    { code: 'MNT', name: 'MNT (₮)' },
-    { code: 'MOP', name: 'MOP (MOP$)' },
-    { code: 'MRU', name: 'MRU (UM)' },
-    { code: 'MUR', name: 'MUR (₨)' },
-    { code: 'MVR', name: 'MVR (.ރ)' },
-    { code: 'MWK', name: 'MWK (MK)' },
-    { code: 'MZN', name: 'MZN (MT)' },
-    { code: 'NAD', name: 'NAD ($)' },
-    { code: 'NGN', name: 'NGN (₦)' },
-    { code: 'NIO', name: 'NIO (C$)' },
-    { code: 'NOK', name: 'NOK (kr)' },
-    { code: 'NPR', name: 'NPR (₨)' },
-    { code: 'PAB', name: 'PAB (B/.)' },
-    { code: 'PEN', name: 'PEN (S/.)' },
-    { code: 'PGK', name: 'PGK (K)' },
-    { code: 'PKR', name: 'PKR (₨)' },
-    { code: 'PLN', name: 'PLN (zł)' },
-    { code: 'PYG', name: 'PYG (Gs)' },
-    { code: 'RON', name: 'RON (lei)' },
-    { code: 'RSD', name: 'RSD (Дин.)' },
-    { code: 'RWF', name: 'RWF (Rf)' },
-    { code: 'SBD', name: 'SBD ($)' },
-    { code: 'SCR', name: 'SCR (₨)' },
-    { code: 'SDG', name: 'SDG (ج.س.)' },
-    { code: 'SEK', name: 'SEK (kr)' },
-    { code: 'SHP', name: 'SHP (£)' },
-    { code: 'SLL', name: 'SLL (Le)' },
-    { code: 'SOS', name: 'SOS (S)' },
-    { code: 'SRD', name: 'SRD ($)' },
-    { code: 'SSP', name: 'SSP (£)' },
-    { code: 'STN', name: 'STN (Db)' },
-    { code: 'SYP', name: 'SYP (£)' },
-    { code: 'SZL', name: 'SZL (L)' },
-    { code: 'TJS', name: 'TJS (SM)' },
-    { code: 'TMT', name: 'TMT (T)' },
-    { code: 'TND', name: 'TND (د.ت)' },
-    { code: 'TOP', name: 'TOP (T$)' },
-    { code: 'TTD', name: 'TTD (TT$)' },
-    { code: 'TWD', name: 'TWD (NT$)' },
-    { code: 'TZS', name: 'TZS (TSh)' },
-    { code: 'UAH', name: 'UAH (₴)' },
-    { code: 'UGX', name: 'UGX (USh)' },
-    { code: 'UYU', name: 'UYU ($U)' },
-    { code: 'UZS', name: 'UZS (лв)' },
-    { code: 'VES', name: 'VES (Bs.S)' },
-    { code: 'WST', name: 'WST (WS$)' },
-    { code: 'XAF', name: 'XAF (FCFA)' },
-    { code: 'XCD', name: 'XCD ($)' },
-    { code: 'XOF', name: 'XOF (CFAF)' },
-    { code: 'XPF', name: 'XPF (CFPF)' },
-    { code: 'YER', name: 'YER (﷼)' },
-    { code: 'ZMW', name: 'ZMW (ZK)' },
-    { code: 'ZWL', name: 'ZWL ($)' }
+    { code: 'USD', name: 'USD ($)' },
+    { code: 'INR', name: 'INR (₹)' }
 ];
 
 const PurchaseBill = () => {
     const { companySettings, formatCurrency, getTableHeader, getInvoiceLabel, getDocumentTitle, getExchangeRateFor, getSyncRate, currencies: dynamicCurrencies } = useContext(CompanyContext);
+    const defaultVat = companySettings?.defaultVatRate !== undefined ? parseFloat(companySettings.defaultVatRate) : 23;
     const { hasPermission } = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
@@ -221,7 +69,7 @@ const PurchaseBill = () => {
         return d.toISOString().split('T')[0];
     };
 
-    const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'USD');
+    const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'EUR');
     const [exchangeRate, setExchangeRate] = useState(1.0);
 
     useEffect(() => {
@@ -233,11 +81,11 @@ const PurchaseBill = () => {
     const handleCurrencyChange = async (cur) => {
         setSelectedCurrency(cur);
         let rateVal = 1.0;
-        if (cur === (companySettings?.currency || 'INR')) {
+        if (cur === (companySettings?.currency || 'EUR')) {
             setExchangeRate(1.0);
         } else {
             try {
-                rateVal = await getExchangeRateFor(cur, companySettings?.currency || 'INR');
+                rateVal = await getExchangeRateFor(cur, companySettings?.currency || 'EUR');
                 setExchangeRate(rateVal.toFixed(6));
             } catch (e) {
                 rateVal = 1.0;
@@ -260,7 +108,7 @@ const PurchaseBill = () => {
             } else {
                 // If it's a custom line item with no product, convert the current rate directly
                 const prevRate = parseFloat(item.rate) || 0;
-                const prevConversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
+                const prevConversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'EUR') || 1.0;
                 const priceInBase = prevRate * prevConversionRate;
                 const converted = priceInBase / rateVal;
 
@@ -297,13 +145,13 @@ const PurchaseBill = () => {
     };
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || selectedCurrency || companySettings?.currency || 'USD';
+        const docCurrency = currencyCode || selectedCurrency || companySettings?.currency || 'EUR';
 
         const localeMap = {
             'INR': 'en-IN',
             'AED': 'ar-AE',
             'SAR': 'ar-SA',
-            'EUR': 'de-DE',
+            'EUR': 'en-IE',
             'GBP': 'en-GB',
             'JPY': 'ja-JP',
             'CNY': 'zh-CN',
@@ -315,7 +163,7 @@ const PurchaseBill = () => {
             'BDT': 'en-BD'
         };
 
-        const locale = localeMap[docCurrency] || 'en-US';
+        const locale = localeMap[docCurrency] || 'en-IE';
 
         try {
             return new Intl.NumberFormat(locale, {
@@ -325,7 +173,8 @@ const PurchaseBill = () => {
                 maximumFractionDigits: 2
             }).format(amount || 0);
         } catch (e) {
-            return `${docCurrency} ${(amount || 0).toFixed(2)}`;
+            const sym = docCurrency === 'EUR' ? '€' : (docCurrency === 'GBP' ? '£' : (docCurrency === 'USD' ? '$' : '₹'));
+            return `${sym}${(amount || 0).toFixed(2)}`;
         }
     };
 
@@ -429,7 +278,7 @@ const PurchaseBill = () => {
     const [editingId, setEditingId] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [viewBill, setViewBill] = useState(null);
-    const viewRate = getSyncRate(viewBill?.currency || 'USD', companySettings?.currency || 'INR');
+    const viewRate = getSyncRate(viewBill?.currency || 'USD', companySettings?.currency || 'EUR');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteId, setDeleteId] = useState(null);
     const [showUnpayModal, setShowUnpayModal] = useState(false);
@@ -461,7 +310,7 @@ const PurchaseBill = () => {
     const [selectedVendorCreditPeriod, setSelectedVendorCreditPeriod] = useState(0);
 
     const [items, setItems] = useState([
-        { id: Date.now(), productId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
+        { id: Date.now(), productId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, total: 0, description: '' }
     ]);
     const [notes, setNotes] = useState('');
     const [terms, setTerms] = useState('');
@@ -496,7 +345,7 @@ const PurchaseBill = () => {
 
     useEffect(() => {
         if (!showCurrencyField) {
-            setSelectedCurrency(companySettings?.currency || 'INR');
+            setSelectedCurrency(companySettings?.currency || 'EUR');
             setExchangeRate(1.0);
         }
     }, [showCurrencyField, companySettings]);
@@ -1249,7 +1098,7 @@ const PurchaseBill = () => {
         setViewBill(null);
         setVendorId('');
         setSelectedVendorCreditPeriod(0);
-        setSelectedCurrency(companySettings?.currency || 'USD');
+        setSelectedCurrency(companySettings?.currency || 'EUR');
         setExchangeRate(1.0);
         setBillMeta({
             manualNo: '',
@@ -1272,7 +1121,7 @@ const PurchaseBill = () => {
                 console.error(e);
             }
         }
-        setItems([{ id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems([{ id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
         setSalespersonId('');
         setSelectedDeliveryPersonId('');
         setShowSalespersonField(false);
@@ -1557,7 +1406,7 @@ const PurchaseBill = () => {
                 }
                 setOverallDiscount(billData.overallDiscount || 0);
                 setOverallDiscountType(billData.overallDiscountType || 'percentage');
-                setSelectedCurrency(billData.currency || companySettings?.currency || 'USD');
+                setSelectedCurrency(billData.currency || companySettings?.currency || 'EUR');
                 setExchangeRate(billData.exchangeRate || 1.0);
 
                 // Set address details
@@ -1594,7 +1443,7 @@ const PurchaseBill = () => {
         resetForm();
         const allPayments = [];
         group.bills.forEach(bill => {
-            const curr = bill.currency || companySettings?.currency || 'USD';
+            const curr = bill.currency || companySettings?.currency || 'EUR';
             if (bill.payment && bill.payment.length > 0) {
                 bill.payment.forEach(pay => {
                     allPayments.push({
@@ -1688,7 +1537,7 @@ const PurchaseBill = () => {
                 // Match delivery person from list by name if possible
                 const matchingDp = (deliverypersonsList || []).find(dp => dp.name === (fieldValues.deliveryPersonName || ''));
                 setSelectedDeliveryPersonId(matchingDp ? String(matchingDp.id) : '');
-                setShowCurrencyField(!!billToEdit.currency && billToEdit.currency !== (companySettings?.currency || 'INR'));
+                setShowCurrencyField(!!billToEdit.currency && billToEdit.currency !== (companySettings?.currency || 'EUR'));
                 setCarNumber(billToEdit.carNumber || '');
                 setManualReference(billToEdit.manualReference || '');
                 setBillMeta({
@@ -1730,7 +1579,7 @@ const PurchaseBill = () => {
                 }
                 setOverallDiscount(billToEdit.overallDiscount || 0);
                 setOverallDiscountType(billToEdit.overallDiscountType || 'percentage');
-                setSelectedCurrency(billToEdit.currency || companySettings?.currency || 'USD');
+                setSelectedCurrency(billToEdit.currency || companySettings?.currency || 'EUR');
                 setExchangeRate(billToEdit.exchangeRate || 1.0);
 
                 // Set address details
@@ -2002,7 +1851,7 @@ const PurchaseBill = () => {
                 console.error(e);
             }
         }
-        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
     };
 
     const handleAutoAddNextRow = (itemId) => {
@@ -2023,7 +1872,7 @@ const PurchaseBill = () => {
                             console.error(e);
                         }
                     }
-                    return [...prevItems, { id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }];
+                    return [...prevItems, { id: Date.now(), productId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }];
                 }
             }
             return prevItems;
@@ -2044,7 +1893,7 @@ const PurchaseBill = () => {
                 if (field === 'productId') {
                     const prod = products.find(p => p.id === parseInt(value));
                     if (prod) {
-                        const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
+                        const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'EUR') || 1.0;
                         updatedItem.uomId = prod.purchaseUomId || prod.uomId || '';
                         updatedItem.rate = Number(((prod.purchasePrice || 0) / conversionRate).toFixed(6));
                         updatedItem.description = prod.description || '';
@@ -2057,7 +1906,7 @@ const PurchaseBill = () => {
                         const newUom = allUoms.find(u => u.id === newUomId) || prod.uom || prod.purchaseUom || prod.salesUom;
                         const basePrice = prod.purchasePrice || 0;
                         const multiplier = newUom?.uomType === 'Compound' ? parseFloat(newUom.conversionRate) || 1 : 1;
-                        const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
+                        const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'EUR') || 1.0;
                         updatedItem = {
                             ...item,
                             uomId: newUomId,
@@ -2311,13 +2160,13 @@ const PurchaseBill = () => {
                                                     <div className="invoice-meta-row">
                                                         <span className="invoice-label">{getInvoiceLabel('dueDate')}</span> {viewBill.dueDate ? new Date(viewBill.dueDate).toLocaleDateString() : 'N/A'}
                                                     </div>
-                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                         <>
                                                             <div className="invoice-meta-row">
                                                                 <span className="invoice-label">Currency:</span> {viewBill.currency}
                                                             </div>
                                                             <div className="invoice-meta-row">
-                                                                <span className="invoice-label">Ex. Rate:</span> 1 {viewBill.currency} = {Number(viewRate).toFixed(4)} {companySettings?.currency || 'INR'}
+                                                                <span className="invoice-label">Ex. Rate:</span> 1 {viewBill.currency} = {Number(viewRate).toFixed(4)} {companySettings?.currency || 'EUR'}
                                                             </div>
                                                         </>
                                                     )}
@@ -2476,9 +2325,9 @@ const PurchaseBill = () => {
                                                     {iIdx === 0 ? (
                                                         <>
                                                             {formatDocCurrency(bill.totalAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'INR') && (
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency(bill.totalAmount * (getSyncRate(bill.currency, companySettings?.currency || 'INR') || 1.0), companySettings?.currency || 'INR')})
+                                                                    ({formatDocCurrency(bill.totalAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
                                                                 </div>
                                                             )}
                                                         </>
@@ -2488,9 +2337,9 @@ const PurchaseBill = () => {
                                                     {iIdx === 0 ? (
                                                         <>
                                                             {formatDocCurrency(bill.totalAmount - bill.balanceAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'INR') && (
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency((bill.totalAmount - bill.balanceAmount) * (getSyncRate(bill.currency, companySettings?.currency || 'INR') || 1.0), companySettings?.currency || 'INR')})
+                                                                    ({formatDocCurrency((bill.totalAmount - bill.balanceAmount) * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
                                                                 </div>
                                                             )}
                                                         </>
@@ -2500,9 +2349,9 @@ const PurchaseBill = () => {
                                                     {iIdx === 0 ? (
                                                         <>
                                                             {formatDocCurrency(bill.balanceAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'INR') && (
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency(bill.balanceAmount * (getSyncRate(bill.currency, companySettings?.currency || 'INR') || 1.0), companySettings?.currency || 'INR')})
+                                                                    ({formatDocCurrency(bill.balanceAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
                                                                 </div>
                                                             )}
                                                         </>
@@ -2541,9 +2390,9 @@ const PurchaseBill = () => {
                                             {getInvoiceLabel('showRate') !== false && (
                                                 <td style={{ textAlign: 'right' }}>
                                                     {formatDocCurrency(item.rate, viewBill.currency)}
-                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                         <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                            ({formatDocCurrency(item.rate * viewRate, companySettings?.currency || 'INR')})
+                                                            ({formatDocCurrency(item.rate * viewRate, companySettings?.currency || 'EUR')})
                                                         </div>
                                                     )}
                                                 </td>
@@ -2551,9 +2400,9 @@ const PurchaseBill = () => {
                                             {getInvoiceLabel('showTax') !== false && <td style={{ textAlign: 'right' }}>{item.taxRate}%</td>}
                                             <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                                                 {formatDocCurrency(item.amount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                     <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                        ({formatDocCurrency(item.amount * viewRate, companySettings?.currency || 'INR')})
+                                                        ({formatDocCurrency(item.amount * viewRate, companySettings?.currency || 'EUR')})
                                                     </div>
                                                 )}
                                             </td>
@@ -2574,7 +2423,7 @@ const PurchaseBill = () => {
                                                 <span style={{ fontWeight: '600' }}>{formatCurrency(viewBill.totalBillAmount)}</span>
                                             </div>
                                             {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'INR';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 if (curr === baseCurr) return null;
                                                 const originalTotal = viewBill.bills.filter(b => (b.currency || baseCurr) === curr).reduce((sum, b) => sum + b.totalAmount, 0);
                                                 return (
@@ -2590,7 +2439,7 @@ const PurchaseBill = () => {
                                                 <span style={{ color: '#334155', fontWeight: '700' }}>{formatCurrency(viewBill.totalBillAmount - viewBill.balanceAmount)}</span>
                                             </div>
                                             {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'INR';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 if (curr === baseCurr) return null;
                                                 const originalPaid = viewBill.bills.filter(b => (b.currency || baseCurr) === curr).reduce((sum, b) => sum + (b.totalAmount - b.balanceAmount), 0);
                                                 return (
@@ -2606,7 +2455,7 @@ const PurchaseBill = () => {
                                                 <span style={{ fontWeight: '700' }}>{formatCurrency(viewBill.balanceAmount)}</span>
                                             </div>
                                             {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'INR';
+                                                const baseCurr = companySettings?.currency || 'EUR';
                                                 if (curr === baseCurr) return null;
                                                 const originalBalance = viewBill.currencyTotals[curr];
                                                 return (
@@ -2661,9 +2510,9 @@ const PurchaseBill = () => {
                                                         <span className="invoice-label">{getInvoiceLabel('subTotal')}:</span>
                                                         <span>
                                                             {formatDocCurrency(subtotalVal, viewBill.currency)}
-                                                            {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                            {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                                 <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                    ({formatDocCurrency(subtotalVal * viewRate, companySettings?.currency || 'INR')})
+                                                                    ({formatDocCurrency(subtotalVal * viewRate, companySettings?.currency || 'EUR')})
                                                                 </span>
                                                             )}
                                                         </span>
@@ -2673,9 +2522,9 @@ const PurchaseBill = () => {
                                                             <span className="invoice-label">Item Discount:</span>
                                                             <span>
                                                                 <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (- {formatDocCurrency(itemDiscountAmt * viewRate, companySettings?.currency || 'INR')})
+                                                                        (- {formatDocCurrency(itemDiscountAmt * viewRate, companySettings?.currency || 'EUR')})
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -2686,9 +2535,9 @@ const PurchaseBill = () => {
                                                             <span className="invoice-label">{getInvoiceLabel('tax')}:</span>
                                                             <span>
                                                                 <span>+ {formatDocCurrency(viewBill.taxAmount, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (+ {formatDocCurrency(viewBill.taxAmount * viewRate, companySettings?.currency || 'INR')})
+                                                                        (+ {formatDocCurrency(viewBill.taxAmount * viewRate, companySettings?.currency || 'EUR')})
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -2699,9 +2548,9 @@ const PurchaseBill = () => {
                                                             <span className="invoice-label">Overall Discount ({viewBill.overallDiscountType === 'percentage' ? `${viewBill.overallDiscount}%` : 'Flat'}):</span>
                                                             <span>
                                                                 <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (- {formatDocCurrency(overallDiscountAmt * viewRate, companySettings?.currency || 'INR')})
+                                                                        (- {formatDocCurrency(overallDiscountAmt * viewRate, companySettings?.currency || 'EUR')})
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -2712,9 +2561,9 @@ const PurchaseBill = () => {
                                                             <span className="invoice-label">Other Charges{charge.accountName ? ` (${charge.accountName})` : ''}:</span>
                                                             <span>
                                                                 + {formatDocCurrency(parseFloat(charge.amount) || 0, viewBill.currency)}
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (+ {formatDocCurrency((parseFloat(charge.amount) || 0) * viewRate, companySettings?.currency || 'INR')})
+                                                                        (+ {formatDocCurrency((parseFloat(charge.amount) || 0) * viewRate, companySettings?.currency || 'EUR')})
                                                                     </span>
                                                                 )}
                                                             </span>
@@ -2727,9 +2576,9 @@ const PurchaseBill = () => {
                                             <span>{getInvoiceLabel('total')}:</span>
                                             <span>
                                                 {formatDocCurrency(viewBill.totalAmount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.totalAmount || 0) * viewRate, companySettings?.currency || 'INR')})
+                                                        ({formatDocCurrency((viewBill.totalAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
                                                     </span>
                                                 )}
                                             </span>
@@ -2738,9 +2587,9 @@ const PurchaseBill = () => {
                                             <span className="invoice-label">Amount Paid:</span>
                                             <span>
                                                 {formatDocCurrency(viewBill.paidAmount || 0, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.paidAmount || 0) * viewRate, companySettings?.currency || 'INR')})
+                                                        ({formatDocCurrency((viewBill.paidAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
                                                     </span>
                                                 )}
                                             </span>
@@ -2749,9 +2598,9 @@ const PurchaseBill = () => {
                                             <span className="invoice-label">Balance Due:</span>
                                             <span>
                                                 {formatDocCurrency(viewBill.balanceAmount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'INR') && (
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
                                                     <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.balanceAmount || 0) * viewRate, companySettings?.currency || 'INR')})
+                                                        ({formatDocCurrency((viewBill.balanceAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
                                                     </span>
                                                 )}
                                             </span>
@@ -2803,12 +2652,12 @@ const PurchaseBill = () => {
                                                 <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
                                                     {(() => {
                                                         const payCurrency = pay.billCurrency || viewBill?.currency;
-                                                        if (payCurrency && payCurrency !== (companySettings?.currency || 'INR')) {
+                                                        if (payCurrency && payCurrency !== (companySettings?.currency || 'EUR')) {
                                                             return (
                                                                 <>
                                                                     <div>{formatDocCurrency(pay.amount, payCurrency)}</div>
                                                                     <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>
-                                                                        ({formatDocCurrency(pay.baseAmount || pay.amount, companySettings?.currency || 'INR')})
+                                                                        ({formatDocCurrency(pay.baseAmount || pay.amount, companySettings?.currency || 'EUR')})
                                                                     </div>
                                                                 </>
                                                             );
@@ -3057,12 +2906,12 @@ const PurchaseBill = () => {
                                                     latestDueDate: b.dueDate
                                                 };
                                             }
-                                            const rate = getSyncRate(b.currency || 'USD', companySettings?.currency || 'INR');
+                                            const rate = getSyncRate(b.currency || 'USD', companySettings?.currency || 'EUR');
                                             groupedMap[key].bills.push(b);
                                             groupedMap[key].totalBillAmount += b.totalAmount * rate;
                                             groupedMap[key].balanceAmount += b.balanceAmount * rate;
 
-                                            const curr = b.currency || companySettings?.currency || 'INR';
+                                            const curr = b.currency || companySettings?.currency || 'EUR';
                                             if (!groupedMap[key].currencyTotals) {
                                                 groupedMap[key].currencyTotals = {};
                                             }
@@ -3074,7 +2923,7 @@ const PurchaseBill = () => {
                                             if (b.purchasereturn) {
                                                 b.purchasereturn.forEach(ret => {
                                                     groupedMap[key].returns.push(ret);
-                                                    const retRate = getSyncRate(ret.currency || b.currency || 'USD', companySettings?.currency || 'INR');
+                                                    const retRate = getSyncRate(ret.currency || b.currency || 'USD', companySettings?.currency || 'EUR');
                                                     groupedMap[key].totalReturnAmount += (ret.totalAmount || 0) * retRate;
                                                 });
                                             }
@@ -3119,7 +2968,7 @@ const PurchaseBill = () => {
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                             {(() => {
                                                                 const currs = Object.keys(group.currencyTotals || {});
-                                                                const baseCurr = companySettings?.currency || 'INR';
+                                                                const baseCurr = companySettings?.currency || 'EUR';
                                                                 if (currs.length === 1) {
                                                                     const curr = currs[0];
                                                                     const originalAmount = group.currencyTotals[curr];
@@ -3219,7 +3068,7 @@ const PurchaseBill = () => {
                                                                         </thead>
                                                                         <tbody>
                                                                             {group.bills.map(pb => {
-                                                                                const subRate = getSyncRate(pb.currency || 'USD', companySettings?.currency || 'INR');
+                                                                                const subRate = getSyncRate(pb.currency || 'USD', companySettings?.currency || 'EUR');
                                                                                 return (
                                                                                     <tr key={`pb-${pb.id}`} style={{ borderTop: '1px solid #f1f5f9' }}>
                                                                                         <td style={{ padding: '10px', fontWeight: 'bold', color: '#64748b' }}>BILL</td>
@@ -3227,17 +3076,17 @@ const PurchaseBill = () => {
                                                                                         <td style={{ padding: '10px' }}>{new Date(pb.date).toLocaleDateString()}</td>
                                                                                         <td style={{ padding: '10px' }}>
                                                                                             {formatDocCurrency(pb.totalAmount, pb.currency)}
-                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'INR') && (
+                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') && (
                                                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(pb.totalAmount * subRate, companySettings?.currency || 'INR')})
+                                                                                                    ({formatDocCurrency(pb.totalAmount * subRate, companySettings?.currency || 'EUR')})
                                                                                                 </div>
                                                                                             )}
                                                                                         </td>
                                                                                         <td style={{ padding: '10px', fontWeight: 'bold' }}>
                                                                                             {formatDocCurrency(pb.balanceAmount, pb.currency)}
-                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'INR') && (
+                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') && (
                                                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(pb.balanceAmount * subRate, companySettings?.currency || 'INR')})
+                                                                                                    ({formatDocCurrency(pb.balanceAmount * subRate, companySettings?.currency || 'EUR')})
                                                                                                 </div>
                                                                                             )}
                                                                                         </td>
@@ -3545,7 +3394,7 @@ const PurchaseBill = () => {
                                                     ))}
                                                 </select>
                                             </div>
-                                            {selectedCurrency !== (companySettings?.currency || 'INR') && (
+                                            {selectedCurrency !== (companySettings?.currency || 'EUR') && (
                                                 <div className="PBILL-meta-col">
                                                     <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>EXCHANGE RATE</label>
                                                     <input type="number"
@@ -3654,7 +3503,7 @@ const PurchaseBill = () => {
                                                                 if (bestStock) autoWarehouseId = String(bestStock.warehouseId);
                                                                 else if (p.stock[0]) autoWarehouseId = String(p.stock[0].warehouseId);
                                                             }
-                                                            const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
+                                                            const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'EUR') || 1.0;
                                                             const convertedPrice = p.purchasePrice ? (p.purchasePrice / conversionRate) : 0;
                                                             const newItem = {
                                                                 id: Date.now() + Math.random(),
@@ -3663,7 +3512,7 @@ const PurchaseBill = () => {
                                                                 qty: 1,
                                                                 uomId: p.purchaseUomId || p.uomId || '',
                                                                 rate: Number(convertedPrice.toFixed(2)) || 0,
-                                                                tax: p.taxRate || 0,
+                                                                tax: p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' ? parseFloat(p.taxRate) : defaultVat,
                                                                 discount: 0,
                                                                 total: Number((convertedPrice + ((convertedPrice * (p.taxRate || 0)) / 100)).toFixed(2)) || 0,
                                                                 description: p.description || p.name
@@ -3730,7 +3579,7 @@ const PurchaseBill = () => {
                                                 {getInvoiceLabel('showQty') !== false && <th style={{ width: '8%', textAlign: 'center' }}>{getTableHeader('quantity', 'Qty').toUpperCase()}</th>}
                                                 {getInvoiceLabel('showQty') !== false && <th style={{ width: '8%' }}>{getTableHeader('uom', 'UoM').toUpperCase()}</th>}
                                                 {getInvoiceLabel('showRate') !== false && <th style={{ width: '9%', textAlign: 'right' }}>{getTableHeader('rate', 'Rate').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '7%', textAlign: 'center' }}>{getTableHeader('tax', 'Tax %').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '8%', textAlign: 'center' }}>{getTableHeader('tax', 'VAT %').toUpperCase()}</th>}
                                                 {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '7%', textAlign: 'right' }}>{getTableHeader('discount', 'Disc.').toUpperCase()}</th>}
                                                 <th style={{ width: '11%', textAlign: 'right' }}>{getTableHeader('price', 'Amount').toUpperCase()}</th>
                                                 <th style={{ width: '3%' }}></th>
@@ -3827,13 +3676,19 @@ const PurchaseBill = () => {
                                                     )}
                                                     {getInvoiceLabel('showTax') !== false && (
                                                         <td>
-                                                            <input type="number" className="PBILL-compact-input text-center" value={item.tax}
-                                                                min="0"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                                                    if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
-                                                                }}
-                                                                onChange={(e) => updateItem(item.id, 'tax', e.target.value.replace(/-/g, ''))} />
+                                                            <select
+                                                                className="PBILL-compact-input text-center"
+                                                                value={item.tax !== undefined && item.tax !== null ? item.tax : defaultVat}
+                                                                onChange={(e) => updateItem(item.id, 'tax', parseFloat(e.target.value) || 0)}
+                                                                style={{ fontWeight: 600, cursor: 'pointer', appearance: 'auto', padding: '2px 4px' }}
+                                                            >
+                                                                <option value="23">23% (Std)</option>
+                                                                <option value="13.5">13.5% (Red)</option>
+                                                                <option value="0">0% (Zero)</option>
+                                                                {![23, 13.5, 0, '23', '13.5', '0'].includes(item.tax) && item.tax !== undefined && item.tax !== '' && (
+                                                                    <option value={item.tax}>{item.tax}%</option>
+                                                                )}
+                                                            </select>
                                                         </td>
                                                     )}
                                                     {getInvoiceLabel('showDiscount') !== false && (
@@ -4182,7 +4037,7 @@ const PurchaseBill = () => {
                                             <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
                                         </div>
                                         <div className="PBILL-compact-t-row">
-                                            <span>Tax Amount:</span>
+                                            <span>{getInvoiceLabel('tax', 'VAT Amount')}:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
                                         </div>
                                         <div className="PBILL-compact-t-row PBILL-totals-discount-row">
@@ -4226,10 +4081,10 @@ const PurchaseBill = () => {
                                             <span>{formatDocCurrency(Math.max(0, totals.total - adjustments.reduce((sum, a) => sum + a.amount, 0)), selectedCurrency)}</span>
                                         </div>
                                     )}
-                                    {selectedCurrency !== (companySettings?.currency || 'INR') && (
+                                    {selectedCurrency !== (companySettings?.currency || 'EUR') && (
                                         <div className="PBILL-compact-t-row text-xs text-gray-500 font-medium border-t border-gray-100">
-                                            <span>Base Total ({companySettings?.currency || 'INR'}):</span>
-                                            <span>{formatDocCurrency(totals.total * (parseFloat(exchangeRate) || 1.0), companySettings?.currency || 'INR')}</span>
+                                            <span>Base Total ({companySettings?.currency || 'EUR'}):</span>
+                                            <span>{formatDocCurrency(totals.total * (parseFloat(exchangeRate) || 1.0), companySettings?.currency || 'EUR')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -5063,12 +4918,12 @@ const PurchaseBill = () => {
                                         />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">HSN</label>
+                                        <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
                                         <input
                                             type="text"
                                             className="Zirak-Inventory-form-input"
                                             name="hsn"
-                                            placeholder="Enter HSN code"
+                                            placeholder="Enter Item Code / SKU"
                                             value={productFormData.hsn}
                                             onChange={handleProductInputChange}
                                         />

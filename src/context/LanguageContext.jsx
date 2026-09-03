@@ -3,72 +3,10 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const LanguageContext = createContext();
 
 export const SUPPORTED_LANGUAGES = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'ar', name: 'Arabic', flag: '🇸🇦', rtl: true },
-    { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
-    { code: 'fr', name: 'French', flag: '🇫🇷' },
-    { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-    { code: 'de', name: 'German', flag: '🇩🇪' },
+    { code: 'en', name: 'English', flag: '🇬🇧' }
 ];
 
-export const getLangFromCountry = (countryName) => {
-    if (!countryName) return 'en';
-    const c = countryName.toLowerCase().trim();
-
-    // Arabic-speaking countries
-    if (
-        c.includes('saudi') || c.includes('emirates') || c.includes('uae') ||
-        c.includes('qatar') || c.includes('kuwait') || c.includes('oman') ||
-        c.includes('bahrain') || c.includes('jordan') || c.includes('lebanon') ||
-        c.includes('iraq') || c.includes('yemen') || c.includes('egypt') ||
-        c.includes('morocco') || c.includes('algeria') || c.includes('tunisia') ||
-        c.includes('sudan') || c.includes('libya') || c.includes('palestine') ||
-        c.includes('syria') || c.includes('mauritania') || c.includes('somalia') ||
-        c.includes('djibouti')
-    ) {
-        return 'ar';
-    }
-
-    // Hindi-speaking country
-    if (c.includes('india')) {
-        return 'hi';
-    }
-
-    // French-speaking countries
-    if (
-        c.includes('france') || c.includes('belgium') || c.includes('congo') ||
-        c.includes('senegal') || c.includes('ivory coast') || c.includes('côte d\'ivoire') ||
-        c.includes('cameroon') || c.includes('gabon') || c.includes('mali') ||
-        c.includes('niger') || c.includes('burkina') || c.includes('guinea') ||
-        c.includes('benin') || c.includes('togo') || c.includes('haiti') ||
-        c.includes('monaco') || c.includes('luxembourg')
-    ) {
-        return 'fr';
-    }
-
-    // Spanish-speaking countries
-    if (
-        c.includes('spain') || c.includes('mexico') || c.includes('argentina') ||
-        c.includes('colombia') || c.includes('chile') || c.includes('peru') ||
-        c.includes('venezuela') || c.includes('ecuador') || c.includes('guatemala') ||
-        c.includes('cuba') || c.includes('bolivia') || c.includes('dominican') ||
-        c.includes('honduras') || c.includes('paraguay') || c.includes('el salvador') ||
-        c.includes('nicaragua') || c.includes('costa rica') || c.includes('panama') ||
-        c.includes('uruguay')
-    ) {
-        return 'es';
-    }
-
-    // German-speaking countries
-    if (
-        c.includes('germany') || c.includes('austria') || c.includes('liechtenstein') ||
-        c.includes('switzerland')
-    ) {
-        return 'de';
-    }
-
-    return 'en';
-};
+export const getLangFromCountry = () => 'en';
 
 const setGoogTransCookie = (targetLang) => {
     const domain = window.location.hostname;

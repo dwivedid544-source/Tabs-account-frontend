@@ -33,7 +33,7 @@ const BankingOverview = () => {
         ifscCode: '',
         iban: '',
         swiftBic: '',
-        currency: companySettings?.currency || 'USD',
+        currency: companySettings?.currency || 'EUR',
         openingBalance: '0',
         linkToLedger: true
     });
@@ -78,7 +78,7 @@ const BankingOverview = () => {
                     ifscCode: '',
                     iban: '',
                     swiftBic: '',
-                    currency: companySettings?.currency || 'USD',
+                    currency: companySettings?.currency || 'EUR',
                     openingBalance: '0',
                     linkToLedger: true
                 });
@@ -361,41 +361,59 @@ const BankingOverview = () => {
 
             {/* Modal: Add Bank Account */}
             {showAddModal && (
-                <div className="modal-overlay">
-                    <div className="modal-container">
-                        <div className="modal-header">
-                            <h3>Add Bank Account</h3>
-                            <button className="btn-close" onClick={() => setShowAddModal(false)}>✕</button>
+                <div className="bank-modal-overlay">
+                    <div className="bank-modal-container">
+                        <div className="bank-modal-header">
+                            <div className="bank-modal-title-group">
+                                <div className="bank-modal-icon">
+                                    <Landmark size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="bank-modal-title">Add Bank Account</h3>
+                                    <p className="bank-modal-subtitle">Connect a new bank account to track feeds and reconciliations</p>
+                                </div>
+                            </div>
+                            <button className="bank-modal-close" onClick={() => setShowAddModal(false)}>✕</button>
                         </div>
+
                         <form onSubmit={handleCreateAccount}>
-                            <div className="modal-body">
-                                <div className="form-group">
-                                    <label>Account Display Name *</label>
+                            <div className="bank-modal-body">
+                                <div className="bank-form-group">
+                                    <label className="bank-label">
+                                        Account Display Name <span className="text-danger">*</span>
+                                    </label>
                                     <input 
                                         type="text" 
                                         required 
+                                        className="bank-input"
                                         placeholder="e.g. AIB Main Operating Account" 
                                         value={formData.accountName}
                                         onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
                                     />
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group col-6">
-                                        <label>Bank Name *</label>
+                                <div className="bank-form-grid">
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">
+                                            Bank Name <span className="text-danger">*</span>
+                                        </label>
                                         <input 
                                             type="text" 
                                             required 
-                                            placeholder="e.g. Bank of Ireland / Chase" 
+                                            className="bank-input"
+                                            placeholder="e.g. Allied Irish Bank / Chase" 
                                             value={formData.bankName}
                                             onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                                         />
                                     </div>
-                                    <div className="form-group col-6">
-                                        <label>Account Number *</label>
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">
+                                            Account Number <span className="text-danger">*</span>
+                                        </label>
                                         <input 
                                             type="text" 
                                             required 
+                                            className="bank-input"
                                             placeholder="e.g. 12345678" 
                                             value={formData.accountNumber}
                                             onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
@@ -403,20 +421,22 @@ const BankingOverview = () => {
                                     </div>
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group col-6">
-                                        <label>IBAN (Optional)</label>
+                                <div className="bank-form-grid">
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">IBAN (Optional)</label>
                                         <input 
                                             type="text" 
+                                            className="bank-input"
                                             placeholder="IE29 AIBK 9311 5212 3456 78" 
                                             value={formData.iban}
                                             onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
                                         />
                                     </div>
-                                    <div className="form-group col-6">
-                                        <label>BIC / SWIFT / Sort Code</label>
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">BIC / SWIFT / Sort Code</label>
                                         <input 
                                             type="text" 
+                                            className="bank-input"
                                             placeholder="AIBKIE2D or 93-11-52" 
                                             value={formData.swiftBic}
                                             onChange={(e) => setFormData({ ...formData, swiftBic: e.target.value })}
@@ -424,25 +444,26 @@ const BankingOverview = () => {
                                     </div>
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group col-6">
-                                        <label>Currency</label>
+                                <div className="bank-form-grid">
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">Account Currency</label>
                                         <select 
+                                            className="bank-select"
                                             value={formData.currency}
                                             onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                                         >
-                                            <option value="USD">USD ($)</option>
-                                            <option value="EUR">EUR (€)</option>
-                                            <option value="GBP">GBP (£)</option>
-                                            <option value="INR">INR (₹)</option>
-                                            <option value="AED">AED (د.إ)</option>
+                                            <option value="EUR">EUR (€ - Euro)</option>
+                                            <option value="GBP">GBP (£ - British Pound)</option>
+                                            <option value="USD">USD ($ - US Dollar)</option>
+                                            <option value="INR">INR (₹ - Indian Rupee)</option>
                                         </select>
                                     </div>
-                                    <div className="form-group col-6">
-                                        <label>Opening Balance</label>
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">Opening Balance</label>
                                         <input 
                                             type="number" 
                                             step="0.01" 
+                                            className="bank-input"
                                             placeholder="0.00" 
                                             value={formData.openingBalance}
                                             onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
@@ -450,20 +471,26 @@ const BankingOverview = () => {
                                     </div>
                                 </div>
 
-                                <div className="form-check-group">
+                                <div className="bank-checkbox-card">
                                     <input 
                                         type="checkbox" 
                                         id="linkLedger" 
+                                        className="bank-checkbox"
                                         checked={formData.linkToLedger}
                                         onChange={(e) => setFormData({ ...formData, linkToLedger: e.target.checked })}
                                     />
-                                    <label htmlFor="linkLedger">
-                                        Automatically create & link an Asset ledger in Chart of Accounts
-                                    </label>
+                                    <div className="bank-checkbox-text">
+                                        <label htmlFor="linkLedger" className="bank-checkbox-label">
+                                            Auto-link to Chart of Accounts
+                                        </label>
+                                        <span className="bank-checkbox-hint">
+                                            Creates a corresponding Asset ledger so financial reports and balances stay synchronized.
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="modal-footer">
+                            <div className="bank-modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
                                     Cancel
                                 </button>
@@ -478,58 +505,78 @@ const BankingOverview = () => {
 
             {/* Modal: Edit Bank Account */}
             {showEditModal && (
-                <div className="modal-overlay">
-                    <div className="modal-container">
-                        <div className="modal-header">
-                            <h3>Edit Bank Account</h3>
-                            <button className="btn-close" onClick={() => setShowEditModal(false)}>✕</button>
+                <div className="bank-modal-overlay">
+                    <div className="bank-modal-container">
+                        <div className="bank-modal-header">
+                            <div className="bank-modal-title-group">
+                                <div className="bank-modal-icon">
+                                    <Edit2 size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="bank-modal-title">Edit Bank Account</h3>
+                                    <p className="bank-modal-subtitle">Update account credentials and identifiers</p>
+                                </div>
+                            </div>
+                            <button className="bank-modal-close" onClick={() => setShowEditModal(false)}>✕</button>
                         </div>
+
                         <form onSubmit={handleUpdateAccount}>
-                            <div className="modal-body">
-                                <div className="form-group">
-                                    <label>Account Display Name *</label>
+                            <div className="bank-modal-body">
+                                <div className="bank-form-group">
+                                    <label className="bank-label">
+                                        Account Display Name <span className="text-danger">*</span>
+                                    </label>
                                     <input 
                                         type="text" 
                                         required 
+                                        className="bank-input"
                                         value={formData.accountName}
                                         onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
                                     />
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group col-6">
-                                        <label>Bank Name *</label>
+                                <div className="bank-form-grid">
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">
+                                            Bank Name <span className="text-danger">*</span>
+                                        </label>
                                         <input 
                                             type="text" 
                                             required 
+                                            className="bank-input"
                                             value={formData.bankName}
                                             onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                                         />
                                     </div>
-                                    <div className="form-group col-6">
-                                        <label>Account Number *</label>
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">
+                                            Account Number <span className="text-danger">*</span>
+                                        </label>
                                         <input 
                                             type="text" 
                                             required 
+                                            className="bank-input"
                                             value={formData.accountNumber}
                                             onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
                                         />
                                     </div>
                                 </div>
 
-                                <div className="form-row">
-                                    <div className="form-group col-6">
-                                        <label>IBAN</label>
+                                <div className="bank-form-grid">
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">IBAN</label>
                                         <input 
                                             type="text" 
+                                            className="bank-input"
                                             value={formData.iban}
                                             onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
                                         />
                                     </div>
-                                    <div className="form-group col-6">
-                                        <label>BIC / SWIFT / Sort Code</label>
+                                    <div className="bank-form-group">
+                                        <label className="bank-label">BIC / SWIFT / Sort Code</label>
                                         <input 
                                             type="text" 
+                                            className="bank-input"
                                             value={formData.swiftBic}
                                             onChange={(e) => setFormData({ ...formData, swiftBic: e.target.value })}
                                         />
@@ -537,7 +584,7 @@ const BankingOverview = () => {
                                 </div>
                             </div>
 
-                            <div className="modal-footer">
+                            <div className="bank-modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
                                     Cancel
                                 </button>
@@ -552,19 +599,29 @@ const BankingOverview = () => {
 
             {/* Modal: Delete Bank Account */}
             {showDeleteModal && (
-                <div className="modal-overlay">
-                    <div className="modal-container modal-sm">
-                        <div className="modal-header">
-                            <h3 className="text-danger">Delete Bank Account?</h3>
-                            <button className="btn-close" onClick={() => setShowDeleteModal(false)}>✕</button>
+                <div className="bank-modal-overlay">
+                    <div className="bank-modal-container bank-modal-sm">
+                        <div className="bank-modal-header">
+                            <div className="bank-modal-title-group">
+                                <div className="bank-modal-icon bg-red-light text-danger">
+                                    <Trash2 size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="bank-modal-title text-danger">Delete Bank Account?</h3>
+                                    <p className="bank-modal-subtitle">This action cannot be undone</p>
+                                </div>
+                            </div>
+                            <button className="bank-modal-close" onClick={() => setShowDeleteModal(false)}>✕</button>
                         </div>
-                        <div className="modal-body">
-                            <p>Are you sure you want to delete <strong>{selectedAccount?.accountName}</strong>?</p>
+                        <div className="bank-modal-body">
+                            <p className="delete-warning-text">
+                                Are you sure you want to delete <strong>{selectedAccount?.accountName}</strong>?
+                            </p>
                             <p className="text-muted text-sm">
-                                This will remove the account and any imported statement lines. (GL ledger entries are preserved in Chart of Accounts).
+                                All imported statement lines for this account will be removed. Your Chart of Accounts and general ledger entries will remain intact.
                             </p>
                         </div>
-                        <div className="modal-footer">
+                        <div className="bank-modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
                             <button className="btn btn-danger" onClick={handleDeleteAccount} disabled={submitting}>
                                 {submitting ? 'Deleting...' : 'Delete Account'}

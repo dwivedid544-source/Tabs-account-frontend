@@ -65,6 +65,14 @@ const advancedAccountingService = {
         return response.data;
     },
 
+    getAssetDepreciationSchedule: async (assetId) => {
+        const companyId = GetCompanyId();
+        const response = await axiosInstance.get(`/advanced-accounting/assets/${assetId}/schedule`, {
+            params: { companyId }
+        });
+        return response.data;
+    },
+
     deleteFixedAsset: async (id) => {
         const companyId = GetCompanyId();
         const response = await axiosInstance.delete(`/advanced-accounting/assets/${id}`, {
@@ -128,6 +136,22 @@ const advancedAccountingService = {
     runPendingRecurring: async () => {
         const companyId = GetCompanyId();
         const response = await axiosInstance.post('/advanced-accounting/recurring/run-pending', {
+            companyId
+        });
+        return response.data;
+    },
+
+    runSingleRecurring: async (id) => {
+        const companyId = GetCompanyId();
+        const response = await axiosInstance.post(`/advanced-accounting/recurring/${id}/run-now`, {
+            companyId
+        });
+        return response.data;
+    },
+
+    toggleRecurringStatus: async (id) => {
+        const companyId = GetCompanyId();
+        const response = await axiosInstance.patch(`/advanced-accounting/recurring/${id}/toggle-status`, {
             companyId
         });
         return response.data;

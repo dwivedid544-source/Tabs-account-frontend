@@ -236,7 +236,7 @@ const ProductDetails = () => {
     </div>
 
     <div class="info-grid">
-        <div class="info-item"><label>HSN</label><span>${product.hsn || 'N/A'}</span></div>
+        <div class="info-item"><label>Item Code / SKU</label><span>${product.hsn || 'N/A'}</span></div>
         <div class="info-item"><label>Barcode</label><span>${product.barcode || 'N/A'}</span></div>
         <div class="info-item"><label>Unit</label><span>${product.uom?.unitName || 'N/A'}</span></div>
         <div class="info-item"><label>Current Stock</label><span>${totalStockVal} ${product.uom?.unitName || ''}</span></div>

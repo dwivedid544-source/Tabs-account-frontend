@@ -16,7 +16,7 @@ const CurrencyRevaluation = () => {
     const [showPostingModal, setShowPostingModal] = useState(false);
     const [posting, setPosting] = useState(false);
 
-    const baseCurrency = revalData?.baseCurrency || companySettings?.currency || 'KWD';
+    const baseCurrency = revalData?.baseCurrency || companySettings?.currency || 'EUR';
 
     // Fetch live market exchange rates for the base currency
     const fetchLiveMarketRates = async (currencies = []) => {

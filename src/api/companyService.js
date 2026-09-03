@@ -13,7 +13,15 @@ const companyService = {
     },
     getNextNumber: (id, type) => axiosInstance.get(`/companies/${id}/next-number?type=${type}`),
     getNumberingSettings: (id) => axiosInstance.get(`/companies/${id}/numbering-settings`),
-    updateNumberingSettings: (id, settings) => axiosInstance.put(`/companies/${id}/numbering-settings`, { settings })
+    updateNumberingSettings: (id, settings) => axiosInstance.put(`/companies/${id}/numbering-settings`, { settings }),
+    getUserCompanies: () => axiosInstance.get('/companies/user-companies'),
+    createUserCompany: (data) => {
+        return axiosInstance.post('/companies/user-company', data, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    }
 };
 
 export default companyService;

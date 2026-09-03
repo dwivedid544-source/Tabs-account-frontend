@@ -7,12 +7,19 @@ import './FiscalYearRollover.css';
 
 const FiscalYearRollover = () => {
     const { formatCurrency } = useContext(CompanyContext);
-    const [fiscalYear, setFiscalYear] = useState(2026);
+    const currentCalendarYear = new Date().getFullYear();
+    const [fiscalYear, setFiscalYear] = useState(currentCalendarYear);
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(true);
     const [rolloverData, setRolloverData] = useState(null);
     const [executing, setExecuting] = useState(false);
     const [completedResult, setCompletedResult] = useState(null);
+
+    // Dynamically generate fiscal years extending indefinitely into future
+    const availableYears = [];
+    for (let y = currentCalendarYear - 4; y <= currentCalendarYear + 10; y++) {
+        availableYears.push(y);
+    }
 
     const fetchPreview = async () => {
         try {
@@ -101,9 +108,11 @@ const FiscalYearRollover = () => {
                             color: '#1e293b'
                         }}
                     >
-                        <option value={2025}>FY 2025 (Jan 1, 2025 - Dec 31, 2025)</option>
-                        <option value={2026}>FY 2026 (Jan 1, 2026 - Dec 31, 2026)</option>
-                        <option value={2027}>FY 2027 (Jan 1, 2027 - Dec 31, 2027)</option>
+                        {availableYears.map(yr => (
+                            <option key={yr} value={yr}>
+                                FY {yr} (Jan 1, {yr} - Dec 31, {yr})
+                            </option>
+                        ))}
                     </select>
                 </div>
                 {rolloverData?.isAlreadyClosed && (
