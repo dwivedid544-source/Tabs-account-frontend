@@ -2524,185 +2524,242 @@ const Invoice = () => {
         <>
             {/* Email Invoice Modal */}
             {showEmailModal && emailInvoiceData && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                    backdropFilter: 'blur(3px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 999999,
-                    padding: '20px'
-                }}>
-                    <div style={{
-                        backgroundColor: '#ffffff',
-                        maxWidth: '580px',
-                        width: '100%',
-                        borderRadius: '12px',
-                        padding: '0',
-                        overflow: 'hidden',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        border: '1px solid #e2e8f0'
-                    }}>
-                        <div style={{ background: '#1e293b', color: '#ffffff', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Mail size={20} /> Email Invoice to Client
-                                </h2>
-                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
-                                    Invoice #{emailInvoiceData.invoiceNumber} • {formatDocCurrency(emailInvoiceData.totalAmount, emailInvoiceData.currency)}
-                                </p>
+                <div className="Invoice-email-modal-overlay" onClick={() => setShowEmailModal(false)}>
+                    <div className="Invoice-email-modal-container" onClick={(e) => e.stopPropagation()}>
+                        {/* Modal Header */}
+                        <div className="Invoice-email-modal-header">
+                            <div className="Invoice-email-modal-header-info">
+                                <div className="Invoice-email-modal-icon-badge">
+                                    <Mail size={22} />
+                                </div>
+                                <div className="Invoice-email-modal-title-wrap">
+                                    <h2>
+                                        Email Invoice
+                                        <span className="Invoice-email-modal-invoice-tag">
+                                            #{emailInvoiceData.invoiceNumber || `INV-${emailInvoiceData.id}`}
+                                        </span>
+                                    </h2>
+                                    <p className="Invoice-email-modal-subtitle">
+                                        <span>{emailInvoiceData.customer?.name || emailInvoiceData.customerName || 'Customer'}</span>
+                                        <span>•</span>
+                                        <strong style={{ color: '#ffffff' }}>
+                                            {formatDocCurrency(emailInvoiceData.totalAmount, emailInvoiceData.currency)}
+                                        </strong>
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 type="button"
+                                className="Invoice-email-modal-close-btn"
                                 onClick={() => setShowEmailModal(false)}
-                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                                title="Close dialog"
                             >
-                                <X size={22} />
+                                <X size={20} />
                             </button>
                         </div>
 
-                        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Modal Body */}
+                        <div className="Invoice-email-modal-body">
                             {/* SMTP Status Notice */}
                             {smtpStatus.checking ? (
-                                <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#475569' }}>
-                                    <Loader2 size={16} className="animate-spin" /> Verifying company email / SMTP configuration...
+                                <div className="Invoice-email-smtp-banner loading">
+                                    <div className="Invoice-email-smtp-left">
+                                        <Loader2 size={18} className="animate-spin" color="#64748b" />
+                                        <span style={{ fontSize: '0.84rem', color: '#475569', fontWeight: 500 }}>
+                                            Checking outgoing mail (SMTP) configuration...
+                                        </span>
+                                    </div>
                                 </div>
                             ) : !smtpStatus.isConfigured ? (
-                                <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 700, fontSize: '0.88rem' }}>
-                                        <AlertTriangle size={18} /> SMTP Email Not Configured
+                                <div className="Invoice-email-smtp-banner warning">
+                                    <div className="Invoice-email-smtp-left">
+                                        <div className="Invoice-email-smtp-icon warning">
+                                            <AlertTriangle size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="Invoice-email-smtp-text-title">Outgoing Email Server (SMTP) Not Configured</h4>
+                                            <p className="Invoice-email-smtp-text-desc">
+                                                Configure company SMTP credentials to send invoice emails directly to your clients.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e', lineHeight: 1.4 }}>
-                                        This company has not configured an outgoing email server (SMTP). Invoices cannot be sent until SMTP credentials are provided in Company Settings.
-                                    </p>
-                                    <div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowEmailModal(false);
-                                                navigate('/company/settings/smtp');
-                                            }}
-                                            style={{
-                                                padding: '6px 14px',
-                                                background: '#d97706',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                borderRadius: '6px',
-                                                fontSize: '0.82rem',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '6px'
-                                            }}
-                                        >
-                                            Configure SMTP Settings &rarr;
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        className="Invoice-email-smtp-btn"
+                                        onClick={() => {
+                                            setShowEmailModal(false);
+                                            navigate('/company/settings/smtp');
+                                        }}
+                                    >
+                                        Configure SMTP <ArrowRight size={14} />
+                                    </button>
                                 </div>
                             ) : (
-                                <div style={{ padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#166534' }}>
-                                    <CheckCircle2 size={16} color="#16a34a" />
-                                    <span>Sending from company SMTP: <strong>{smtpStatus.fromName ? `${smtpStatus.fromName} <${smtpStatus.fromEmail}>` : smtpStatus.fromEmail}</strong></span>
+                                <div className="Invoice-email-smtp-banner success">
+                                    <div className="Invoice-email-smtp-left">
+                                        <div className="Invoice-email-smtp-icon success">
+                                            <CheckCircle2 size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 style={{ margin: 0, fontSize: '0.86rem', fontWeight: 700, color: '#166534' }}>
+                                                Verified SMTP Connection
+                                            </h4>
+                                            <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#15803d' }}>
+                                                Sending from: <strong>{smtpStatus.fromName ? `${smtpStatus.fromName} <${smtpStatus.fromEmail}>` : smtpStatus.fromEmail}</strong>
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                    Recipient Email (To:) *
+                            {/* Recipient Email */}
+                            <div className="Invoice-email-form-group">
+                                <label className="Invoice-email-form-label">
+                                    <span>Recipient Email (To:) <span style={{ color: '#e11d48' }}>*</span></span>
+                                    {emailInvoiceData.customer?.email && emailRecipient === emailInvoiceData.customer.email && (
+                                        <span style={{ fontSize: '0.72rem', color: '#059669', textTransform: 'none', fontWeight: 500 }}>
+                                            ✓ Auto-filled from customer profile
+                                        </span>
+                                    )}
                                 </label>
-                                <input
-                                    type="email"
-                                    value={emailRecipient}
-                                    onChange={(e) => setEmailRecipient(e.target.value)}
-                                    placeholder="client@example.com"
-                                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                                    required
-                                />
+                                <div className="Invoice-email-input-wrap">
+                                    <Mail size={16} className="Invoice-email-input-icon" />
+                                    <input
+                                        type="email"
+                                        value={emailRecipient}
+                                        onChange={(e) => setEmailRecipient(e.target.value)}
+                                        placeholder="customer@example.com"
+                                        className={`Invoice-email-input has-icon ${emailRecipient && !emailRecipient.includes('@') ? 'invalid' : ''}`}
+                                        required
+                                    />
+                                </div>
+                                {emailRecipient && !emailRecipient.includes('@') && (
+                                    <p className="Invoice-email-error-text">
+                                        <AlertTriangle size={12} /> Please enter a valid email address (e.g. name@domain.com)
+                                    </p>
+                                )}
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                    Subject Line
+                            {/* Subject Line */}
+                            <div className="Invoice-email-form-group">
+                                <label className="Invoice-email-form-label">
+                                    <span>Subject Line</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={emailSubject}
                                     onChange={(e) => setEmailSubject(e.target.value)}
-                                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                                    placeholder="Invoice Subject..."
+                                    className="Invoice-email-input"
                                 />
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                    Message Body
+                            {/* Message Body */}
+                            <div className="Invoice-email-form-group">
+                                <label className="Invoice-email-form-label">
+                                    <span>Message Body</span>
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'none', fontWeight: 500 }}>
+                                        Plain text &amp; paragraphs supported
+                                    </span>
                                 </label>
                                 <textarea
                                     value={emailMessage}
                                     onChange={(e) => setEmailMessage(e.target.value)}
                                     rows={5}
-                                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.88rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                    placeholder="Type your message to the client here..."
+                                    className="Invoice-email-textarea"
                                 />
                             </div>
 
-                            <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', fontWeight: 600 }}>
+                            {/* Attachments & Options */}
+                            <div className="Invoice-email-options-card">
+                                <label className="Invoice-email-checkbox-label">
                                     <input
                                         type="checkbox"
                                         checked={emailAttachPdf}
                                         onChange={(e) => setEmailAttachPdf(e.target.checked)}
-                                        style={{ accentColor: '#1e293b' }}
                                     />
-                                    <span>Attach PDF Invoice (<code>Invoice_{emailInvoiceData.invoiceNumber}.pdf</code>)</span>
+                                    <span>
+                                        Attach PDF Invoice
+                                        <span className="Invoice-email-attachment-pill" style={{ marginLeft: '8px' }}>
+                                            <FileText size={13} color="#dc2626" />
+                                            Invoice_{emailInvoiceData.invoiceNumber || emailInvoiceData.id}.pdf
+                                        </span>
+                                    </span>
                                 </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', fontWeight: 600 }}>
+                                <label className="Invoice-email-checkbox-label">
                                     <input
                                         type="checkbox"
                                         checked={emailSendBcc}
                                         onChange={(e) => setEmailSendBcc(e.target.checked)}
-                                        style={{ accentColor: '#1e293b' }}
                                     />
-                                    <span>Send copy to company email (BCC)</span>
+                                    <span>
+                                        Send copy to company email (BCC)
+                                        {companySettings?.email && (
+                                            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                                                ({companySettings.email})
+                                            </span>
+                                        )}
+                                    </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button
-                                type="button"
-                                onClick={() => setShowEmailModal(false)}
-                                style={{ padding: '9px 18px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.88rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSendInvoiceEmail}
-                                disabled={sendingEmail || !smtpStatus.isConfigured}
-                                title={!smtpStatus.isConfigured ? 'Please configure company SMTP settings to send invoices' : ''}
-                                style={{
-                                    padding: '9px 22px',
-                                    background: !smtpStatus.isConfigured ? '#94a3b8' : '#1e293b',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    fontSize: '0.88rem',
-                                    fontWeight: 700,
-                                    cursor: (sendingEmail || !smtpStatus.isConfigured) ? 'not-allowed' : 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    opacity: sendingEmail ? 0.7 : (!smtpStatus.isConfigured ? 0.8 : 1),
-                                    boxShadow: !smtpStatus.isConfigured ? 'none' : '0 4px 6px -1px rgba(30, 41, 59, 0.2)'
-                                }}
-                            >
-                                <Send size={16} /> {sendingEmail ? 'Sending Email...' : !smtpStatus.isConfigured ? 'SMTP Required' : 'Send Invoice Now'}
-                            </button>
+                        {/* Modal Footer (Pinned & Guaranteed Visible!) */}
+                        <div className="Invoice-email-modal-footer">
+                            <div className="Invoice-email-footer-status">
+                                {!smtpStatus.isConfigured ? (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#b45309', fontWeight: 600 }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+                                        SMTP configuration required
+                                    </span>
+                                ) : (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#166534', fontWeight: 600 }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+                                        Ready to dispatch
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="Invoice-email-footer-actions">
+                                <button
+                                    type="button"
+                                    className="Invoice-email-cancel-btn"
+                                    onClick={() => setShowEmailModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                                {!smtpStatus.isConfigured ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowEmailModal(false);
+                                            navigate('/company/settings/smtp');
+                                        }}
+                                        className="Invoice-email-submit-btn"
+                                        style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}
+                                    >
+                                        Configure SMTP Settings <ArrowRight size={16} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="Invoice-email-submit-btn"
+                                        onClick={handleSendInvoiceEmail}
+                                        disabled={sendingEmail || !emailRecipient || !emailRecipient.includes('@')}
+                                    >
+                                        {sendingEmail ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" /> Sending Invoice...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send size={16} /> Send Invoice Now
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

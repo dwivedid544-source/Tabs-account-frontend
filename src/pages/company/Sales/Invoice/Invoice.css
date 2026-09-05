@@ -4516,3 +4516,462 @@
         page-break-inside: avoid !important;
     }
 }
+
+/* ==========================================================
+   Email Invoice Modal (Premium Responsive Design)
+   ========================================================== */
+.Invoice-email-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    padding: 16px;
+    box-sizing: border-box;
+    animation: emailModalOverlayFade 0.2s ease-out;
+}
+
+@keyframes emailModalOverlayFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.Invoice-email-modal-container {
+    background-color: #ffffff;
+    max-width: 640px;
+    width: 100%;
+    max-height: min(92vh, 760px);
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.85);
+    overflow: hidden;
+    animation: emailModalDialogPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+}
+
+@keyframes emailModalDialogPop {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Modal Header */
+.Invoice-email-modal-header {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.Invoice-email-modal-header-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.Invoice-email-modal-icon-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.Invoice-email-modal-title-wrap h2 {
+    font-size: 1.12rem;
+    font-weight: 700;
+    margin: 0;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.Invoice-email-modal-invoice-tag {
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(56, 189, 248, 0.18);
+    color: #7dd3fc;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.Invoice-email-modal-subtitle {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin: 4px 0 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.Invoice-email-modal-close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    cursor: pointer;
+    padding: 7px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.Invoice-email-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    transform: rotate(90deg);
+}
+
+/* Modal Body */
+.Invoice-email-modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-sizing: border-box;
+}
+
+/* Custom Scrollbar for Body */
+.Invoice-email-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+.Invoice-email-modal-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.Invoice-email-modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.Invoice-email-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* SMTP Notification Cards */
+.Invoice-email-smtp-banner {
+    padding: 12px 16px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.Invoice-email-smtp-banner.warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.Invoice-email-smtp-banner.success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.Invoice-email-smtp-banner.loading {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.Invoice-email-smtp-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.Invoice-email-smtp-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.Invoice-email-smtp-icon.warning {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.Invoice-email-smtp-icon.success {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.Invoice-email-smtp-text-title {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #92400e;
+    margin: 0;
+}
+
+.Invoice-email-smtp-text-desc {
+    font-size: 0.78rem;
+    color: #a16207;
+    margin: 2px 0 0 0;
+    line-height: 1.35;
+}
+
+.Invoice-email-smtp-btn {
+    padding: 7px 14px;
+    background: #d97706;
+    color: #ffffff;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+}
+
+.Invoice-email-smtp-btn:hover {
+    background: #b45309;
+    transform: translateY(-1px);
+}
+
+/* Form Groups */
+.Invoice-email-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.Invoice-email-form-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.Invoice-email-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.Invoice-email-input-icon {
+    position: absolute;
+    left: 12px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.Invoice-email-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: #1e293b;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.2s;
+    background: #ffffff;
+    font-family: inherit;
+}
+
+.Invoice-email-input.has-icon {
+    padding-left: 38px;
+}
+
+.Invoice-email-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.Invoice-email-input.invalid {
+    border-color: #f43f5e;
+    background: #fff1f2;
+}
+
+.Invoice-email-input.invalid:focus {
+    box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+}
+
+.Invoice-email-error-text {
+    font-size: 0.76rem;
+    color: #e11d48;
+    margin: 2px 0 0 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.Invoice-email-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: #1e293b;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.55;
+    min-height: 125px;
+    max-height: 200px;
+    box-sizing: border-box;
+    transition: all 0.2s;
+    background: #ffffff;
+}
+
+.Invoice-email-textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* Attachments & Options Card */
+.Invoice-email-options-card {
+    background: #f8fafc;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.Invoice-email-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: #334155;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.Invoice-email-checkbox-label input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #1e293b;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.Invoice-email-attachment-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-family: monospace;
+    color: #0f172a;
+    font-weight: 500;
+}
+
+/* Modal Footer */
+.Invoice-email-modal-footer {
+    flex-shrink: 0;
+    padding: 14px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.Invoice-email-footer-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.Invoice-email-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.Invoice-email-cancel-btn {
+    padding: 9px 18px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.Invoice-email-cancel-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-color: #94a3b8;
+}
+
+.Invoice-email-submit-btn {
+    padding: 9px 22px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+}
+
+.Invoice-email-submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+}
+
+.Invoice-email-submit-btn:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
