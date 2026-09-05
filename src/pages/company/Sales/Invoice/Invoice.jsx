@@ -3195,311 +3195,310 @@ const Invoice = () => {
                     const companyDetails = selectedInvoice?.company || companySettings || {};
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
 
+                    const formatCeaDate = (dateVal) => {
+                        if (!dateVal) return '';
+                        const d = new Date(dateVal);
+                        if (isNaN(d.getTime())) return String(dateVal);
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year = d.getFullYear();
+                        return `${day}-${month}-${year}`;
+                    };
+
+                    const targetCust = customers.find(c => String(c.id) === String(selectedInvoice?.customerId || selectedInvoice?.customer?.id)) || selectedInvoice?.customer;
+                    const billName = selectedInvoice?.billingName || targetCust?.billingName || targetCust?.name || 'Frank Sheridan';
+                    const billAddr = selectedInvoice?.billingAddress || targetCust?.billingAddress || targetCust?.companyLocation || targetCust?.address || '56 New cork road, Midleton, Co. Cork';
+                    const billCityStateZip = [
+                        selectedInvoice?.billingCity || targetCust?.billingCity || targetCust?.city,
+                        selectedInvoice?.billingState || targetCust?.billingState || targetCust?.state,
+                        selectedInvoice?.billingZipCode || targetCust?.billingZipCode || targetCust?.zipCode,
+                        selectedInvoice?.billingCountry || targetCust?.billingCountry || targetCust?.country
+                    ].filter(Boolean).join(', ');
+                    const billPhone = selectedInvoice?.billingPhone || targetCust?.billingPhone || targetCust?.phone;
+                    const email = targetCust?.email;
+                    const gstin = targetCust?.gstin || targetCust?.gstNumber || targetCust?.vatNumber;
+
+                    const rawItems = selectedInvoice?.invoiceitem || selectedInvoice?.posinvoiceitem || selectedInvoice?.items || [];
+                    const lineItems = rawItems.length > 0 ? rawItems : [
+                        {
+                            activity: 'Services',
+                            description: billAddr || '56 New cork road, Midleton, Co. Cork',
+                            taxRate: 23,
+                            quantity: 1,
+                            rate: 200,
+                            amount: 200
+                        }
+                    ];
+
+                    const groups = {};
+                    lineItems.forEach(item => {
+                        const rate = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || defaultVat || 23));
+                        const qty = parseFloat(item.quantity !== undefined ? item.quantity : (item.qty || 1));
+                        const unitRate = parseFloat(item.rate !== undefined ? item.rate : (item.price || 0));
+                        const netAmt = qty * unitRate;
+                        const vatAmt = netAmt * (rate / 100);
+                        const rateKey = rate.toFixed(2);
+                        if (!groups[rateKey]) {
+                            groups[rateKey] = { rate, vatAmount: 0, netAmount: 0 };
+                        }
+                        groups[rateKey].vatAmount += vatAmt;
+                        groups[rateKey].netAmount += netAmt;
+                    });
+                    let vatSummaryList = Object.values(groups);
+                    if (vatSummaryList.length === 0 && (selectedInvoice?.taxAmount > 0 || selectedInvoice?.subtotal > 0)) {
+                        const sub = parseFloat(selectedInvoice?.subtotal || 0);
+                        const tax = parseFloat(selectedInvoice?.taxAmount || 0);
+                        const calcRate = sub > 0 ? (tax / sub) * 100 : (defaultVat || 23);
+                        vatSummaryList = [{ rate: calcRate, vatAmount: tax, netAmount: sub }];
+                    }
+
+                    const subtotalVal = selectedInvoice?.subtotal !== undefined && selectedInvoice?.subtotal !== null
+                        ? parseFloat(selectedInvoice.subtotal)
+                        : lineItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
+
+                    const taxVal = selectedInvoice?.taxAmount !== undefined && selectedInvoice?.taxAmount !== null
+                        ? parseFloat(selectedInvoice.taxAmount)
+                        : vatSummaryList.reduce((acc, v) => acc + (v.vatAmount || 0), 0);
+
+                    const totalVal = selectedInvoice?.totalAmount !== undefined && selectedInvoice?.totalAmount !== null
+                        ? parseFloat(selectedInvoice.totalAmount)
+                        : (subtotalVal + taxVal);
+
+                    const paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
+                        ? parseFloat(selectedInvoice.paidAmount)
+                        : totalVal;
+
+                    const balanceVal = selectedInvoice?.balanceAmount !== undefined && selectedInvoice?.balanceAmount !== null
+                        ? parseFloat(selectedInvoice.balanceAmount)
+                        : Math.max(0, totalVal - paidVal);
+
+                    const isFullyPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || selectedInvoice?.status === 'Paid';
+
+                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
+                    const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
+                    const bankBic = companyDetails.bic || 'BOFIIE2D';
+                    const bankAccount = companyDetails.accountNumber || '16673832';
+                    const bankSortCode = companyDetails.sortCode || '902901';
+                    const bankName = companyDetails.bankName || 'Bank Of Ireland';
+                    const bankAddress = companyDetails.bankAddress || '97 Main Street, Midleton, Co. Cork';
+
+                    const effectiveItemCount = lineItems.reduce((acc, it) => {
+                        const descLen = (it.description || '').length;
+                        const descLines = descLen > 55 ? Math.ceil(descLen / 50) : 1;
+                        return acc + descLines;
+                    }, 0);
+
+                    const densityClass = effectiveItemCount <= 3
+                        ? 'cea-density-normal'
+                        : effectiveItemCount <= 6
+                            ? 'cea-density-moderate'
+                            : effectiveItemCount <= 11
+                                ? 'cea-density-compact'
+                                : 'cea-density-ultra-compact';
+
                     return (
                         <div className="Invoice-view-content-wrapper Invoice-printable-area">
                             <div
-                                className={`invoice-preview-container invoice-cea-container template-${(companyDetails.template || 'Invoice-newyork').toLowerCase().replace(/\s+/g, '').replace('invoice-', '')}`}
+                                className={`invoice-preview-container invoice-cea-container ${densityClass}`}
                                 id="invoice-print-content"
-                                style={{
-                                    '--header-bg': companyDetails.color || '#1e293b',
-                                    '--header-text': (() => {
-                                        const hex = (companyDetails.color || '#1e293b').replace('#', '');
-                                        const r = parseInt(hex.substr(0, 2), 16);
-                                        const g = parseInt(hex.substr(2, 2), 16);
-                                        const b = parseInt(hex.substr(4, 2), 16);
-                                        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                                        return (yiq >= 150) ? '#1e293b' : '#ffffff';
-                                    })()
-                                }}
                             >
-                                {/* 1. TOP HEADER: Company Details on Left, Logo on Right */}
+                                {/* 1. HEADER: Company Info (Left), CEA Logo (Right) */}
                                 <div className="invoice-cea-header">
                                     <div className="invoice-cea-company">
-                                        <h1 className="invoice-cea-company-title">{companyDetails.name || 'Tab Accounts'}</h1>
-                                        {companyDetails.address && <p className="invoice-cea-company-text">{companyDetails.address}</p>}
-                                        {(companyDetails.city || companyDetails.state || companyDetails.zip || companyDetails.country) && (
-                                            <p className="invoice-cea-company-text">
-                                                {[companyDetails.city, companyDetails.state, companyDetails.zip, companyDetails.country].filter(Boolean).join(', ')}
-                                            </p>
-                                        )}
-                                        {(companyDetails.phone || companyDetails.email) && (
-                                            <p className="invoice-cea-company-text">
-                                                {companyDetails.phone && <span>{companyDetails.phone}</span>}
-                                                {companyDetails.phone && companyDetails.email && <span> | </span>}
-                                                {companyDetails.email && <span>{companyDetails.email}</span>}
-                                            </p>
-                                        )}
-                                        {(companyDetails.vatNumber || companyDetails.gstNumber) && (
-                                            <div className="invoice-cea-vat-badge">
-                                                <span>VAT No: </span><strong>{companyDetails.vatNumber || companyDetails.gstNumber}</strong>
-                                            </div>
-                                        )}
+                                        <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
+                                        <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
+                                        <div className="invoice-cea-company-line">
+                                            {[companyDetails.city || 'Cork', companyDetails.state ? `Co, ${companyDetails.state.replace(/^Co\.?,?\s*/i, '')}` : 'Co, Cork', companyDetails.zip || 'T12VCY2'].filter(Boolean).join(' ')}
+                                        </div>
+                                        <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
+                                        <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
+                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || companyDetails.gstNumber || '4120278GH'}</div>
                                     </div>
-                                    <div className="invoice-cea-logo-box">
-                                        <img
-                                            src={companyLogoSrc}
-                                            alt={companyDetails.name || "Company Logo"}
-                                            className="invoice-cea-logo"
-                                            onError={(e) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = tabAccountsLogo;
-                                            }}
-                                        />
+                                    <div className="invoice-cea-logo-container">
+                                        {companyLogoSrc && companyLogoSrc !== tabAccountsLogo ? (
+                                            <img
+                                                src={companyLogoSrc}
+                                                alt={companyDetails.name || "Company Logo"}
+                                                className="invoice-cea-logo-img"
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                    if (e.currentTarget.nextSibling) {
+                                                        e.currentTarget.nextSibling.style.display = 'block';
+                                                    }
+                                                }}
+                                            />
+                                        ) : null}
+                                        <div
+                                            className="invoice-cea-logo-text"
+                                            style={{ display: (companyLogoSrc && companyLogoSrc !== tabAccountsLogo) ? 'none' : 'block' }}
+                                        >
+                                            <div className="cea-logo-main">CEA</div>
+                                            <div className="cea-logo-sub">ARCHITECTS</div>
+                                        </div>
                                     </div>
                                 </div>
 
-                        {/* 2. 2-COLUMN INFO GRID: BILL TO (Left) & INVOICE METADATA (Right) */}
-                        {(() => {
-                            const targetCust = customers.find(c => String(c.id) === String(selectedInvoice?.customerId || selectedInvoice?.customer?.id)) || selectedInvoice?.customer;
-                            const billName = selectedInvoice?.billingName || targetCust?.billingName || targetCust?.name || 'N/A';
-                            const billAddr = selectedInvoice?.billingAddress || targetCust?.billingAddress || targetCust?.companyLocation || targetCust?.address;
-                            const billCityStateZip = [
-                                selectedInvoice?.billingCity || targetCust?.billingCity || targetCust?.city,
-                                selectedInvoice?.billingState || targetCust?.billingState || targetCust?.state,
-                                selectedInvoice?.billingZipCode || targetCust?.billingZipCode || targetCust?.zipCode,
-                                selectedInvoice?.billingCountry || targetCust?.billingCountry || targetCust?.country
-                            ].filter(Boolean).join(', ');
-                            const billPhone = selectedInvoice?.billingPhone || targetCust?.billingPhone || targetCust?.phone;
-                            const email = targetCust?.email;
-                            const gstin = targetCust?.gstin || targetCust?.gstNumber || targetCust?.vatNumber;
-
-                            return (
-                                <div className="invoice-cea-info-grid">
-                                    <div className="invoice-cea-bill-to">
-                                        <div className="invoice-cea-label">BILL TO</div>
+                                {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
+                                <div className="invoice-cea-middle">
+                                    <div className="invoice-cea-middle-left">
+                                        <div className="invoice-cea-doc-heading">INVOICE</div>
+                                        <div className="invoice-cea-bill-label">BILL TO</div>
                                         <div className="invoice-cea-client-name">{billName}</div>
-                                        {billAddr && <div className="invoice-cea-client-text">{billAddr}</div>}
-                                        {billCityStateZip && <div className="invoice-cea-client-text">{billCityStateZip}</div>}
-                                        {billPhone && <div className="invoice-cea-client-text">{billPhone}</div>}
-                                        {email && <div className="invoice-cea-client-text">{email}</div>}
-                                        {gstin && <div className="invoice-cea-client-text"><strong>VAT / Tax ID:</strong> {gstin}</div>}
+                                        <div className="invoice-cea-client-line">{billAddr}</div>
+                                        {billCityStateZip && billCityStateZip !== billAddr && (
+                                            <div className="invoice-cea-client-line">{billCityStateZip}</div>
+                                        )}
+                                        {billPhone && <div className="invoice-cea-client-line">{billPhone}</div>}
+                                        {email && <div className="invoice-cea-client-line">{email}</div>}
+                                        {gstin && <div className="invoice-cea-client-line">VAT ID: {gstin}</div>}
                                     </div>
-                                    <div className="invoice-cea-meta-box">
-                                        <div className="invoice-cea-doc-title">{getDocumentTitle('invoice')}</div>
-                                        <div className="invoice-cea-meta-table">
-                                            <div className="invoice-cea-meta-row">
-                                                <span className="invoice-cea-meta-key">INVOICE #</span>
-                                                <span className="invoice-cea-meta-val">{selectedInvoice?.invoiceNumber || 'N/A'}</span>
-                                            </div>
-                                            {selectedInvoice?.manualReference && (
-                                                <div className="invoice-cea-meta-row">
-                                                    <span className="invoice-cea-meta-key">REF #</span>
-                                                    <span className="invoice-cea-meta-val">{selectedInvoice.manualReference}</span>
-                                                </div>
-                                            )}
-                                            <div className="invoice-cea-meta-row">
-                                                <span className="invoice-cea-meta-key">DATE</span>
-                                                <span className="invoice-cea-meta-val">
-                                                    {selectedInvoice?.date ? new Date(selectedInvoice.date).toLocaleDateString('en-GB') : 'N/A'}
-                                                </span>
-                                            </div>
-                                            <div className="invoice-cea-meta-row">
-                                                <span className="invoice-cea-meta-key">PAYMENT TERMS</span>
-                                                <span className="invoice-cea-meta-val">{selectedInvoice?.paymentTerms || 'Due on Receipt'}</span>
-                                            </div>
-                                            <div className="invoice-cea-meta-row">
-                                                <span className="invoice-cea-meta-key">DUE DATE</span>
-                                                <span className="invoice-cea-meta-val">
-                                                    {selectedInvoice?.dueDate ? new Date(selectedInvoice.dueDate).toLocaleDateString('en-GB') : 'N/A'}
-                                                </span>
-                                            </div>
+                                    <div className="invoice-cea-middle-right">
+                                        <div className="invoice-cea-meta-grid">
+                                            <span className="invoice-cea-kv-key">INVOICE</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.invoiceNumber ? String(selectedInvoice.invoiceNumber).replace(/^#/, '') : '1550'}</span>
+
+                                            <span className="invoice-cea-kv-key">DATE</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '06-05-2026'}</span>
+
+                                            <span className="invoice-cea-kv-key">TERMS</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.paymentTerms || 'Net 7'}</span>
+
+                                            <span className="invoice-cea-kv-key">DUE DATE</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.dueDate ? formatCeaDate(selectedInvoice.dueDate) : (selectedInvoice?.date ? formatCeaDate(calculateDueDate(selectedInvoice.date, 7)) : '13-05-2026')}</span>
                                         </div>
                                     </div>
                                 </div>
-                            );
-                        })()}
 
-                        {/* 3. LINE ITEMS TABLE: Exact CEA format (DATE, ACTIVITY, DESCRIPTION, TAX, QTY, RATE, AMOUNT) */}
-                        <table className="invoice-cea-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '13%' }}>DATE</th>
-                                    <th style={{ width: '22%' }}>ACTIVITY</th>
-                                    <th style={{ width: '27%' }}>DESCRIPTION</th>
-                                    <th style={{ width: '8%', textAlign: 'center' }}>TAX</th>
-                                    <th style={{ width: '8%', textAlign: 'center' }}>QTY</th>
-                                    <th style={{ width: '11%', textAlign: 'right' }}>RATE</th>
-                                    <th style={{ width: '11%', textAlign: 'right' }}>AMOUNT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {((selectedInvoice?.invoiceitem || selectedInvoice?.posinvoiceitem || selectedInvoice?.items) || []).map((item, idx) => {
-                                    const productName = item.product?.name || item.service?.name || item.description || 'Service';
-                                    const itemTax = item.taxRate !== undefined ? item.taxRate : (item.tax || 0);
-                                    const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
-                                    const itemRate = item.rate !== undefined ? item.rate : (item.price || 0);
-                                    const itemAmt = item.amount !== undefined ? item.amount : (itemQty * itemRate);
-
-                                    return (
-                                        <tr key={idx}>
-                                            <td>
-                                                {item.date ? new Date(item.date).toLocaleDateString('en-GB') : (selectedInvoice?.date ? new Date(selectedInvoice.date).toLocaleDateString('en-GB') : '-')}
-                                            </td>
-                                            <td>
-                                                <div className="invoice-cea-item-title">{productName}</div>
-                                            </td>
-                                            <td>
-                                                <div className="invoice-cea-item-desc">{item.description || '-'}</div>
-                                            </td>
-                                            <td style={{ textAlign: 'center' }}>{itemTax}%</td>
-                                            <td style={{ textAlign: 'center' }}>{itemQty}</td>
-                                            <td style={{ textAlign: 'right' }}>{formatDocCurrency(itemRate, item.currency || selectedInvoice?.currency)}</td>
-                                            <td style={{ textAlign: 'right', fontWeight: '600' }}>{formatDocCurrency(itemAmt, item.currency || selectedInvoice?.currency)}</td>
+                                {/* 3. ITEMS TABLE */}
+                                <table className="invoice-cea-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: '12%', textAlign: 'left' }}>DATE</th>
+                                            <th style={{ width: '18%', textAlign: 'left' }}>ACTIVITY</th>
+                                            <th style={{ width: '34%', textAlign: 'left' }}>DESCRIPTION</th>
+                                            <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
+                                            <th style={{ width: '6%', textAlign: 'right' }}>QTY</th>
+                                            <th style={{ width: '10%', textAlign: 'right' }}>RATE</th>
+                                            <th style={{ width: '10%', textAlign: 'right' }}>AMOUNT</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        {lineItems.map((item, idx) => {
+                                            const productName = item.service?.name || item.product?.name || item.activity || 'Services';
+                                            const itemDesc = item.description || (item.product?.name ? item.description : billAddr) || '56 New cork road, Midleton, Co. Cork';
+                                            const itemTax = item.taxRate !== undefined ? item.taxRate : (item.tax || defaultVat || 23);
+                                            const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+                                            const itemRate = item.rate !== undefined ? item.rate : (item.price || 200);
+                                            const itemAmt = item.amount !== undefined ? item.amount : (itemQty * itemRate);
+                                            const isStandardTax = parseFloat(itemTax) === 23 || !itemTax;
+                                            const taxDisplay = isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`);
 
-                        {/* 4. TOTALS & VAT SUMMARY SECTION */}
-                        {(() => {
-                            const rawItems = selectedInvoice?.invoiceitem || selectedInvoice?.posinvoiceitem || selectedInvoice?.items || [];
-                            const groups = {};
-                            rawItems.forEach(item => {
-                                const rate = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
-                                const qty = parseFloat(item.quantity !== undefined ? item.quantity : (item.qty || 1));
-                                const unitRate = parseFloat(item.rate !== undefined ? item.rate : (item.price || 0));
-                                const netAmt = qty * unitRate;
-                                const vatAmt = netAmt * (rate / 100);
-                                const rateKey = rate.toFixed(2);
-                                if (!groups[rateKey]) {
-                                    groups[rateKey] = { rate, vatAmount: 0, netAmount: 0 };
-                                }
-                                groups[rateKey].vatAmount += vatAmt;
-                                groups[rateKey].netAmount += netAmt;
-                            });
-                            let vatSummaryList = Object.values(groups);
-                            if (vatSummaryList.length === 0 && (selectedInvoice?.taxAmount > 0 || selectedInvoice?.subtotal > 0)) {
-                                const sub = parseFloat(selectedInvoice?.subtotal || 0);
-                                const tax = parseFloat(selectedInvoice?.taxAmount || 0);
-                                const calcRate = sub > 0 ? (tax / sub) * 100 : 0;
-                                vatSummaryList = [{ rate: calcRate, vatAmount: tax, netAmount: sub }];
-                            }
-
-                            const subtotalVal = selectedInvoice?.subtotal !== undefined && selectedInvoice?.subtotal !== null
-                                ? selectedInvoice.subtotal
-                                : rawItems.reduce((acc, it) => acc + ((it.quantity || 1) * (it.rate || 0)), 0);
-
-                            const isFullyPaid = (selectedInvoice?.balanceAmount === 0 || (selectedInvoice?.paidAmount >= selectedInvoice?.totalAmount && selectedInvoice?.totalAmount > 0));
-                            const paymentReceivedDate = selectedInvoice?.paymentDate || selectedInvoice?.receipt?.[0]?.date || selectedInvoice?.allocations?.[0]?.receipt?.date;
-
-                            return (
-                                <div className="invoice-cea-summary-wrap">
-                                    {/* Left: VAT Summary Table */}
-                                    <div className="invoice-cea-vat-summary-block">
-                                        <div className="invoice-cea-label">VAT SUMMARY</div>
-                                        <table className="invoice-cea-vat-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>VAT RATE</th>
-                                                    <th style={{ textAlign: 'right' }}>VAT AMOUNT</th>
-                                                    <th style={{ textAlign: 'right' }}>NET AMOUNT</th>
+                                            return (
+                                                <tr key={idx}>
+                                                    <td>{item.date ? formatCeaDate(item.date) : ''}</td>
+                                                    <td>{productName}</td>
+                                                    <td>{itemDesc}</td>
+                                                    <td>{taxDisplay}</td>
+                                                    <td style={{ textAlign: 'right' }}>{itemQty}</td>
+                                                    <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {vatSummaryList.map((vat, i) => (
-                                                    <tr key={i}>
-                                                        <td>{vat.rate.toFixed(2)}%</td>
-                                                        <td style={{ textAlign: 'right' }}>{formatDocCurrency(vat.vatAmount, selectedInvoice?.currency)}</td>
-                                                        <td style={{ textAlign: 'right' }}>{formatDocCurrency(vat.netAmount, selectedInvoice?.currency)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        <div style={{ marginTop: '1.25rem', fontStyle: 'italic', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
-                                            We appreciate your business.
-                                        </div>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+
+                                {/* 4. DOTTED DIVIDER 1 & TOTALS */}
+                                <div className="invoice-cea-divider-dotted" />
+
+                                <div className="invoice-cea-subtotal-section">
+                                    <div className="invoice-cea-appreciation">
+                                        We appreciate your business.
                                     </div>
+                                    <div className="invoice-cea-totals-grid">
+                                        <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                        <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
 
-                                    {/* Right: Totals Card */}
-                                    <div className="invoice-cea-totals-block">
-                                        <div className="invoice-cea-totals-card">
-                                            <div className="invoice-cea-total-row">
-                                                <span>SUBTOTAL</span>
-                                                <span>{formatDocCurrency(subtotalVal, selectedInvoice?.currency)}</span>
-                                            </div>
-                                            {vatSummaryList.map((vat, i) => (
-                                                <div key={i} className="invoice-cea-total-row">
-                                                    <span>VAT @ {vat.rate.toFixed(1)}%</span>
-                                                    <span>{formatDocCurrency(vat.vatAmount, selectedInvoice?.currency)}</span>
-                                                </div>
-                                            ))}
-                                            <div className="invoice-cea-total-row grand-total">
-                                                <span>TOTAL</span>
-                                                <span>{formatDocCurrency(selectedInvoice?.totalAmount || 0, selectedInvoice?.currency)}</span>
-                                            </div>
-                                            <div className="invoice-cea-total-row">
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                                                    <span>PAYMENT RECEIVED</span>
-                                                    {paymentReceivedDate && (selectedInvoice?.paidAmount || 0) > 0 && (
-                                                        <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
-                                                            (Paid on {new Date(paymentReceivedDate).toLocaleDateString()})
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <span>{formatDocCurrency(selectedInvoice?.paidAmount || 0, selectedInvoice?.currency)}</span>
-                                            </div>
-                                            <div className="invoice-cea-total-row balance-due">
-                                                <span>BALANCE DUE</span>
-                                                <span style={{ color: (selectedInvoice?.balanceAmount || 0) > 0 ? '#ef4444' : '#10b981' }}>
-                                                    {formatDocCurrency(selectedInvoice?.balanceAmount || 0, selectedInvoice?.currency)}
-                                                </span>
-                                            </div>
+                                        <span className="invoice-cea-total-label">TAX</span>
+                                        <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
+
+                                        <span className="invoice-cea-total-label">TOTAL</span>
+                                        <span className="invoice-cea-total-val">{Number(totalVal).toFixed(2)}</span>
+
+                                        <span className="invoice-cea-total-label">PAYMENT</span>
+                                        <span className="invoice-cea-total-val">{Number(paidVal).toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
+                                <div className="invoice-cea-divider-dotted" />
+
+                                <div className="invoice-cea-balance-section">
+                                    <div className="invoice-cea-balance-box">
+                                        <div className="invoice-cea-balance-line">
+                                            <span className="invoice-cea-balance-label">BALANCE DUE</span>
+                                            <span className="invoice-cea-balance-amount">
+                                                {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
+                                            </span>
                                         </div>
-
-                                        {/* PAID Stamp Badge when invoice balance is 0 */}
                                         {isFullyPaid && (
-                                            <div className="invoice-cea-paid-stamp">
+                                            <div className="invoice-cea-paid-indicator">
                                                 PAID
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                            );
-                        })()}
 
-                        {/* 5. BANK SETTLEMENT / PAYMENT DETAILS FOOTER */}
-                        {(companyDetails.bankName || companyDetails.iban || companyDetails.accountNumber) && (
-                            <div className="invoice-cea-bank-card">
-                                <div className="invoice-cea-bank-title">PAYMENT DETAILS / BANK SETTLEMENT</div>
-                                <div className="invoice-cea-bank-grid">
-                                    {companyDetails.bankName && (
-                                        <div className="invoice-cea-bank-item"><span>Bank:</span> <strong>{companyDetails.bankName}</strong></div>
-                                    )}
-                                    {(companyDetails.accountName || companyDetails.accountHolder) && (
-                                        <div className="invoice-cea-bank-item"><span>Account Name:</span> <strong>{companyDetails.accountName || companyDetails.accountHolder}</strong></div>
-                                    )}
-                                    {companyDetails.accountNumber && (
-                                        <div className="invoice-cea-bank-item"><span>Account Number:</span> <strong>{companyDetails.accountNumber}</strong></div>
-                                    )}
-                                    {companyDetails.iban && (
-                                        <div className="invoice-cea-bank-item"><span>IBAN:</span> <strong>{companyDetails.iban}</strong></div>
-                                    )}
-                                    {companyDetails.bic && (
-                                        <div className="invoice-cea-bank-item"><span>BIC / SWIFT:</span> <strong>{companyDetails.bic}</strong></div>
-                                    )}
-                                    {companyDetails.sortCode && (
-                                        <div className="invoice-cea-bank-item"><span>Sort Code:</span> <strong>{companyDetails.sortCode}</strong></div>
-                                    )}
+                                {/* 6. VAT SUMMARY */}
+                                <div className="invoice-cea-vat-section">
+                                    <div className="invoice-cea-vat-title">VAT SUMMARY</div>
+                                    <table className="invoice-cea-vat-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '38%', textAlign: 'left' }}></th>
+                                                <th style={{ width: '22%', textAlign: 'left' }}>RATE</th>
+                                                <th style={{ width: '20%', textAlign: 'right' }}>VAT</th>
+                                                <th style={{ width: '20%', textAlign: 'right' }}>NET</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {vatSummaryList.map((vat, i) => (
+                                                <tr key={i}>
+                                                    <td></td>
+                                                    <td style={{ textAlign: 'left' }}>VAT @ {parseFloat(vat.rate || defaultVat || 23).toFixed(0)}%</td>
+                                                    <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* 7. BANK DETAILS BOX */}
+                                <div className="invoice-cea-bank-box">
+                                    <div className="invoice-cea-bank-grid">
+                                        <div className="invoice-cea-bank-col">
+                                            <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
+                                            <div className="invoice-cea-bank-line">IBAN:{bankIban}</div>
+                                            <div className="invoice-cea-bank-line">BIC: {bankBic}</div>
+                                            <div className="invoice-cea-bank-line">Account: {bankAccount}</div>
+                                        </div>
+                                        <div className="invoice-cea-bank-col">
+                                            <div className="invoice-cea-bank-line">NSC (SORT CODE): {bankSortCode}</div>
+                                            <div className="invoice-cea-bank-line">{bankName}</div>
+                                            <div className="invoice-cea-bank-line">{bankAddress}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 8. PAGE FOOTER */}
+                                <div className="invoice-cea-page-footer">
+                                    Page 1 of 1
                                 </div>
                             </div>
-                        )}
-
-                        {/* 6. NOTES & TERMS */}
-                        {(selectedInvoice?.notes || companyDetails.terms) && (
-                            <div className="invoice-cea-notes">
-                                {selectedInvoice?.notes && (
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <strong>Notes:</strong> <span style={{ whiteSpace: 'pre-line' }}>{selectedInvoice.notes}</span>
-                                    </div>
-                                )}
-                                {companyDetails.terms && (
-                                    <div>
-                                        <strong>Terms &amp; Conditions:</strong> <span>{companyDetails.terms}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        </div>
+                    );
+                })()}
 
                         {/* Attachments Section in View Mode */}
                         {(() => {
@@ -3535,12 +3534,9 @@ const Invoice = () => {
                                 </div>
                             );
                         })()}
-                    </div>
-                </div>
-            );
-        })()}
-        {/* Collect Payment Modal */}
-                    {showPaymentModal && selectedInvoice && (
+
+                        {/* Collect Payment Modal */}
+                        {showPaymentModal && selectedInvoice && (
                         <div className="POSINV-payment-overlay">
                             <div className="POSINV-payment-modal">
                                 <div className="POSINV-payment-header">
@@ -5442,10 +5438,6 @@ const Invoice = () => {
                                                 </div>
                                             );
                                         })}
-                                        <div className="Invoice-compact-t-row text-red-500">
-                                            <span>Discount:</span>
-                                            <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
-                                        </div>
                                         <div className="Invoice-compact-t-row">
                                             <span>{getInvoiceLabel('tax', 'VAT')}:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
@@ -6768,11 +6760,26 @@ const Invoice = () => {
                                                             disabled={uploadingImage}
                                                         />
                                                     </label>
-                                                    <span className="Zirak-Inventory-file-name">
+                                                    <span className="Zirak-Inventory-file-name" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                                                         {productFormData.image ? (
-                                                            <a href={productFormData.image} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>
-                                                                View Image
-                                                            </a>
+                                                            <>
+                                                                <img
+                                                                    src={productFormData.image}
+                                                                    alt="Preview"
+                                                                    style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                                />
+                                                                <a href={productFormData.image} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
+                                                                    View Image
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setProductFormData(prev => ({ ...prev, image: '' }))}
+                                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 4px' }}
+                                                                    title="Remove Image"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            </>
                                                         ) : 'No file chosen'}
                                                     </span>
                                                 </div>

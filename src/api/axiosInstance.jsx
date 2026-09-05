@@ -2,10 +2,10 @@ import axios from 'axios';
 import { loaderService } from '../services/loaderService';
 import toast from 'react-hot-toast';
 
-const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const BASE_URL = isLocal ? 'http://localhost:8080' : 'https://tabaccounting-production.up.railway.app';
+// const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+// const BASE_URL = isLocal ? 'http://localhost:8080' : 'https://tabaccounting-production.up.railway.app';
 // const BASE_URL = 'http://localhost:8080';
-// const BASE_URL = 'https://tabaccounting-production.up.railway.app';
+const BASE_URL = 'https://tabaccounting-production.up.railway.app';
 
 const axiosInstance = axios.create({
     baseURL: `${BASE_URL}/api`,

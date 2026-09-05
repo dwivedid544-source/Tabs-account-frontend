@@ -1468,117 +1468,165 @@ const CompanySettings = () => {
 
                                 {/* Right Preview */}
                                 <div
-                                    className={`invoice-preview-container template-${invoiceSettings.template.toLowerCase().replace(' ', '')}`}
-                                    style={previewStyle}
+                                    className="invoice-preview-container invoice-cea-container"
+                                    style={{ ...previewStyle, background: '#ffffff', padding: '32px 36px 24px 36px', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                                 >
-                                    {invoiceLabels.showHeader !== false && (
-                                        <div className="invoice-header-wrapper">
-                                            <div className="invoice-preview-header">
-                                                <div className="invoice-header-left">
-                                                    {invoiceSettings.logoPreview || logoPreview ? (
-                                                        <img src={invoiceSettings.logoPreview || logoPreview} alt="Logo" className="invoice-logo-large" />
-                                                    ) : (
-                                                        <h2 style={{ color: invoiceSettings.color, margin: 0 }}>ACCOUNTGO</h2>
-                                                    )}
-
-                                                    <div className="invoice-company-details">
-                                                        <strong>{formData.name}</strong><br />
-                                                        {formData.email}<br />
-                                                        {formData.phone}<br />
-                                                        {formData.address}, {formData.city}<br />
-                                                        {formData.country} - {formData.zip}<br />
-                                                    </div>
-                                                </div>
-                                                <div className="invoice-header-right">
-                                                    <div className="invoice-title-large">{documentTitles.invoice || 'INVOICE'}</div>
-                                                    <div className="invoice-meta-info">
-                                                        <div className="invoice-meta-row">
-                                                            <span className="invoice-label">{invoiceLabels.number}</span> #INVO00001
-                                                        </div>
-                                                        <div className="invoice-meta-row">
-                                                            <span className="invoice-label">{invoiceLabels.issue}</span> Jan 17, 2026
-                                                        </div>
-                                                        <div className="invoice-meta-row">
-                                                            <span className="invoice-label">{invoiceLabels.dueDate}</span> Jan 17, 2026
-                                                        </div>
-                                                    </div>
-                                                    {invoiceSettings.showQr && (
-                                                        <div className="invoice-qr-box">
-                                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=InvoiceDemo" alt="QR" className="invoice-qr-code" />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                    {/* 1. HEADER: Company Info (Left), CEA Logo (Right) */}
+                                    <div className="invoice-cea-header">
+                                        <div className="invoice-cea-company">
+                                            <div className="invoice-cea-company-name">{formData.name || 'CEAC Ltd'}</div>
+                                            <div className="invoice-cea-company-line">{formData.address || '17 South Mall'}</div>
+                                            <div className="invoice-cea-company-line">
+                                                {[formData.city || 'Cork', formData.state ? `Co, ${formData.state.replace(/^Co\.?,?\s*/i, '')}` : 'Co, Cork', formData.zip || 'T12VCY2'].filter(Boolean).join(' ')}
                                             </div>
+                                            <div className="invoice-cea-company-line">{formData.phone || '+353214272000'}</div>
+                                            <div className="invoice-cea-company-line">{formData.email || 'accounts@ceaarchitects.com'}</div>
+                                            <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || formData.gstNumber || '4120278GH'}</div>
                                         </div>
-                                    )}
-
-                                    <div className="invoice-addresses">
-                                        <div className="invoice-bill-to">
-                                            <div className="invoice-section-header">{invoiceLabels.billTo}</div>
-                                            <div>&lt;Customer Name&gt;</div>
-                                            <div>&lt;Address&gt;</div>
-                                            <div>&lt;City&gt;, &lt;State&gt; &lt;Zip&gt;</div>
-                                        </div>
-                                        <div className="invoice-ship-to" style={{ textAlign: 'right' }}>
-                                            <div className="invoice-section-header">{invoiceLabels.shipTo}</div>
-                                            <div>&lt;Customer Name&gt;</div>
-                                            <div>&lt;Address&gt;</div>
-                                            <div>&lt;City&gt;, &lt;State&gt; &lt;Zip&gt;</div>
+                                        <div className="invoice-cea-logo-container">
+                                            {invoiceSettings.logoPreview || logoPreview ? (
+                                                <img src={invoiceSettings.logoPreview || logoPreview} alt="Logo" className="invoice-cea-logo-img" />
+                                            ) : (
+                                                <div className="invoice-cea-logo-text">
+                                                    <div className="cea-logo-main">CEA</div>
+                                                    <div className="cea-logo-sub">ARCHITECTS</div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    <table className="invoice-table-preview">
+                                    {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
+                                    <div className="invoice-cea-middle">
+                                        <div className="invoice-cea-middle-left">
+                                            <div className="invoice-cea-doc-heading">INVOICE</div>
+                                            <div className="invoice-cea-bill-label">BILL TO</div>
+                                            <div className="invoice-cea-client-name">Frank Sheridan</div>
+                                            <div className="invoice-cea-client-line">56 New cork road, Midleton, Co. Cork</div>
+                                        </div>
+                                        <div className="invoice-cea-middle-right">
+                                            <div className="invoice-cea-meta-grid">
+                                                <span className="invoice-cea-kv-key">INVOICE</span>
+                                                <span className="invoice-cea-kv-val">1550</span>
+
+                                                <span className="invoice-cea-kv-key">DATE</span>
+                                                <span className="invoice-cea-kv-val">06-05-2026</span>
+
+                                                <span className="invoice-cea-kv-key">TERMS</span>
+                                                <span className="invoice-cea-kv-val">Net 7</span>
+
+                                                <span className="invoice-cea-kv-key">DUE DATE</span>
+                                                <span className="invoice-cea-kv-val">13-05-2026</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. ITEMS TABLE */}
+                                    <table className="invoice-cea-table">
                                         <thead>
                                             <tr>
-                                                <th>{tableHeaders.item}</th>
-                                                {invoiceLabels.showWarehouse !== false && <th>{tableHeaders.warehouse || 'Warehouse'}</th>}
-                                                {invoiceLabels.showQty !== false && <th>{tableHeaders.quantity}</th>}
-                                                {invoiceLabels.showUom !== false && <th>{tableHeaders.uom || 'UOM'}</th>}
-                                                {invoiceLabels.showRate !== false && <th>{tableHeaders.rate}</th>}
-                                                {invoiceLabels.showDiscount !== false && <th>{tableHeaders.discount}</th>}
-                                                {invoiceLabels.showTax !== false && <th>{tableHeaders.tax}</th>}
-                                                <th style={{ textAlign: 'right' }}>{tableHeaders.price}</th>
+                                                <th style={{ width: '12%', textAlign: 'left' }}>DATE</th>
+                                                <th style={{ width: '18%', textAlign: 'left' }}>ACTIVITY</th>
+                                                <th style={{ width: '34%', textAlign: 'left' }}>DESCRIPTION</th>
+                                                <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
+                                                <th style={{ width: '6%', textAlign: 'right' }}>QTY</th>
+                                                <th style={{ width: '10%', textAlign: 'right' }}>RATE</th>
+                                                <th style={{ width: '10%', textAlign: 'right' }}>AMOUNT</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td>Item 1</td>
-                                                {invoiceLabels.showWarehouse !== false && <td>Main Warehouse</td>}
-                                                {invoiceLabels.showQty !== false && <td>1</td>}
-                                                {invoiceLabels.showUom !== false && <td>pcs</td>}
-                                                {invoiceLabels.showRate !== false && <td>$100.00</td>}
-                                                {invoiceLabels.showDiscount !== false && <td>$50.00</td>}
-                                                {invoiceLabels.showTax !== false && <td>Tax 10%</td>}
-                                                <td style={{ textAlign: 'right' }}>$50.00</td>
+                                                <td></td>
+                                                <td>Services</td>
+                                                <td>56 New cork road, Midleton, Co. Cork</td>
+                                                <td>Standard</td>
+                                                <td style={{ textAlign: 'right' }}>1</td>
+                                                <td style={{ textAlign: 'right' }}>200.00</td>
+                                                <td style={{ textAlign: 'right' }}>200.00</td>
                                             </tr>
                                         </tbody>
                                     </table>
 
-                                    <div className="invoice-total-section">
-                                        <div className="invoice-totals">
-                                            <div className="invoice-total-row">
-                                                <span>{invoiceLabels.subTotal}</span>
-                                                <span>$50.00</span>
+                                    {/* 4. DOTTED DIVIDER 1 & TOTALS */}
+                                    <div className="invoice-cea-divider-dotted" />
+
+                                    <div className="invoice-cea-subtotal-section">
+                                        <div className="invoice-cea-appreciation">
+                                            We appreciate your business.
+                                        </div>
+                                        <div className="invoice-cea-totals-grid">
+                                            <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                            <span className="invoice-cea-total-val">200.00</span>
+
+                                            <span className="invoice-cea-total-label">TAX</span>
+                                            <span className="invoice-cea-total-val">46.00</span>
+
+                                            <span className="invoice-cea-total-label">TOTAL</span>
+                                            <span className="invoice-cea-total-val">246.00</span>
+
+                                            <span className="invoice-cea-total-label">PAYMENT</span>
+                                            <span className="invoice-cea-total-val">246.00</span>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
+                                    <div className="invoice-cea-divider-dotted" />
+
+                                    <div className="invoice-cea-balance-section">
+                                        <div className="invoice-cea-balance-box">
+                                            <div className="invoice-cea-balance-line">
+                                                <span className="invoice-cea-balance-label">BALANCE DUE</span>
+                                                <span className="invoice-cea-balance-amount">EUR 0.00</span>
                                             </div>
-                                            {invoiceLabels.showTax !== false && (
-                                                <div className="invoice-total-row">
-                                                    <span>{invoiceLabels.tax}</span>
-                                                    <span>$5.00</span>
-                                                </div>
-                                            )}
-                                            <div className="invoice-final-total">
-                                                <span>{invoiceLabels.total}</span>
-                                                <span>{invoiceLabels.showTax !== false ? '$55.00' : '$50.00'}</span>
+                                            <div className="invoice-cea-paid-indicator">
+                                                PAID
                                             </div>
                                         </div>
                                     </div>
 
-                                    {invoiceLabels.showFooter !== false && (
-                                        <div className="invoice-footer-notes" style={{ marginTop: '1.5rem', borderTop: '1px solid #edf2f7', paddingTop: '1rem' }}>
-                                            <div className="invoice-section-header">Notes &amp; Terms</div>
-                                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Thank you for your business!</p>
+                                    {/* 6. VAT SUMMARY */}
+                                    <div className="invoice-cea-vat-section">
+                                        <div className="invoice-cea-vat-title">VAT SUMMARY</div>
+                                        <table className="invoice-cea-vat-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ width: '38%', textAlign: 'left' }}></th>
+                                                    <th style={{ width: '22%', textAlign: 'left' }}>RATE</th>
+                                                    <th style={{ width: '20%', textAlign: 'right' }}>VAT</th>
+                                                    <th style={{ width: '20%', textAlign: 'right' }}>NET</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td></td>
+                                                    <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
+                                                    <td style={{ textAlign: 'right' }}>46.00</td>
+                                                    <td style={{ textAlign: 'right' }}>200.00</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* 7. BANK DETAILS BOX */}
+                                    <div className="invoice-cea-bank-box">
+                                        <div className="invoice-cea-bank-grid">
+                                            <div className="invoice-cea-bank-col">
+                                                <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
+                                                <div className="invoice-cea-bank-line">IBAN:{formData.iban || 'IE03BOFI90290116673832'}</div>
+                                                <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
+                                                <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
+                                            </div>
+                                            <div className="invoice-cea-bank-col">
+                                                <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
+                                                <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
+                                                <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
+                                            </div>
                                         </div>
-                                    )}
+                                    </div>
+
+                                    {/* 8. PAGE FOOTER */}
+                                    <div className="invoice-cea-page-footer">
+                                        Page 1 of 1
+                                    </div>
                                 </div>
                             </div>
                         </div>
