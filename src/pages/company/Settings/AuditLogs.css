@@ -533,3 +533,103 @@
         text-align: center;
     }
 }
+
+/* Diff and Field Changes in Audit Logs */
+.audit-details-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.audit-details-summary {
+    font-size: 0.875rem;
+    color: #1e293b;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.audit-changes-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: #2563eb;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    cursor: pointer;
+    width: fit-content;
+    transition: all 0.15s ease;
+}
+
+.audit-changes-btn:hover {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.audit-diff-box {
+    margin-top: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem;
+    overflow-x: auto;
+}
+
+.audit-diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.785rem;
+}
+
+.audit-diff-table th {
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    color: #64748b;
+    font-weight: 600;
+    border-bottom: 1px solid #cbd5e1;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+}
+
+.audit-diff-table td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.audit-diff-field {
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.audit-diff-prev {
+    color: #dc2626;
+    background-color: #fef2f2;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    display: inline-block;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: line-through;
+}
+
+.audit-diff-new {
+    color: #16a34a;
+    background-color: #f0fdf4;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    display: inline-block;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+

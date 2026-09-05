@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Plus, TrendingUp, DollarSign, Calendar, BarChart2, ArrowUpRight, ArrowDownRight, X, AlertCircle, Download } from 'lucide-react';
+import { Plus, TrendingUp, DollarSign, Calendar, BarChart2, ArrowUpRight, ArrowDownRight, X, AlertCircle, Download, Trash2, Layers, CheckCircle2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import advancedAccountingService from '../../../../services/advancedAccountingService';
@@ -15,6 +15,7 @@ const Budgets = () => {
     const [varianceData, setVarianceData] = useState(null);
     const [forecastData, setForecastData] = useState(null);
     const [ledgers, setLedgers] = useState([]);
+    const [availableExpenseLedgers, setAvailableExpenseLedgers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Modal state
@@ -22,6 +23,7 @@ const Budgets = () => {
     const [budgetName, setBudgetName] = useState('');
     const [budgetYear, setBudgetYear] = useState(new Date().getFullYear());
     const [budgetRows, setBudgetRows] = useState([]);
+    const [selectedExpenseToAdd, setSelectedExpenseToAdd] = useState('');
 
     const fetchData = async () => {
         try {
@@ -41,23 +43,57 @@ const Budgets = () => {
             if (forecastRes.success) setForecastData(forecastRes.data);
             if (coaRes.success) {
                 const flattened = [];
-                coaRes.data.forEach(g => {
-                    if (g.ledger) flattened.push(...g.ledger);
-                    if (g.accountsubgroup) {
+                const expenseAccounts = [];
+                const seenLedgerIds = new Set();
+
+                (coaRes.data || []).forEach(g => {
+                    const isExpenseGroup = g.type === 'EXPENSES' || (g.name && g.name.toLowerCase().includes('expense'));
+
+                    if (Array.isArray(g.ledger)) {
+                        g.ledger.forEach(l => {
+                            if (!seenLedgerIds.has(l.id)) {
+                                seenLedgerIds.add(l.id);
+                                const enriched = { ...l, groupName: g.name, groupType: g.type };
+                                flattened.push(enriched);
+                                if (isExpenseGroup) expenseAccounts.push(enriched);
+                            }
+                        });
+                    }
+
+                    if (Array.isArray(g.accountsubgroup)) {
                         g.accountsubgroup.forEach(sg => {
-                            if (sg.ledger) flattened.push(...sg.ledger);
+                            const isExpenseSub = isExpenseGroup || sg.type === 'EXPENSES' || (sg.name && sg.name.toLowerCase().includes('expense'));
+                            if (Array.isArray(sg.ledger)) {
+                                sg.ledger.forEach(l => {
+                                    if (!seenLedgerIds.has(l.id)) {
+                                        seenLedgerIds.add(l.id);
+                                        const enriched = { ...l, groupName: sg.name || g.name, groupType: g.type };
+                                        flattened.push(enriched);
+                                        if (isExpenseSub) expenseAccounts.push(enriched);
+                                    }
+                                });
+                            }
                         });
                     }
                 });
+
+                // Fallback: If no expense accounts matched specifically, include all accounts that look like expenses or all accounts
+                const finalExpenseLedgers = expenseAccounts.length > 0
+                    ? expenseAccounts
+                    : flattened.filter(l => (l.name && l.name.toLowerCase().includes('expense')) || l.groupId === 4 || l.groupType === 'EXPENSES');
+
                 setLedgers(flattened);
-                
-                // Prepare initial budget rows for expense accounts
-                const expenseLedgers = flattened.filter(l => l.groupId === 4 || l.accountgroup?.type === 'EXPENSES');
-                setBudgetRows(expenseLedgers.slice(0, 8).map(l => ({
-                    ledgerId: l.id,
-                    ledgerName: l.name,
-                    allocatedAmount: '1000'
-                })));
+                setAvailableExpenseLedgers(finalExpenseLedgers.length > 0 ? finalExpenseLedgers : flattened);
+
+                // Initialize default rows if empty
+                if (budgetRows.length === 0 && finalExpenseLedgers.length > 0) {
+                    setBudgetRows(finalExpenseLedgers.slice(0, 5).map(l => ({
+                        ledgerId: l.id,
+                        ledgerName: l.name,
+                        groupName: l.groupName || 'Expenses',
+                        allocatedAmount: '1000'
+                    })));
+                }
             }
         } catch (err) {
             console.error(err);
@@ -85,22 +121,90 @@ const Budgets = () => {
         if (selectedBudgetId) fetchVariance(selectedBudgetId);
     }, [selectedBudgetId]);
 
+    const handleAddExpenseRow = (ledgerIdToAdd) => {
+        const idNum = parseInt(ledgerIdToAdd || selectedExpenseToAdd);
+        if (!idNum) return;
+
+        if (budgetRows.some(r => r.ledgerId === idNum)) {
+            toast.error('This expense account is already added to allocations.');
+            return;
+        }
+
+        const targetLedger = availableExpenseLedgers.find(l => l.id === idNum) || ledgers.find(l => l.id === idNum);
+        if (!targetLedger) return;
+
+        setBudgetRows(prev => [
+            ...prev,
+            {
+                ledgerId: targetLedger.id,
+                ledgerName: targetLedger.name,
+                groupName: targetLedger.groupName || 'Expenses',
+                allocatedAmount: '1000'
+            }
+        ]);
+        setSelectedExpenseToAdd('');
+    };
+
+    const handleAddAllExpenseAccounts = () => {
+        if (availableExpenseLedgers.length === 0) {
+            toast.error('No expense accounts found in Chart of Accounts.');
+            return;
+        }
+
+        const existingIds = new Set(budgetRows.map(r => r.ledgerId));
+        const newRows = availableExpenseLedgers.map(l => {
+            const existing = budgetRows.find(r => r.ledgerId === l.id);
+            return {
+                ledgerId: l.id,
+                ledgerName: l.name,
+                groupName: l.groupName || 'Expenses',
+                allocatedAmount: existing ? existing.allocatedAmount : '1000'
+            };
+        });
+
+        setBudgetRows(newRows);
+        toast.success(`Added ${newRows.length} expense accounts to budget.`);
+    };
+
+    const handleRemoveExpenseRow = (ledgerIdToRemove) => {
+        setBudgetRows(prev => prev.filter(r => r.ledgerId !== ledgerIdToRemove));
+    };
+
     const handleCreateBudget = async (e) => {
         e.preventDefault();
-        if (!budgetName) {
+        if (!budgetName.trim()) {
             toast.error('Budget name is required');
             return;
         }
-        try {
-            const items = budgetRows.map(r => ({
+
+        if (budgetRows.length === 0) {
+            toast.error('Please add at least one expense account allocation.');
+            return;
+        }
+
+        const validItems = budgetRows
+            .filter(r => parseFloat(r.allocatedAmount) > 0)
+            .map(r => ({
                 ledgerId: r.ledgerId,
                 allocatedAmount: parseFloat(r.allocatedAmount) || 0,
                 monthIndex: 1
             }));
+
+        if (validItems.length === 0) {
+            toast.error('Please allocate an amount greater than 0 for at least one account.');
+            return;
+        }
+
+        try {
+            const totalAllocated = validItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
             const res = await advancedAccountingService.createBudget({
-                name: budgetName,
+                name: budgetName.trim(),
                 fiscalYear: budgetYear,
-                items
+                periodType: 'ANNUAL',
+                startDate: `${budgetYear}-01-01`,
+                endDate: `${budgetYear}-12-31`,
+                totalBudgetAmount: totalAllocated,
+                items: validItems
             });
             if (res.success) {
                 toast.success(res.message || 'Budget created successfully!');
@@ -445,24 +549,27 @@ const Budgets = () => {
                         maxHeight: '90vh',
                         overflowY: 'auto'
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', margin: 0 }}>Create Annual / Monthly Budget</h2>
-                            <button onClick={() => setShowCreateModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <div>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Create Annual / Monthly Budget</h2>
+                                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>Define budget caps for company expense accounts</p>
+                            </div>
+                            <button onClick={() => setShowCreateModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}>
                                 <X size={20} />
                             </button>
                         </div>
 
                         <form onSubmit={handleCreateBudget}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '18px' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Budget Name*</label>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Budget Name *</label>
                                     <input
                                         type="text"
                                         required
                                         placeholder="e.g. FY 2026 Operating Budget"
                                         value={budgetName}
                                         onChange={(e) => setBudgetName(e.target.value)}
-                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}
+                                        style={{ width: '100%', padding: '9px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', fontSize: '0.9rem' }}
                                     />
                                 </div>
                                 <div>
@@ -470,36 +577,190 @@ const Budgets = () => {
                                     <input
                                         type="number"
                                         value={budgetYear}
-                                        onChange={(e) => setBudgetYear(parseInt(e.target.value))}
-                                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}
+                                        onChange={(e) => setBudgetYear(parseInt(e.target.value) || new Date().getFullYear())}
+                                        style={{ width: '100%', padding: '9px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', fontSize: '0.9rem' }}
                                     />
                                 </div>
                             </div>
 
-                            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: '0 0 10px 0' }}>Expense Account Allocations:</h4>
-                            <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-                                {budgetRows.map((r, idx) => (
-                                    <div key={r.ledgerId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
-                                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{r.ledgerName}</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ fontSize: '12px', color: '#64748b' }}>Allocated:</span>
-                                            <input
-                                                type="number"
-                                                value={r.allocatedAmount}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setBudgetRows(prev => prev.map((item, i) => i === idx ? { ...item, allocatedAmount: val } : item));
-                                                }}
-                                                style={{ width: '100px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: 600 }}
-                                            />
-                                        </div>
+                            {/* Expense Allocations Section */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b', margin: 0 }}>Expense Account Allocations</h4>
+                                        <span style={{ fontSize: '12px', padding: '2px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: '12px', fontWeight: 600 }}>
+                                            {budgetRows.length} {budgetRows.length === 1 ? 'Account' : 'Accounts'}
+                                        </span>
                                     </div>
-                                ))}
+
+                                    <button
+                                        type="button"
+                                        onClick={handleAddAllExpenseAccounts}
+                                        style={{
+                                            background: '#f8fafc',
+                                            border: '1px solid #cbd5e1',
+                                            padding: '5px 12px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            color: '#475569',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        + Add All Expense Accounts
+                                    </button>
+                                </div>
+
+                                {/* Account Picker Bar */}
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                    <select
+                                        value={selectedExpenseToAdd}
+                                        onChange={(e) => setSelectedExpenseToAdd(e.target.value)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '8px',
+                                            fontSize: '13px',
+                                            color: '#334155'
+                                        }}
+                                    >
+                                        <option value="">-- Select Expense Account to Add --</option>
+                                        {availableExpenseLedgers
+                                            .filter(l => !budgetRows.some(r => r.ledgerId === l.id))
+                                            .map(l => (
+                                                <option key={l.id} value={l.id}>
+                                                    {l.name} {l.groupName ? `(${l.groupName})` : ''}
+                                                </option>
+                                            ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAddExpenseRow(selectedExpenseToAdd)}
+                                        disabled={!selectedExpenseToAdd}
+                                        style={{
+                                            padding: '8px 16px',
+                                            background: selectedExpenseToAdd ? '#1e293b' : '#94a3b8',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: selectedExpenseToAdd ? 'pointer' : 'not-allowed',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <Plus size={16} /> Add
+                                    </button>
+                                </div>
+
+                                {/* Allocations Table Box */}
+                                <div style={{
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    background: '#ffffff'
+                                }}>
+                                    {budgetRows.length === 0 ? (
+                                        <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                                            No expense accounts allocated yet.<br />
+                                            Select an account above or click <strong>"Add All Expense Accounts"</strong> to populate.
+                                        </div>
+                                    ) : (
+                                        <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 1 }}>
+                                                    <tr>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Account Name</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Category</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#475569', width: '160px' }}>Budgeted Amount</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'center', width: '50px' }}></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {budgetRows.map((r, idx) => (
+                                                        <tr key={r.ledgerId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '8px 12px', fontWeight: 600, color: '#1e293b' }}>
+                                                                {r.ledgerName}
+                                                            </td>
+                                                            <td style={{ padding: '8px 12px', color: '#64748b' }}>
+                                                                <span style={{ fontSize: '11px', padding: '2px 6px', background: '#f1f5f9', borderRadius: '4px' }}>
+                                                                    {r.groupName || 'Expense'}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="any"
+                                                                    value={r.allocatedAmount}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setBudgetRows(prev => prev.map((item, i) => i === idx ? { ...item, allocatedAmount: val } : item));
+                                                                    }}
+                                                                    style={{
+                                                                        width: '130px',
+                                                                        padding: '5px 8px',
+                                                                        borderRadius: '6px',
+                                                                        border: '1px solid #cbd5e1',
+                                                                        fontWeight: 700,
+                                                                        textAlign: 'right',
+                                                                        color: '#1e293b'
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveExpenseRow(r.ledgerId)}
+                                                                    title="Remove account"
+                                                                    style={{
+                                                                        border: 'none',
+                                                                        background: 'none',
+                                                                        color: '#94a3b8',
+                                                                        cursor: 'pointer',
+                                                                        padding: '4px',
+                                                                        borderRadius: '4px',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+
+                                    {/* Live Budget Sum Bar */}
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '12px 16px',
+                                        background: '#f8fafc',
+                                        borderTop: '1px solid #e2e8f0'
+                                    }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>
+                                            Total Allocated Budget:
+                                        </span>
+                                        <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                                            {formatCurrency(budgetRows.reduce((sum, r) => sum + (parseFloat(r.allocatedAmount) || 0), 0))}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                 <button type="button" className="BUD-tab-btn" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                                <button type="submit" className="BUD-btn-primary">Save Budget</button>
+                                <button type="submit" className="BUD-btn-primary" style={{ padding: '9px 24px' }}>Save Budget</button>
                             </div>
                         </form>
                     </div>

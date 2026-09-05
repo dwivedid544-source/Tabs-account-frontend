@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Search, Filter, Download, Calendar,
     DollarSign, CheckCircle2, XCircle, AlertCircle,
@@ -13,6 +14,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const SalesReport = () => {
+    const navigate = useNavigate();
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
     const [reportType, setReportType] = useState('general'); // 'general', 'item', 'customer'
     const [transactionFilter, setTransactionFilter] = useState('ALL'); // 'ALL', 'SALES', 'RETURNS'
@@ -83,6 +85,8 @@ const SalesReport = () => {
                         
                         return items.map(item => ({
                             id: item.id || inv.id,
+                            invoiceId: inv.isReturn ? (inv.invoiceId || null) : inv.id,
+                            salesReturnId: inv.isReturn ? (inv.salesReturnId || inv.id) : null,
                             invoiceNumber: inv.invoiceNumber,
                             date: new Date(inv.date).toLocaleDateString(),
                             customerName: inv.customer?.name || 'Walk-in',
@@ -106,6 +110,26 @@ const SalesReport = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleInvoiceClick = (row) => {
+        if (row.isReturn && !row.invoiceId && row.salesReturnId) {
+            navigate('/company/sales/sales-return');
+            return;
+        }
+        if (row.invoiceId) {
+            const isPos = row.isPosReturn || row.type === 'POS_RETURN' || row.source === 'POS' || row.type === 'POS_SALE' || row.type === 'POS_INVOICE';
+            navigate('/company/sales/invoice', {
+                state: {
+                    targetInvoiceId: parseInt(row.invoiceId),
+                    type: isPos ? 'POS_INVOICE' : 'TAX_INVOICE'
+                }
+            });
+        }
+    };
+
+    const handleRowDoubleClick = (row) => {
+        handleInvoiceClick(row);
     };
 
     const filteredData = reportData.filter(item => {
@@ -324,10 +348,30 @@ const SalesReport = () => {
                             </thead>
                             <tbody>
                                 {filteredData.map((row, idx) => (
-                                    <tr key={idx}>
+                                    <tr 
+                                        key={idx}
+                                        onDoubleClick={() => handleRowDoubleClick(row)}
+                                        title={row.invoiceId ? "Double-click to view invoice details" : ""}
+                                        style={{ cursor: row.invoiceId ? 'pointer' : 'default' }}
+                                    >
                                         {reportType === 'general' && (
                                             <>
-                                                <td className="font-mono">{row.invoiceNumber}</td>
+                                                <td className="font-mono">
+                                                    {(row.invoiceId || (row.isReturn && row.salesReturnId)) ? (
+                                                        <span 
+                                                            className="text-blue-600 hover:text-blue-800 hover:underline font-bold cursor-pointer inline-flex items-center gap-1"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleInvoiceClick(row);
+                                                            }}
+                                                            title="Click to view details"
+                                                        >
+                                                            {row.invoiceNumber}
+                                                        </span>
+                                                    ) : (
+                                                        row.invoiceNumber
+                                                    )}
+                                                </td>
                                                 <td>
                                                     <span style={{
                                                         padding: '3px 8px',

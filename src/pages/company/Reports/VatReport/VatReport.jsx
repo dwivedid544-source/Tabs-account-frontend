@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Calendar, Search, Filter, Printer, FileText, ArrowRight, CheckCircle2, DollarSign, Layers, ShieldCheck, RefreshCw } from 'lucide-react';
 import axiosInstance from '../../../../api/axiosInstance';
 import GetCompanyId from '../../../../api/GetCompanyId';
@@ -9,6 +10,7 @@ import * as XLSX from 'xlsx';
 import './VatReport.css';
 
 const VatReport = () => {
+    const navigate = useNavigate();
     const { formatCurrency, fetchCompanySettings, companySettings } = useContext(CompanyContext);
     const [year, setYear] = useState(new Date().getFullYear());
     const [period, setPeriod] = useState('P1'); // 'P1'..'P6', 'ALL', 'custom'
@@ -90,6 +92,21 @@ const VatReport = () => {
         return new Date(dateString).toLocaleDateString('en-GB', {
             year: 'numeric', month: 'short', day: 'numeric'
         });
+    };
+
+    const handleTransactionClick = (t) => {
+        if (t.invoiceId) {
+            navigate('/company/sales/invoice', {
+                state: {
+                    targetInvoiceId: parseInt(t.invoiceId),
+                    type: t.isPos ? 'POS_INVOICE' : 'TAX_INVOICE'
+                }
+            });
+        }
+    };
+
+    const handleTransactionDoubleClick = (t) => {
+        handleTransactionClick(t);
     };
 
     const summary = reportPayload?.summary || {
@@ -544,12 +561,32 @@ const VatReport = () => {
                             <tbody>
                                 {outputVatTransactions.length > 0 ? (
                                     outputVatTransactions.map((t) => (
-                                        <tr key={t.id}>
+                                        <tr 
+                                            key={t.id}
+                                            onDoubleClick={() => handleTransactionDoubleClick(t)}
+                                            title={t.invoiceId ? "Double-click to view invoice details" : ""}
+                                            style={{ cursor: t.invoiceId ? 'pointer' : 'default' }}
+                                        >
                                             <td>{formatDate(t.date)}</td>
                                             <td>
                                                 <span className="vat-type-badge sale">{t.type}</span>
                                             </td>
-                                            <td className="font-semibold text-slate-800">{t.docNumber}</td>
+                                            <td className="font-semibold text-slate-800">
+                                                {t.invoiceId ? (
+                                                    <span
+                                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleTransactionClick(t);
+                                                        }}
+                                                        title="Click to view invoice details"
+                                                    >
+                                                        {t.docNumber}
+                                                    </span>
+                                                ) : (
+                                                    t.docNumber
+                                                )}
+                                            </td>
                                             <td className="text-slate-500">{t.refNumber || '-'}</td>
                                             <td>{t.partyName}</td>
                                             <td className="text-right">{formatCurrency(t.taxableAmount)}</td>
@@ -644,13 +681,33 @@ const VatReport = () => {
                             <tbody>
                                 {allTransactions.length > 0 ? (
                                     allTransactions.map((t) => (
-                                        <tr key={t.id}>
+                                        <tr 
+                                            key={t.id}
+                                            onDoubleClick={() => handleTransactionDoubleClick(t)}
+                                            title={t.invoiceId ? "Double-click to view invoice details" : ""}
+                                            style={{ cursor: t.invoiceId ? 'pointer' : 'default' }}
+                                        >
                                             <td>{formatDate(t.date)}</td>
                                             <td>
                                                 <span className={`vat-dir-tag ${t.direction.toLowerCase()}`}>{t.direction}</span>
                                             </td>
                                             <td>{t.type}</td>
-                                            <td className="font-semibold text-slate-800">{t.docNumber}</td>
+                                            <td className="font-semibold text-slate-800">
+                                                {t.invoiceId ? (
+                                                    <span
+                                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleTransactionClick(t);
+                                                        }}
+                                                        title="Click to view invoice details"
+                                                    >
+                                                        {t.docNumber}
+                                                    </span>
+                                                ) : (
+                                                    t.docNumber
+                                                )}
+                                            </td>
                                             <td>{t.partyName}</td>
                                             <td className="text-right">{formatCurrency(t.taxableAmount)}</td>
                                             <td className="text-center">{t.vatRate}%</td>

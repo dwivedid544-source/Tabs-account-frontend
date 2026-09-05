@@ -83,6 +83,7 @@ import AgingReport from './pages/company/Reports/AgingReport/AgingReport';
 import DepartmentalReport from './pages/company/Reports/DepartmentalReport/DepartmentalReport';
 import Integrations from './pages/company/Settings/Integrations/Integrations';
 import PeriodLock from './pages/company/Settings/PeriodLock/PeriodLock';
+import SmtpSettings from './pages/company/Settings/SmtpSettings/SmtpSettings';
 import BankingOverview from './pages/company/Banking/BankingOverview';
 import StatementImport from './pages/company/Banking/StatementImport';
 import TransactionMatching from './pages/company/Banking/TransactionMatching';
@@ -221,6 +222,7 @@ function App() {
                 <Route path="settings/audit-logs" element={<AuditLogs />} />
                 <Route path="settings/period-lock" element={<PeriodLock />} />
                 <Route path="settings/integrations" element={<Integrations />} />
+                <Route path="settings/smtp" element={<SmtpSettings />} />
                 <Route path="banking" element={<BankingOverview />} />
                 <Route path="banking/overview" element={<BankingOverview />} />
                 <Route path="banking/import" element={<StatementImport />} />

@@ -14,6 +14,7 @@ import warehouseService from '../../../../api/warehouseService';
 import { AuthContext } from '../../../../context/AuthContext';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { useTranslation } from '../../../../context/LanguageContext';
+import SmtpSettings from '../SmtpSettings/SmtpSettings';
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
 const purchaseTypes = ['purchasequotation', 'purchaseorder', 'purchasebill', 'purchasereturn', 'payment'];
 const otherTypes = ['goodsreceiptnote', 'voucher', 'stocktransfer', 'adjustment'];
@@ -1006,6 +1007,12 @@ const CompanySettings = () => {
                         onClick={() => setActiveTab('customFields')}
                     >
                         Custom Fields
+                    </button>
+                    <button
+                        className={`companySetting-tab-btn ${activeTab === 'smtp' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('smtp')}
+                    >
+                        Email / SMTP
                     </button>
                 </div>
 
@@ -2562,6 +2569,12 @@ const CompanySettings = () => {
                             customFieldsConfig={customFieldsConfig}
                             setCustomFieldsConfig={setCustomFieldsConfig}
                         />
+                    )}
+
+                    {activeTab === 'smtp' && (
+                        <div className="companySetting-form-section companySetting-fade-in" style={{ padding: 0, background: 'transparent', border: 'none' }}>
+                            <SmtpSettings isTab={true} />
+                        </div>
                     )}
                 </div>
             </div>

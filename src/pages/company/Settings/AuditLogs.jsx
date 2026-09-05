@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Search, Filter, Clock, User, Shield, Loader2,
-    Calendar, RefreshCw, ChevronLeft, ChevronRight, FileText, Download
+    Calendar, RefreshCw, ChevronLeft, ChevronRight, FileText, Download,
+    ChevronDown, ChevronUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../../api/axiosInstance';
@@ -10,14 +12,21 @@ import * as XLSX from 'xlsx';
 import './AuditLogs.css';
 
 const AuditLogs = () => {
+    const [searchParams] = useSearchParams();
+    const initialSearch = searchParams.get('search') || searchParams.get('invoiceNumber') || '';
+    const initialEntity = searchParams.get('entity') || (initialSearch ? 'Invoice' : '');
+    const initialAction = searchParams.get('action') || '';
+    const initialEntityId = searchParams.get('entityId') || searchParams.get('invoiceId') || '';
+
     const [logs, setLogs] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     
     // Filter states
-    const [search, setSearch] = useState('');
-    const [action, setAction] = useState('');
-    const [entity, setEntity] = useState('');
+    const [search, setSearch] = useState(initialSearch);
+    const [action, setAction] = useState(initialAction);
+    const [entity, setEntity] = useState(initialEntity);
+    const [entityId, setEntityId] = useState(initialEntityId);
     const [userId, setUserId] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -28,7 +37,19 @@ const AuditLogs = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalLogs, setTotalLogs] = useState(0);
 
+    // Expandable changes state
+    const [expandedLogIds, setExpandedLogIds] = useState(new Set());
+
     const companyId = GetCompanyId();
+
+    const toggleExpand = (logId) => {
+        setExpandedLogIds(prev => {
+            const next = new Set(prev);
+            if (next.has(logId)) next.delete(logId);
+            else next.add(logId);
+            return next;
+        });
+    };
 
     const exportToExcel = () => {
         if (!logs || logs.length === 0) {
@@ -44,6 +65,14 @@ const AuditLogs = () => {
         ];
 
         logs.forEach(log => {
+            let detailText = log.details || '-';
+            try {
+                if (typeof log.details === 'string' && (log.details.startsWith('{') || log.details.startsWith('['))) {
+                    const parsed = JSON.parse(log.details);
+                    detailText = parsed.summary || log.details;
+                }
+            } catch {}
+
             rows.push([
                 new Date(log.createdAt).toLocaleString(),
                 log.userName || log.user?.name || 'System',
@@ -51,7 +80,7 @@ const AuditLogs = () => {
                 log.action,
                 log.entity,
                 log.entityId || '-',
-                log.details || '-'
+                detailText
             ]);
         });
 
@@ -68,7 +97,7 @@ const AuditLogs = () => {
 
     useEffect(() => {
         fetchAuditLogs();
-    }, [page, limit, action, entity, userId, startDate, endDate]);
+    }, [page, limit, action, entity, entityId, userId, startDate, endDate]);
 
     const fetchUsers = async () => {
         try {
@@ -92,6 +121,7 @@ const AuditLogs = () => {
                 search: search.trim() || undefined,
                 action: action || undefined,
                 entity: entity || undefined,
+                entityId: entityId.trim() || undefined,
                 userId: userId || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined
@@ -123,11 +153,11 @@ const AuditLogs = () => {
         setSearch('');
         setAction('');
         setEntity('');
+        setEntityId('');
         setUserId('');
         setStartDate('');
         setEndDate('');
         setPage(1);
-        // The useEffect will trigger fetch on reset since dependency values change
     };
 
     const getActionBadge = (act) => {
@@ -155,14 +185,116 @@ const AuditLogs = () => {
                         DELETE
                     </span>
                 );
+            case 'PAYMENT_ADD':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
+                        <span className="audit-dot" style={{ background: '#10b981' }}></span>
+                        PAYMENT ADDED
+                    </span>
+                );
+            case 'PAYMENT_UPDATE':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
+                        <span className="audit-dot" style={{ background: '#3b82f6' }}></span>
+                        PAYMENT UPDATED
+                    </span>
+                );
+            case 'PAYMENT_REMOVE':
+            case 'UNPAY':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #fed7aa' }}>
+                        <span className="audit-dot" style={{ background: '#f97316' }}></span>
+                        PAYMENT REMOVED
+                    </span>
+                );
+            case 'STATUS_CHANGE':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#faf5ff', color: '#7e22ce', border: '1px solid #e9d5ff' }}>
+                        <span className="audit-dot" style={{ background: '#a855f7' }}></span>
+                        STATUS CHANGED
+                    </span>
+                );
             default:
                 return <span className="audit-action-badge audit-default-badge">{act}</span>;
         }
     };
 
-    const formatDetails = (detailsStr, entityType) => {
-        if (!detailsStr) return 'No details provided';
-        return detailsStr;
+    const renderDetails = (detailsStr, entityType, logId) => {
+        if (!detailsStr) return <span className="text-gray-400 italic">No details provided</span>;
+
+        let parsed = null;
+        if (typeof detailsStr === 'object') {
+            parsed = detailsStr;
+        } else if (typeof detailsStr === 'string' && (detailsStr.startsWith('{') || detailsStr.startsWith('['))) {
+            try {
+                parsed = JSON.parse(detailsStr);
+            } catch {
+                parsed = null;
+            }
+        }
+
+        if (!parsed || typeof parsed !== 'object') {
+            return <span>{detailsStr}</span>;
+        }
+
+        const isExpanded = expandedLogIds.has(logId);
+        const hasChanges = Array.isArray(parsed.changes) && parsed.changes.length > 0;
+
+        return (
+            <div className="audit-details-wrapper">
+                <div className="audit-details-summary">
+                    {parsed.summary || (typeof parsed === 'string' ? parsed : JSON.stringify(parsed))}
+                </div>
+
+                {hasChanges && (
+                    <div>
+                        <button
+                            type="button"
+                            className="audit-changes-btn"
+                            onClick={() => toggleExpand(logId)}
+                        >
+                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                            <span>{isExpanded ? 'Hide Changes' : `View Field Changes (${parsed.changes.length})`}</span>
+                        </button>
+
+                        {isExpanded && (
+                            <div className="audit-diff-box">
+                                <table className="audit-diff-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Field</th>
+                                            <th>Previous Value</th>
+                                            <th>New Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {parsed.changes.map((c, i) => (
+                                            <tr key={i}>
+                                                <td className="audit-diff-field">{c.fieldLabel || c.field}</td>
+                                                <td>
+                                                    {c.previousValue !== null && c.previousValue !== undefined ? (
+                                                        <span className="audit-diff-prev">{String(c.previousValue)}</span>
+                                                    ) : (
+                                                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>None</span>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {c.newValue !== null && c.newValue !== undefined ? (
+                                                        <span className="audit-diff-new">{String(c.newValue)}</span>
+                                                    ) : (
+                                                        <span style={{ color: '#ef4444', fontStyle: 'italic' }}>Removed</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -211,6 +343,10 @@ const AuditLogs = () => {
                             <option value="CREATE">CREATE</option>
                             <option value="UPDATE">UPDATE</option>
                             <option value="DELETE">DELETE</option>
+                            <option value="PAYMENT_ADD">PAYMENT ADDED</option>
+                            <option value="PAYMENT_UPDATE">PAYMENT UPDATED</option>
+                            <option value="PAYMENT_REMOVE">PAYMENT REMOVED</option>
+                            <option value="STATUS_CHANGE">STATUS CHANGED</option>
                         </select>
                     </div>
 
@@ -228,6 +364,18 @@ const AuditLogs = () => {
                             <option value="Product">Product</option>
                             <option value="POS">POS Invoice</option>
                         </select>
+                    </div>
+
+                    <div className="audit-filter-group">
+                        <label className="audit-filter-label">Invoice / Entity ID</label>
+                        <input
+                            type="text"
+                            placeholder="e.g. 79 or INV-001"
+                            className="audit-filter-date"
+                            style={{ padding: '0.45rem 0.65rem', height: '36px' }}
+                            value={entityId}
+                            onChange={(e) => { setEntityId(e.target.value); setPage(1); }}
+                        />
                     </div>
 
                     <div className="audit-filter-group">
@@ -283,8 +431,8 @@ const AuditLogs = () => {
                                     <tr>
                                         <th style={{ width: '15%' }}>Timestamp</th>
                                         <th style={{ width: '20%' }}>User</th>
-                                        <th style={{ width: '10%' }}>Action</th>
-                                        <th style={{ width: '15%' }}>Entity Type</th>
+                                        <th style={{ width: '12%' }}>Action</th>
+                                        <th style={{ width: '13%' }}>Entity Type</th>
                                         <th style={{ width: '40%' }}>Details</th>
                                     </tr>
                                 </thead>
@@ -324,7 +472,7 @@ const AuditLogs = () => {
                                                     </span>
                                                 </td>
                                                 <td className="audit-log-details-cell">
-                                                    {formatDetails(log.details, log.entity)}
+                                                    {renderDetails(log.details, log.entity, log.id)}
                                                 </td>
                                             </tr>
                                         ))
