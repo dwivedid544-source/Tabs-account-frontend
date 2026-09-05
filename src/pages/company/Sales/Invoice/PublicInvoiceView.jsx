@@ -250,8 +250,11 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     }
 
     const subtotalVal = document?.subtotal !== undefined && document?.subtotal !== null
-        ? document.subtotal
-        : rawItems.reduce((acc, it) => acc + ((it.quantity || 1) * (it.rate || 0)), 0);
+        ? parseFloat(document.subtotal)
+        : rawItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
+
+    const totalDiscountVal = parseFloat(document?.discountAmount || 0);
+    const taxableVal = Math.max(0, subtotalVal - totalDiscountVal);
 
     const isFullyPaid = (document?.balanceAmount === 0 || (document?.paidAmount >= document?.totalAmount && document?.totalAmount > 0));
     const paymentReceivedDate = document?.paymentDate || document?.receipt?.[0]?.date || document?.allocations?.[0]?.receipt?.date;
@@ -470,6 +473,16 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 <div className="invoice-cea-totals-grid">
                                     <span className="invoice-cea-total-label">SUBTOTAL</span>
                                     <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
+
+                                    {totalDiscountVal > 0 && (
+                                        <>
+                                            <span className="invoice-cea-total-label">DISCOUNT</span>
+                                            <span className="invoice-cea-total-val">-{Number(totalDiscountVal).toFixed(2)}</span>
+
+                                            <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                            <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                        </>
+                                    )}
 
                                     <span className="invoice-cea-total-label">TAX</span>
                                     <span className="invoice-cea-total-val">

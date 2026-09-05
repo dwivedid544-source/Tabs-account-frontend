@@ -7,7 +7,7 @@ import {
     Search, Plus, Pencil, Trash2, X, ChevronDown,
     FileText, ShoppingCart, Truck, Receipt, CreditCard,
     CheckCircle2, Clock, ArrowRight, Download, Send, Printer,
-    Eye, Copy, ArrowLeft, AlertTriangle, RotateCcw, Mail, FileSpreadsheet
+    Eye, Copy, ArrowLeft, AlertTriangle, RotateCcw, Mail, FileSpreadsheet, Shield
 } from 'lucide-react';
 import './Invoice.css';
 import salesInvoiceService from '../../../../api/salesInvoiceService';
@@ -25,6 +25,7 @@ import uomService from '../../../../services/uomService';
 import salespersonService from '../../../../services/salespersonService';
 import deliverypersonService from '../../../../services/deliverypersonService';
 import GetCompanyId from '../../../../api/GetCompanyId';
+import smtpService from '../../../../api/smtpService';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
 import { toast } from 'react-hot-toast';
 import SearchableSelect from '../../../../components/SearchableSelect/SearchableSelect';
@@ -233,8 +234,9 @@ const Invoice = () => {
     const [emailAttachPdf, setEmailAttachPdf] = useState(true);
     const [emailSendBcc, setEmailSendBcc] = useState(true);
     const [sendingEmail, setSendingEmail] = useState(false);
+    const [smtpStatus, setSmtpStatus] = useState({ checking: false, isConfigured: true, fromEmail: '', fromName: '' });
 
-    const handleOpenEmailModal = (invoice) => {
+    const handleOpenEmailModal = async (invoice) => {
         if (!invoice) return;
         const custEmail = invoice.customer?.email || invoice.billingEmail || '';
         const invNum = invoice.invoiceNumber || `INV-${invoice.id}`;
@@ -250,11 +252,36 @@ const Invoice = () => {
         setEmailAttachPdf(true);
         setEmailSendBcc(true);
         setShowEmailModal(true);
+
+        // Fetch company SMTP status
+        const companyId = GetCompanyId();
+        try {
+            setSmtpStatus(prev => ({ ...prev, checking: true }));
+            const res = await smtpService.getSettings(companyId);
+            if (res.data?.success && res.data?.data) {
+                setSmtpStatus({
+                    checking: false,
+                    isConfigured: !!res.data.data.isConfigured,
+                    fromEmail: res.data.data.fromEmail || '',
+                    fromName: res.data.data.fromName || ''
+                });
+            } else {
+                setSmtpStatus({ checking: false, isConfigured: false, fromEmail: '', fromName: '' });
+            }
+        } catch (err) {
+            console.warn('Could not retrieve SMTP settings:', err);
+            setSmtpStatus({ checking: false, isConfigured: false, fromEmail: '', fromName: '' });
+        }
     };
 
     const handleSendInvoiceEmail = async () => {
         if (!emailRecipient || !emailRecipient.includes('@')) {
             toast.error('Please enter a valid recipient email address.');
+            return;
+        }
+
+        if (!smtpStatus.isConfigured) {
+            toast.error('SMTP is not configured for this company. Please configure outgoing email in Settings before sending.');
             return;
         }
 
@@ -280,7 +307,8 @@ const Invoice = () => {
             }
         } catch (error) {
             console.error('Error sending invoice email:', error);
-            toast.error(error.response?.data?.message || error.message || 'Failed to send invoice email');
+            const errorMsg = error.response?.data?.message || error.message || 'Failed to send invoice email';
+            toast.error(errorMsg);
         } finally {
             setSendingEmail(false);
         }
@@ -442,8 +470,11 @@ const Invoice = () => {
             if (res.data.success) {
                 toast.success('Invoice marked as unpaid and all payments reverted successfully.');
                 setShowUnpayModal(false);
-                setInvoiceToUnpay(null);
                 fetchData();
+                if (selectedInvoice?.id === invoiceToUnpay.id) {
+                    refreshSelectedInvoice(invoiceToUnpay.id, invoiceToUnpay.type);
+                }
+                setInvoiceToUnpay(null);
             } else {
                 toast.error(res.data.message || 'Failed to revert payments.');
             }
@@ -648,12 +679,20 @@ const Invoice = () => {
 
             const response = await salesInvoiceService.update(editingId, data, companyId);
             if (response.data.success) {
+                toast.success('Invoice updated successfully!');
                 fetchData();
+                setShowAddModal(false);
+                if (selectedInvoice && selectedInvoice.id === editingId) {
+                    refreshSelectedInvoice(editingId);
+                }
                 resetForm();
                 setEditingId(null);
+            } else {
+                toast.error(response.data?.message || 'Failed to update invoice');
             }
         } catch (error) {
             console.error('Error updating invoice:', error);
+            toast.error(error.response?.data?.message || 'Error updating invoice');
         }
     };
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -702,38 +741,60 @@ const Invoice = () => {
     }, []);
 
     // Handle Deep Link from Navigation State
+    const deepLinkHandledRef = useRef(null);
     useEffect(() => {
-        if (location.state && location.state.targetInvoiceId) {
+        const targetId = location.state?.targetInvoiceId ? parseInt(location.state.targetInvoiceId) : null;
+        if (targetId && deepLinkHandledRef.current !== targetId) {
+            deepLinkHandledRef.current = targetId;
             const fetchTarget = async () => {
                 try {
                     const companyId = GetCompanyId();
                     let response;
+                    let found = false;
 
                     if (location.state.type === 'POS_INVOICE') {
-                        response = await posService.getPOSInvoiceById(location.state.targetInvoiceId, companyId);
-                        if (response && response.success) {
-                            setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
-                            setViewMode(true);
-                        }
-                    } else {
-                        response = await salesInvoiceService.getById(location.state.targetInvoiceId, companyId);
-                        if (response.data && response.data.success) {
-                            if (location.state.isEdit || location.state.autoEdit) {
-                                // Trigger edit mode
-                                handleEdit({ ...response.data.data, type: 'TAX_INVOICE' });
-                            } else {
-                                setSelectedInvoice({ ...response.data.data, type: 'TAX_INVOICE' });
+                        try {
+                            response = await posService.getPOSInvoiceById(targetId, companyId);
+                            if (response && response.success && response.data) {
+                                setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
                                 setViewMode(true);
+                                found = true;
                             }
-                        }
+                        } catch (e) {}
+                    }
+
+                    if (!found) {
+                        try {
+                            response = await salesInvoiceService.getById(targetId, companyId);
+                            if (response.data && response.data.success) {
+                                if (location.state.isEdit || location.state.autoEdit) {
+                                    handleEdit({ ...response.data.data, type: 'TAX_INVOICE' });
+                                } else {
+                                    setSelectedInvoice({ ...response.data.data, type: 'TAX_INVOICE' });
+                                    setViewMode(true);
+                                }
+                                found = true;
+                            }
+                        } catch (e) {}
+                    }
+
+                    if (!found && location.state.type !== 'POS_INVOICE') {
+                        try {
+                            response = await posService.getPOSInvoiceById(targetId, companyId);
+                            if (response && response.success && response.data) {
+                                setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
+                                setViewMode(true);
+                                found = true;
+                            }
+                        } catch (e) {}
                     }
                 } catch (error) {
                     console.error("Error loading target invoice", error);
+                } finally {
+                    navigate(location.pathname, { replace: true, state: {} });
                 }
             };
             fetchTarget();
-            // Clear location state after handling to prevent re-opening on re-renders
-            navigate(location.pathname, { replace: true, state: {} });
         }
     }, [location.state, navigate]);
 
@@ -1591,49 +1652,78 @@ const Invoice = () => {
     };
 
     const calculateTotals = () => {
-        const totalsData = items.reduce((acc, item) => {
+        let subTotal = 0;
+        let lineDiscountSum = 0;
+
+        const calculatedItems = items.map(item => {
             const qty = parseFloat(item.qty) || 0;
             const rate = parseFloat(item.rate) || 0;
             const itemDiscount = parseFloat(item.discount) || 0;
             const taxRate = parseFloat(item.tax) || 0;
 
             const lineGross = qty * rate;
-            const lineTaxable = lineGross - itemDiscount;
-            const lineTax = (lineTaxable * taxRate) / 100;
-            const lineTotal = lineTaxable + lineTax;
+            const lineTaxableBeforeOverall = Math.max(0, lineGross - itemDiscount);
+            subTotal += lineGross;
+            lineDiscountSum += itemDiscount;
 
-            acc.subTotal += lineGross;
-            acc.discount += itemDiscount;
-            acc.tax += lineTax;
-            acc.total += lineTotal;
-            return acc;
-        }, { subTotal: 0, tax: 0, discount: 0, total: 0 });
+            return {
+                ...item,
+                qty,
+                rate,
+                lineGross,
+                itemDiscount,
+                lineTaxableBeforeOverall,
+                taxRate
+            };
+        });
 
-        const baseTotal = (totalsData.subTotal - totalsData.discount) + totalsData.tax;
+        const netBeforeOverall = Math.max(0, subTotal - lineDiscountSum);
         let ovDiscountAmt = 0;
         const ovVal = parseFloat(overallDiscount) || 0;
-        if (overallDiscountType === 'percentage') {
-            ovDiscountAmt = (baseTotal * ovVal) / 100;
-        } else {
-            ovDiscountAmt = ovVal;
+        if (ovVal > 0) {
+            if (overallDiscountType === 'percentage') {
+                ovDiscountAmt = (netBeforeOverall * Math.min(100, Math.max(0, ovVal))) / 100;
+            } else {
+                ovDiscountAmt = Math.min(netBeforeOverall, Math.max(0, ovVal));
+            }
         }
 
-        const netBase = Math.max(0, baseTotal - ovDiscountAmt);
+        const totalDiscount = lineDiscountSum + ovDiscountAmt;
+        const discountedTaxable = Math.max(0, subTotal - totalDiscount);
 
-        // Other charges total (added to Grand Total, shown separately in Sub Total section)
+        const overallDiscountRatio = netBeforeOverall > 0 ? (ovDiscountAmt / netBeforeOverall) : 0;
+
+        let totalTax = 0;
+        calculatedItems.forEach(item => {
+            const lineDiscountedTaxable = item.lineTaxableBeforeOverall * (1 - overallDiscountRatio);
+            const lineTax = (lineDiscountedTaxable * item.taxRate) / 100;
+            totalTax += lineTax;
+        });
+
+        // Other charges total (added to Grand Total)
         const otherChargesTotal = showOtherCharges
             ? otherCharges.reduce((sum, c) => {
                 const val = parseFloat(c.value !== undefined ? c.value : c.amount) || 0;
                 const isPct = c.chargeType === 'percentage' || c.type === 'percentage';
-                const amt = isPct ? (netBase * val) / 100 : val;
+                const amt = isPct ? ((discountedTaxable + totalTax) * val) / 100 : val;
                 return sum + amt;
             }, 0)
             : 0;
 
-        totalsData.ovDiscountAmt = ovDiscountAmt;
-        totalsData.otherChargesTotal = otherChargesTotal;
-        totalsData.finalTotal = netBase + otherChargesTotal;
-        return totalsData;
+        const finalTotal = discountedTaxable + totalTax + otherChargesTotal;
+
+        return {
+            subTotal,
+            discount: lineDiscountSum,
+            lineDiscountSum,
+            ovDiscountAmt,
+            totalDiscount,
+            discountedTaxable,
+            tax: totalTax,
+            otherChargesTotal,
+            finalTotal,
+            total: finalTotal
+        };
     };
 
     const totals = calculateTotals();
@@ -1781,7 +1871,7 @@ const Invoice = () => {
         const isForce = forceAllowDuplicate === true;
         try {
             const companyId = GetCompanyId();
-            const netBase = Math.max(0, (totals.subTotal - totals.discount) + totals.tax - (totals.ovDiscountAmt || 0));
+            const netBase = totals.discountedTaxable + totals.tax;
             // Build valid other charges (only those with both account and amount)
             const validOtherCharges = showOtherCharges
                 ? otherCharges.filter(c => c.accountId && parseFloat(c.value !== undefined ? c.value : c.amount) > 0).map(c => {
@@ -1871,6 +1961,7 @@ const Invoice = () => {
                 toast.success(editingId ? 'Invoice updated successfully!' : 'Invoice created successfully!');
                 fetchData();
                 fetchDropdowns();
+                setShowAddModal(false);
 
                 if (!editingId) {
                     const invId = response.data.data?.id || response.data.id;
@@ -1882,6 +1973,11 @@ const Invoice = () => {
                             setShouldAutoOpenNext(true);
                         }
                     }
+                } else {
+                    if (selectedInvoice && selectedInvoice.id === editingId) {
+                        refreshSelectedInvoice(editingId);
+                    }
+                    setEditingId(null);
                 }
                 resetForm();
             }
@@ -2099,17 +2195,25 @@ const Invoice = () => {
         }
     };
 
-    const refreshSelectedInvoice = async (invoiceId) => {
+    const refreshSelectedInvoice = async (invoiceId, type) => {
         try {
             const companyId = GetCompanyId();
-            const res = await posService.getPOSInvoiceById(invoiceId, companyId);
-            if (res && res.success) {
-                setSelectedInvoice({
-                    ...res.data,
-                    type: 'POS_INVOICE',
-                    invoiceitem: res.data.posinvoiceitem || [],
-                    items: res.data.posinvoiceitem || []
-                });
+            const isPos = type === 'POS_INVOICE' || selectedInvoice?.type === 'POS_INVOICE';
+            if (isPos) {
+                const res = await posService.getPOSInvoiceById(invoiceId, companyId);
+                if (res && res.success) {
+                    setSelectedInvoice({
+                        ...res.data,
+                        type: 'POS_INVOICE',
+                        invoiceitem: res.data.posinvoiceitem || [],
+                        items: res.data.posinvoiceitem || []
+                    });
+                }
+            } else {
+                const res = await salesInvoiceService.getById(invoiceId, companyId);
+                if (res?.data?.success) {
+                    setSelectedInvoice(res.data.data);
+                }
             }
         } catch (error) {
             console.error('Error refreshing selected invoice:', error);
@@ -2133,9 +2237,12 @@ const Invoice = () => {
                 setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
                 setShowDeleteModal(false);
                 setInvoiceToDelete(null);
+                toast.success('Invoice deleted successfully');
+                fetchData();
                 if (viewMode) setViewMode(false);
             } catch (error) {
                 console.error('Error deleting invoice:', error);
+                toast.error(error.response?.data?.message || 'Error deleting invoice');
             }
         }
     };
@@ -2170,6 +2277,247 @@ const Invoice = () => {
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handlePrintInvoice = async (invoice) => {
+        if (!invoice) return;
+        try {
+            const companyId = GetCompanyId();
+            let target = invoice;
+            if (invoice.type !== 'POS_INVOICE') {
+                const res = await salesInvoiceService.getById(invoice.id, companyId);
+                if (res?.data?.success) target = res.data.data;
+            } else {
+                const res = await posService.getPOSInvoiceById(invoice.id, companyId);
+                if (res?.success) target = { ...res.data, type: 'POS_INVOICE' };
+            }
+            setSelectedInvoice(target);
+            setViewMode(true);
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        } catch (err) {
+            console.error('Error preparing invoice for print:', err);
+            setSelectedInvoice(invoice);
+            setViewMode(true);
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+    };
+
+    const handleDownloadSingleInvoicePDF = async (invInput) => {
+        if (!invInput) return;
+        try {
+            toast.loading('Generating invoice PDF...', { id: 'single-inv-pdf' });
+            let inv = invInput;
+            const companyId = GetCompanyId();
+            if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0)) {
+                const res = await salesInvoiceService.getById(inv.id, companyId);
+                if (res?.data?.success) {
+                    inv = res.data.data;
+                }
+            } else if (inv.type === 'POS_INVOICE' && (!inv.posinvoiceitem || inv.posinvoiceitem.length === 0)) {
+                const res = await posService.getPOSInvoiceById(inv.id, companyId);
+                if (res?.success) {
+                    inv = { ...res.data, type: 'POS_INVOICE' };
+                }
+            }
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const comp = inv.company || companySettings || {};
+            const currency = inv.currency || comp.currency || 'EUR';
+            const items = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
+
+            // Primary Header Banner
+            doc.setFillColor(30, 41, 59);
+            doc.rect(0, 0, 210, 32, 'F');
+
+            // Company Title
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.text(comp.name || 'TAB ACCOUNTS', 14, 15);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(226, 232, 240);
+            const compContact = [comp.address, comp.city, comp.state, comp.country].filter(Boolean).join(', ');
+            if (compContact) doc.text(compContact, 14, 21);
+            const compDetails = [
+                comp.email ? `Email: ${comp.email}` : '',
+                comp.phone ? `Phone: ${comp.phone}` : '',
+                comp.taxNumber || comp.gstNumber || comp.trn || comp.vatNumber ? `VAT/Tax: ${comp.taxNumber || comp.gstNumber || comp.trn || comp.vatNumber}` : ''
+            ].filter(Boolean).join(' | ');
+            if (compDetails) doc.text(compDetails, 14, 26);
+
+            // Invoice Title & Badges
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(255, 255, 255);
+            doc.text(inv.type === 'POS_INVOICE' ? 'POS INVOICE' : 'TAX INVOICE', 196, 15, { align: 'right' });
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(203, 213, 225);
+            doc.text(`Doc #: ${inv.invoiceNumber || 'N/A'}`, 196, 21, { align: 'right' });
+            doc.text(`Status: ${inv.status || 'UNPAID'}`, 196, 26, { align: 'right' });
+
+            // Metadata / Bill To section
+            let y = 42;
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.setFont('helvetica', 'bold');
+            doc.text('BILLED TO:', 14, y);
+            doc.text('INVOICE DETAILS:', 125, y);
+
+            y += 5;
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(10);
+            const custName = inv.customer?.name || inv.billingName || 'Walk-in Customer';
+            doc.text(custName, 14, y);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.text(`Date: ${inv.date ? new Date(inv.date).toLocaleDateString() : 'N/A'}`, 125, y);
+
+            y += 5;
+            const custAddr = [inv.billingAddress || inv.customer?.billingAddress, inv.billingCity || inv.customer?.billingCity, inv.billingState || inv.customer?.billingState].filter(Boolean).join(', ');
+            if (custAddr) {
+                doc.text(custAddr, 14, y);
+            }
+            if (inv.dueDate) {
+                doc.text(`Due Date: ${new Date(inv.dueDate).toLocaleDateString()}`, 125, y);
+            }
+
+            y += 5;
+            const custContact = [inv.customer?.phone || '', inv.customer?.email || ''].filter(Boolean).join(' | ');
+            if (custContact) {
+                doc.text(custContact, 14, y);
+            }
+            if (inv.manualReference) {
+                doc.text(`Ref #: ${inv.manualReference}`, 125, y);
+            }
+
+            // Items Table
+            const head = [['#', 'Item & Description', 'Qty', 'Rate', 'Disc', 'Tax %', 'Total']];
+            const body = items.map((item, idx) => {
+                const itemName = item.product?.name || item.service?.name || item.description || `Item #${idx + 1}`;
+                const desc = item.description && item.description !== itemName ? `\n${item.description}` : '';
+                return [
+                    idx + 1,
+                    `${itemName}${desc}`,
+                    item.quantity || item.qty || 1,
+                    formatDocCurrency(item.rate || 0, currency),
+                    item.discount ? `${item.discount}` : '0',
+                    item.taxRate !== undefined && item.taxRate !== null ? `${item.taxRate}%` : (item.tax ? `${item.tax}%` : '0%'),
+                    formatDocCurrency(item.amount || item.total || 0, currency)
+                ];
+            });
+
+            autoTable(doc, {
+                startY: y + 8,
+                head: head,
+                body: body,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [30, 41, 59],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 8.5
+                },
+                bodyStyles: {
+                    fontSize: 8,
+                    textColor: [51, 65, 85]
+                },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 16, halign: 'center' },
+                    3: { cellWidth: 26, halign: 'right' },
+                    4: { cellWidth: 18, halign: 'right' },
+                    5: { cellWidth: 18, halign: 'right' },
+                    6: { cellWidth: 28, halign: 'right' }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 8;
+
+            if (finalY > 230) {
+                doc.addPage();
+                finalY = 20;
+            }
+
+            if (inv.notes) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text('Notes / Instructions:', 14, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(51, 65, 85);
+                doc.text(doc.splitTextToSize(inv.notes, 90), 14, finalY + 5);
+            }
+
+            const sumX = 130;
+            const sumValX = 196;
+            let sumY = finalY;
+
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+
+            const addSummaryLine = (label, val, isBold = false, isAccent = false) => {
+                if (isBold) doc.setFont('helvetica', 'bold');
+                else doc.setFont('helvetica', 'normal');
+                if (isAccent) doc.setTextColor(16, 185, 129);
+                else doc.setTextColor(isBold ? 30 : 100, isBold ? 41 : 116, isBold ? 59 : 139);
+
+                doc.text(label, sumX, sumY);
+                doc.text(val, sumValX, sumY, { align: 'right' });
+                sumY += 5.5;
+            };
+
+            const subTotal = inv.subtotal !== undefined && inv.subtotal !== null ? inv.subtotal : (inv.totalAmount || 0);
+            addSummaryLine('Sub Total:', formatDocCurrency(subTotal, currency));
+            if (inv.overallDiscount || inv.discount || inv.discountAmount) {
+                addSummaryLine('Discount:', `-${formatDocCurrency(inv.overallDiscount || inv.discount || inv.discountAmount || 0, currency)}`);
+            }
+            if (inv.taxAmount) {
+                addSummaryLine('VAT / Tax:', formatDocCurrency(inv.taxAmount, currency));
+            }
+            if (inv.roundOff) {
+                addSummaryLine('Round Off:', formatDocCurrency(inv.roundOff, currency));
+            }
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(sumX, sumY - 1, sumValX, sumY - 1);
+            sumY += 2;
+
+            addSummaryLine('Total Amount:', formatDocCurrency(inv.totalAmount || 0, currency), true);
+            if (inv.paidAmount > 0) {
+                addSummaryLine('Paid Amount:', formatDocCurrency(inv.paidAmount, currency), true, true);
+            }
+            const bal = inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0));
+            addSummaryLine('Balance Due:', formatDocCurrency(bal, currency), true);
+
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(7.5);
+            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Generated by TAB ACCOUNTS - Thank you for your business!', 105, pageHeight - 8, { align: 'center' });
+
+            const fileName = `${inv.invoiceNumber || 'Invoice'}.pdf`;
+            doc.save(fileName);
+            toast.dismiss('single-inv-pdf');
+            toast.success(`Invoice ${inv.invoiceNumber || ''} downloaded as PDF!`);
+        } catch (error) {
+            console.error('Error generating invoice PDF:', error);
+            toast.dismiss('single-inv-pdf');
+            toast.error('Failed to generate PDF. Please try again.');
+        }
     };
 
     const renderSubModals = () => (
@@ -2219,6 +2567,51 @@ const Invoice = () => {
                         </div>
 
                         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {/* SMTP Status Notice */}
+                            {smtpStatus.checking ? (
+                                <div style={{ padding: '10px 14px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#475569' }}>
+                                    <Loader2 size={16} className="animate-spin" /> Verifying company email / SMTP configuration...
+                                </div>
+                            ) : !smtpStatus.isConfigured ? (
+                                <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 700, fontSize: '0.88rem' }}>
+                                        <AlertTriangle size={18} /> SMTP Email Not Configured
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e', lineHeight: 1.4 }}>
+                                        This company has not configured an outgoing email server (SMTP). Invoices cannot be sent until SMTP credentials are provided in Company Settings.
+                                    </p>
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowEmailModal(false);
+                                                navigate('/company/settings/smtp');
+                                            }}
+                                            style={{
+                                                padding: '6px 14px',
+                                                background: '#d97706',
+                                                color: '#ffffff',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                fontSize: '0.82rem',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                        >
+                                            Configure SMTP Settings &rarr;
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#166534' }}>
+                                    <CheckCircle2 size={16} color="#16a34a" />
+                                    <span>Sending from company SMTP: <strong>{smtpStatus.fromName ? `${smtpStatus.fromName} <${smtpStatus.fromEmail}>` : smtpStatus.fromEmail}</strong></span>
+                                </div>
+                            )}
+
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
                                     Recipient Email (To:) *
@@ -2290,24 +2683,25 @@ const Invoice = () => {
                             <button
                                 type="button"
                                 onClick={handleSendInvoiceEmail}
-                                disabled={sendingEmail}
+                                disabled={sendingEmail || !smtpStatus.isConfigured}
+                                title={!smtpStatus.isConfigured ? 'Please configure company SMTP settings to send invoices' : ''}
                                 style={{
                                     padding: '9px 22px',
-                                    background: '#1e293b',
+                                    background: !smtpStatus.isConfigured ? '#94a3b8' : '#1e293b',
                                     color: '#ffffff',
                                     border: 'none',
                                     borderRadius: '8px',
                                     fontSize: '0.88rem',
                                     fontWeight: 700,
-                                    cursor: sendingEmail ? 'not-allowed' : 'pointer',
+                                    cursor: (sendingEmail || !smtpStatus.isConfigured) ? 'not-allowed' : 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '8px',
-                                    opacity: sendingEmail ? 0.7 : 1,
-                                    boxShadow: '0 4px 6px -1px rgba(30, 41, 59, 0.2)'
+                                    opacity: sendingEmail ? 0.7 : (!smtpStatus.isConfigured ? 0.8 : 1),
+                                    boxShadow: !smtpStatus.isConfigured ? 'none' : '0 4px 6px -1px rgba(30, 41, 59, 0.2)'
                                 }}
                             >
-                                <Send size={16} /> {sendingEmail ? 'Sending Email...' : 'Send Invoice Now'}
+                                <Send size={16} /> {sendingEmail ? 'Sending Email...' : !smtpStatus.isConfigured ? 'SMTP Required' : 'Send Invoice Now'}
                             </button>
                         </div>
                     </div>
@@ -3111,7 +3505,33 @@ const Invoice = () => {
                     }}>
                         <ArrowLeft size={18} /> Back to Invoices
                     </button>
-                    <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px' }}>
+                    <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {selectedInvoice.type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
+                            <button
+                                className="Invoice-btn-edit-preview"
+                                onClick={() => {
+                                    setViewMode(false);
+                                    handleEdit(selectedInvoice);
+                                }}
+                                title="Edit Invoice"
+                                style={{
+                                    background: '#2563eb',
+                                    color: 'white',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '700',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+                                }}
+                            >
+                                <Pencil size={18} /> Edit
+                            </button>
+                        )}
                         {selectedInvoice.type !== 'POS_INVOICE' && selectedInvoice.balanceAmount > 0 && hasPermission('create sales payment') && (
                             <button
                                 className="Invoice-btn-payment"
@@ -3177,8 +3597,50 @@ const Invoice = () => {
                         >
                             <Mail size={18} /> Email Invoice
                         </button>
+                        <button
+                            className="Invoice-btn-download-pdf"
+                            onClick={() => handleDownloadSingleInvoicePDF(selectedInvoice)}
+                            title="Download Invoice as PDF"
+                            style={{
+                                background: '#059669',
+                                color: 'white',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem',
+                                fontWeight: '700',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.2)'
+                            }}
+                        >
+                            <Download size={18} /> Download PDF
+                        </button>
                         <button className="Invoice-btn-print" onClick={handlePrint}>
                             <Printer size={18} /> Print
+                        </button>
+                        <button
+                            className="Invoice-btn-email"
+                            onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(selectedInvoice?.invoiceNumber || '')}`)}
+                            title="View Invoice Audit Trail"
+                            style={{
+                                background: '#4f46e5',
+                                color: 'white',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem',
+                                fontWeight: '700',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
+                            }}
+                        >
+                            <Shield size={18} /> Audit Trail
                         </button>
                         <button
                             className="Invoice-btn-print"
@@ -3256,13 +3718,34 @@ const Invoice = () => {
                         ? parseFloat(selectedInvoice.subtotal)
                         : lineItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
 
+                    // Calculate line discounts total
+                    const lineDiscountsTotal = (rawItems || []).reduce((sum, it) => sum + (parseFloat(it.discount || 0) || 0), 0);
+
+                    // Calculate overall discount
+                    const ovDiscountValue = parseFloat(selectedInvoice?.overallDiscount || 0);
+                    const ovDiscountType = selectedInvoice?.overallDiscountType || 'percentage';
+                    let calculatedOvDiscountAmt = 0;
+                    const netBeforeOv = Math.max(0, subtotalVal - lineDiscountsTotal);
+                    if (ovDiscountValue > 0) {
+                        calculatedOvDiscountAmt = ovDiscountType === 'percentage'
+                            ? (netBeforeOv * Math.min(100, ovDiscountValue)) / 100
+                            : Math.min(netBeforeOv, ovDiscountValue);
+                    }
+
+                    // Combined discount
+                    let discountVal = parseFloat(selectedInvoice?.discountAmount || 0);
+                    if (discountVal === 0 && (lineDiscountsTotal > 0 || calculatedOvDiscountAmt > 0)) {
+                        discountVal = lineDiscountsTotal + calculatedOvDiscountAmt;
+                    }
+                    const taxableVal = Math.max(0, subtotalVal - discountVal);
+
                     const taxVal = selectedInvoice?.taxAmount !== undefined && selectedInvoice?.taxAmount !== null
                         ? parseFloat(selectedInvoice.taxAmount)
                         : vatSummaryList.reduce((acc, v) => acc + (v.vatAmount || 0), 0);
 
                     const totalVal = selectedInvoice?.totalAmount !== undefined && selectedInvoice?.totalAmount !== null
                         ? parseFloat(selectedInvoice.totalAmount)
-                        : (subtotalVal + taxVal);
+                        : (taxableVal + taxVal);
 
                     const paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
                         ? parseFloat(selectedInvoice.paidAmount)
@@ -3418,6 +3901,38 @@ const Invoice = () => {
                                     <div className="invoice-cea-totals-grid">
                                         <span className="invoice-cea-total-label">SUBTOTAL</span>
                                         <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
+
+                                        {lineDiscountsTotal > 0 && calculatedOvDiscountAmt > 0 ? (
+                                            <>
+                                                <span className="invoice-cea-total-label">LINE DISCOUNT</span>
+                                                <span className="invoice-cea-total-val">-{Number(lineDiscountsTotal).toFixed(2)}</span>
+
+                                                <span className="invoice-cea-total-label">OVERALL DISCOUNT ({ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})</span>
+                                                <span className="invoice-cea-total-val">-{Number(calculatedOvDiscountAmt).toFixed(2)}</span>
+
+                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT</span>
+                                                <span className="invoice-cea-total-val">-{Number(discountVal).toFixed(2)}</span>
+
+                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                            </>
+                                        ) : (calculatedOvDiscountAmt > 0 || ovDiscountValue > 0) ? (
+                                            <>
+                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT ({ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})</span>
+                                                <span className="invoice-cea-total-val">-{Number(calculatedOvDiscountAmt || discountVal).toFixed(2)}</span>
+
+                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                            </>
+                                        ) : discountVal > 0 ? (
+                                            <>
+                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT</span>
+                                                <span className="invoice-cea-total-val">-{Number(discountVal).toFixed(2)}</span>
+
+                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                            </>
+                                        ) : null}
 
                                         <span className="invoice-cea-total-label">TAX</span>
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
@@ -3950,9 +4465,6 @@ const Invoice = () => {
                                                                 >
                                                                     {inv.invoiceNumber}
                                                                 </span>
-                                                                {inv.manualReference && (
-                                                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({inv.manualReference})</span>
-                                                                )}
                                                             </div>
                                                         </td>
                                                         <td>{inv.customer?.name || 'Walk-in Customer'}</td>
@@ -4049,6 +4561,30 @@ const Invoice = () => {
                                                                     style={{ color: '#0284c7' }}
                                                                 >
                                                                     <Mail size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="Invoice-invoice-action-btn"
+                                                                    onClick={() => handleDownloadSingleInvoicePDF(inv)}
+                                                                    title="Download PDF"
+                                                                    style={{ color: '#059669' }}
+                                                                >
+                                                                    <Download size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="Invoice-invoice-action-btn"
+                                                                    onClick={() => handlePrintInvoice(inv)}
+                                                                    title="Print Invoice"
+                                                                    style={{ color: '#334155' }}
+                                                                >
+                                                                    <Printer size={16} />
+                                                                </button>
+                                                                <button
+                                                                    className="Invoice-invoice-action-btn"
+                                                                    onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(inv.invoiceNumber)}`)}
+                                                                    title="View Invoice Audit Trail"
+                                                                    style={{ color: '#6366f1' }}
+                                                                >
+                                                                    <Shield size={16} />
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -4156,9 +4692,6 @@ const Invoice = () => {
                                                                     >
                                                                         {group.invoices[0].invoiceNumber}
                                                                     </span>
-                                                                    {group.invoices[0].manualReference && (
-                                                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({group.invoices[0].manualReference})</span>
-                                                                    )}
                                                                 </div>
                                                             ) : (
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -4353,6 +4886,30 @@ const Invoice = () => {
                                                                     >
                                                                         <Mail size={16} />
                                                                     </button>
+                                                                    <button
+                                                                        className="Invoice-invoice-action-btn"
+                                                                        onClick={() => handleDownloadSingleInvoicePDF(group.invoices[0])}
+                                                                        title="Download PDF"
+                                                                        style={{ color: '#059669' }}
+                                                                    >
+                                                                        <Download size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                        className="Invoice-invoice-action-btn"
+                                                                        onClick={() => handlePrintInvoice(group.invoices[0])}
+                                                                        title="Print Invoice"
+                                                                        style={{ color: '#334155' }}
+                                                                    >
+                                                                        <Printer size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                        className="Invoice-invoice-action-btn"
+                                                                        onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(group.invoices[0].invoiceNumber)}`)}
+                                                                        title="View Invoice Audit Trail"
+                                                                        style={{ color: '#6366f1' }}
+                                                                    >
+                                                                        <Shield size={16} />
+                                                                    </button>
                                                                 </>
                                                             )}
                                                         </div>
@@ -4451,6 +5008,22 @@ const Invoice = () => {
                                                                                                                 <CreditCard size={14} />
                                                                                                             </button>
                                                                                                         )}
+                                                                                                        <button
+                                                                                                            className="Invoice-invoice-action-btn"
+                                                                                                            onClick={() => handleDownloadSingleInvoicePDF(si)}
+                                                                                                            title="Download PDF"
+                                                                                                            style={{ color: '#059669' }}
+                                                                                                        >
+                                                                                                            <Download size={14} />
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            className="Invoice-invoice-action-btn"
+                                                                                                            onClick={() => handlePrintInvoice(si)}
+                                                                                                            title="Print Invoice"
+                                                                                                            style={{ color: '#334155' }}
+                                                                                                        >
+                                                                                                            <Printer size={14} />
+                                                                                                        </button>
                                                                                                         {hasPermission('delete sales invoice') && (
                                                                                                             <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(si)}><Trash2 size={14} /></button>
                                                                                                         )}
@@ -4487,6 +5060,30 @@ const Invoice = () => {
                                                                                                             style={{ color: '#0284c7' }}
                                                                                                         >
                                                                                                             <Mail size={14} />
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            className="Invoice-invoice-action-btn"
+                                                                                                            onClick={() => handleDownloadSingleInvoicePDF(si)}
+                                                                                                            title="Download PDF"
+                                                                                                            style={{ color: '#059669' }}
+                                                                                                        >
+                                                                                                            <Download size={14} />
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            className="Invoice-invoice-action-btn"
+                                                                                                            onClick={() => handlePrintInvoice(si)}
+                                                                                                            title="Print Invoice"
+                                                                                                            style={{ color: '#334155' }}
+                                                                                                        >
+                                                                                                            <Printer size={14} />
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            className="Invoice-invoice-action-btn"
+                                                                                                            onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(si.invoiceNumber)}`)}
+                                                                                                            title="View Invoice Audit Trail"
+                                                                                                            style={{ color: '#6366f1' }}
+                                                                                                        >
+                                                                                                            <Shield size={14} />
                                                                                                         </button>
                                                                                                         {hasPermission('delete sales invoice') && (
                                                                                                             <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(si)}><Trash2 size={14} /></button>
@@ -4600,16 +5197,6 @@ const Invoice = () => {
                                             onChange={(e) => setInvoiceMeta({ ...invoiceMeta, manualNo: e.target.value })}
                                             placeholder="Invoice Number"
                                             disabled={numberingMode === 'auto'}
-                                            style={{ width: '100%', maxWidth: '280px' }}
-                                            className="Invoice-compact-input" />
-                                    </div>
-
-                                    <div className="Invoice-meta-col">
-                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>MANUAL NO.</label>
-                                        <input type="text"
-                                            value={manualReference}
-                                            onChange={(e) => setManualReference(e.target.value)}
-                                            placeholder="e.g. REF-001"
                                             style={{ width: '100%', maxWidth: '280px' }}
                                             className="Invoice-compact-input" />
                                     </div>
@@ -5108,6 +5695,30 @@ const Invoice = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '10px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={addItem}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '7px 14px',
+                                            background: '#f1f5f9',
+                                            color: '#0f172a',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '6px',
+                                            fontSize: '0.825rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+                                    >
+                                        <Plus size={15} /> Add Line Item
+                                    </button>
+                                </div>
                             </div>
 
                             {/* FOOTER SECTION: OTHER CHARGES & DISPATCH DETAILS TOOLBAR */}
@@ -5426,22 +6037,12 @@ const Invoice = () => {
                                             <span>Sub Total:</span>
                                             <span>{formatDocCurrency(totals.subTotal, selectedCurrency)}</span>
                                         </div>
-                                        {showOtherCharges && otherCharges.filter(c => c.accountId && parseFloat(c.value !== undefined ? c.value : c.amount) > 0).map((charge) => {
-                                            const isPct = charge.chargeType === 'percentage' || charge.type === 'percentage';
-                                            const val = parseFloat(charge.value !== undefined ? charge.value : charge.amount) || 0;
-                                            const netBase = Math.max(0, (totals.subTotal - totals.discount) + totals.tax - (totals.ovDiscountAmt || 0));
-                                            const computedAmt = isPct ? (netBase * val) / 100 : val;
-                                            return (
-                                                <div className="Invoice-compact-t-row" key={charge.id} style={{ color: '#1e293b' }}>
-                                                    <span>Other Charges{charge.accountName ? ` (${charge.accountName}${isPct ? ` - ${val}%` : ''})` : ''}:</span>
-                                                    <span>+{formatDocCurrency(computedAmt, selectedCurrency)}</span>
-                                                </div>
-                                            );
-                                        })}
-                                        <div className="Invoice-compact-t-row">
-                                            <span>{getInvoiceLabel('tax', 'VAT')}:</span>
-                                            <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
-                                        </div>
+                                        {totals.lineDiscountSum > 0 && (
+                                            <div className="Invoice-compact-t-row text-xs text-red-500">
+                                                <span>Line Discounts:</span>
+                                                <span>-{formatDocCurrency(totals.lineDiscountSum, selectedCurrency)}</span>
+                                            </div>
+                                        )}
                                         <div className="Invoice-compact-t-row Invoice-totals-discount-row">
                                             <div className="Invoice-totals-discount-label-row">
                                                 <span>Overall Disc:</span>
@@ -5464,6 +6065,28 @@ const Invoice = () => {
                                             </div>
                                             <span className="text-red-500">-{formatDocCurrency(totals.ovDiscountAmt, selectedCurrency)}</span>
                                         </div>
+                                        {totals.totalDiscount > 0 && (
+                                            <div className="Invoice-compact-t-row text-xs font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
+                                                <span>Taxable Amount:</span>
+                                                <span>{formatDocCurrency(totals.discountedTaxable, selectedCurrency)}</span>
+                                            </div>
+                                        )}
+                                        <div className="Invoice-compact-t-row">
+                                            <span>{getInvoiceLabel('tax', 'VAT')}:</span>
+                                            <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
+                                        </div>
+                                        {showOtherCharges && otherCharges.filter(c => c.accountId && parseFloat(c.value !== undefined ? c.value : c.amount) > 0).map((charge) => {
+                                            const isPct = charge.chargeType === 'percentage' || charge.type === 'percentage';
+                                            const val = parseFloat(charge.value !== undefined ? charge.value : charge.amount) || 0;
+                                            const netBase = totals.discountedTaxable + totals.tax;
+                                            const computedAmt = isPct ? (netBase * val) / 100 : val;
+                                            return (
+                                                <div className="Invoice-compact-t-row" key={charge.id} style={{ color: '#1e293b' }}>
+                                                    <span>Other Charges{charge.accountName ? ` (${charge.accountName}${isPct ? ` - ${val}%` : ''})` : ''}:</span>
+                                                    <span>+{formatDocCurrency(computedAmt, selectedCurrency)}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                     <div className="Invoice-compact-t-row Invoice-compact-total font-bold text-gray-800 border-t border-gray-200 pt-1 mt-1 text-sm">
                                         <span>Grand Total:</span>
