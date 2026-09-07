@@ -409,6 +409,11 @@ const SmtpSettings = ({ isTab = false }) => {
                                     'Encrypted with AES-256-GCM before saving to database.'
                                 )}
                             </span>
+                            {(formData.host || '').toLowerCase().includes('gmail') && (
+                                <div style={{ marginTop: '8px', fontSize: '12px', color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '6px', padding: '8px 12px', lineHeight: '1.4' }}>
+                                    💡 <strong>Gmail Requirement:</strong> Google requires a 16-character <strong>App Password</strong> (e.g. <code>abcd efgh ijkl mnop</code>), not your standard account password. Generate one at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" style={{ color: '#b45309', textDecoration: 'underline', fontWeight: 600 }}>Google Account → Security → 2-Step Verification → App Passwords</a>.
+                                </div>
+                            )}
                         </div>
 
                         <div className="smtp-form-group">
