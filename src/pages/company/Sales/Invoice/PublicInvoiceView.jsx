@@ -329,6 +329,16 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     const balanceVal = parseFloat(document?.balanceAmount !== undefined ? document.balanceAmount : Math.max(0, totalVal - paidVal));
                     const isPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || document?.status === 'Paid';
 
+                    const currentStatus = (() => {
+                        if (document?.status) return String(document.status).toUpperCase();
+                        if (isPaid) return 'PAID';
+                        if (balanceVal > 0 && document?.dueDate && new Date(document.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
+                            return 'OVERDUE';
+                        }
+                        if (paidVal > 0 && balanceVal > 0) return 'PARTIAL';
+                        return 'UNPAID';
+                    })();
+
                     const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
                     const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
                     const bankBic = companyDetails.bic || 'BOFIIE2D';
@@ -508,11 +518,40 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                             {document?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                         </span>
                                     </div>
-                                    {isPaid && (
-                                        <div className="invoice-cea-paid-indicator">
-                                            PAID
-                                        </div>
-                                    )}
+                                    <div className="invoice-cea-status-display" style={{ marginTop: '5px', textAlign: 'right' }}>
+                                        <span
+                                            className={`invoice-cea-status-badge status-${(currentStatus || '').toLowerCase()}`}
+                                            style={{
+                                                display: 'inline-block',
+                                                padding: '3px 14px',
+                                                borderRadius: '9999px',
+                                                fontSize: '12px',
+                                                fontWeight: '800',
+                                                letterSpacing: '0.06em',
+                                                textTransform: 'uppercase',
+                                                backgroundColor: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#dcfce7'
+                                                    : currentStatus === 'OVERDUE' ? '#fee2e2'
+                                                    : currentStatus === 'PARTIAL' ? '#ffedd5'
+                                                    : currentStatus === 'CANCELLED' ? '#f1f5f9'
+                                                    : '#fee2e2',
+                                                color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#15803d'
+                                                    : currentStatus === 'OVERDUE' ? '#dc2626'
+                                                    : currentStatus === 'PARTIAL' ? '#c2410c'
+                                                    : currentStatus === 'CANCELLED' ? '#475569'
+                                                    : '#dc2626',
+                                                border: `1.5px solid ${
+                                                    currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#86efac'
+                                                    : currentStatus === 'OVERDUE' ? '#fca5a5'
+                                                    : currentStatus === 'PARTIAL' ? '#fdba74'
+                                                    : currentStatus === 'CANCELLED' ? '#cbd5e1'
+                                                    : '#fca5a5'
+                                                }`,
+                                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                            }}
+                                        >
+                                            {currentStatus}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 

@@ -43,6 +43,7 @@ import { exportToExcel } from '../../../../utils/excelService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import InvoiceActionDropdown from './InvoiceActionDropdown';
 
 const getCompanyLogoSrc = (logoVal) => {
     if (!logoVal) return tabAccountsLogo;
@@ -81,6 +82,7 @@ const Invoice = () => {
     const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'EUR');
     const [exchangeRate, setExchangeRate] = useState(1.0);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [activeActionDropdownId, setActiveActionDropdownId] = useState(null);
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -549,14 +551,30 @@ const Invoice = () => {
                 setCarNumber(inv.carNumber || '');
                 setManualReference(inv.manualReference || '');
                 setNumberingMode('manual');
+                const loadedDate = new Date(inv.date).toISOString().split('T')[0];
+                const loadedDueDate = inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '';
                 setInvoiceMeta({
                     manualNo: inv.invoiceNumber,
-                    date: new Date(inv.date).toISOString().split('T')[0],
-                    dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
+                    date: loadedDate,
+                    dueDate: loadedDueDate,
                     deliveryPersonName: fieldValues.deliveryPersonName || '',
                     deliveryPersonMobile: fieldValues.deliveryPersonMobile || '',
                     deliveryPersonEmail: fieldValues.deliveryPersonEmail || ''
                 });
+                if (loadedDate && loadedDueDate) {
+                    const d1 = new Date(loadedDate);
+                    const d2 = new Date(loadedDueDate);
+                    d1.setHours(0, 0, 0, 0);
+                    d2.setHours(0, 0, 0, 0);
+                    const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays === 0) setPaymentTerm('0');
+                    else if (diffDays === 7) setPaymentTerm('7');
+                    else if (diffDays === 30) setPaymentTerm('30');
+                    else if (diffDays === 60) setPaymentTerm('60');
+                    else setPaymentTerm('custom');
+                } else {
+                    setPaymentTerm('custom');
+                }
                 setNotes(inv.notes || '');
                 setSelectedChallan(inv.deliveryChallanId ? { id: inv.deliveryChallanId } : null);
                 setSelectedOrder(inv.salesOrderId ? { id: inv.salesOrderId } : null);
@@ -710,6 +728,35 @@ const Invoice = () => {
         manualNo: '', date: new Date().toISOString().split('T')[0], dueDate: new Date().toISOString().split('T')[0],
         deliveryPersonName: '', deliveryPersonMobile: '', deliveryPersonEmail: ''
     });
+    const [paymentTerm, setPaymentTerm] = useState('0'); // '0' | '7' | '30' | '60' | 'custom'
+
+    const handlePaymentTermChange = (term) => {
+        setPaymentTerm(term);
+        if (term !== 'custom') {
+            const days = parseInt(term) || 0;
+            const newDueDate = calculateDueDate(invoiceMeta.date, days);
+            setInvoiceMeta(prev => ({ ...prev, dueDate: newDueDate }));
+        }
+    };
+
+    const handleCustomDueDateChange = (newDueDate) => {
+        setInvoiceMeta(prev => ({ ...prev, dueDate: newDueDate }));
+        if (!newDueDate || !invoiceMeta.date) {
+            setPaymentTerm('custom');
+            return;
+        }
+        const d1 = new Date(invoiceMeta.date);
+        const d2 = new Date(newDueDate);
+        d1.setHours(0, 0, 0, 0);
+        d2.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) setPaymentTerm('0');
+        else if (diffDays === 7) setPaymentTerm('7');
+        else if (diffDays === 30) setPaymentTerm('30');
+        else if (diffDays === 60) setPaymentTerm('60');
+        else setPaymentTerm('custom');
+    };
+
     const [customerId, setCustomerId] = useState('');
     const [selectedCustomerCreditPeriod, setSelectedCustomerCreditPeriod] = useState(0);
 
@@ -878,6 +925,11 @@ const Invoice = () => {
 
             if (response.data.success) {
                 setInvoices(response.data.data);
+                setSelectedInvoice(prev => {
+                    if (!prev) return null;
+                    const fresh = response.data.data.find(inv => String(inv.id) === String(prev.id) && (inv.type || 'TAX_INVOICE') === (prev.type || 'TAX_INVOICE'));
+                    return fresh ? { ...prev, ...fresh } : prev;
+                });
             }
         } catch (error) {
             console.error('Error fetching invoices:', error);
@@ -1411,6 +1463,7 @@ const Invoice = () => {
             deliveryPersonMobile: '',
             deliveryPersonEmail: ''
         });
+        setPaymentTerm('0');
         setSalespersonId('');
         setSelectedDeliveryPersonId('');
         setShowSalespersonField(false);
@@ -2031,7 +2084,13 @@ const Invoice = () => {
         setSelectedOrder(order);
         setCustomerId(order.customerId);
         setSelectedCustomerCreditPeriod(order.customer?.creditPeriod || 0);
-        const newDueDate = calculateDueDate(invoiceMeta.date, order.customer?.creditPeriod || 0);
+        const orderCreditDays = order.customer?.creditPeriod || 0;
+        if (orderCreditDays === 0) setPaymentTerm('0');
+        else if (orderCreditDays === 7) setPaymentTerm('7');
+        else if (orderCreditDays === 30) setPaymentTerm('30');
+        else if (orderCreditDays === 60) setPaymentTerm('60');
+        else setPaymentTerm('custom');
+        const newDueDate = calculateDueDate(invoiceMeta.date, orderCreditDays);
         setInvoiceMeta(prev => ({ ...prev, dueDate: newDueDate }));
         setBillingDetails({
             name: order.customer?.billingName || order.customer?.name || '',
@@ -2075,7 +2134,13 @@ const Invoice = () => {
         setSelectedOrder(null);
         setCustomerId(challan.customerId);
         setSelectedCustomerCreditPeriod(challan.customer?.creditPeriod || 0);
-        const newDueDate = calculateDueDate(invoiceMeta.date, challan.customer?.creditPeriod || 0);
+        const challanCreditDays = challan.customer?.creditPeriod || 0;
+        if (challanCreditDays === 0) setPaymentTerm('0');
+        else if (challanCreditDays === 7) setPaymentTerm('7');
+        else if (challanCreditDays === 30) setPaymentTerm('30');
+        else if (challanCreditDays === 60) setPaymentTerm('60');
+        else setPaymentTerm('custom');
+        const newDueDate = calculateDueDate(invoiceMeta.date, challanCreditDays);
         setInvoiceMeta(prev => ({ ...prev, dueDate: newDueDate }));
         setBillingDetails({
             name: challan.customer?.billingName || challan.customer?.name || '',
@@ -2265,6 +2330,17 @@ const Invoice = () => {
 
             if (response.data?.success || response.success) {
                 toast.success('Status updated successfully');
+                const updatedData = response.data?.data || response.data?.invoice || response.data;
+                setSelectedInvoice(prev => {
+                    if (!prev || String(prev.id) !== String(invoiceId)) return prev;
+                    const finalStatus = updatedData?.status || (newStatus === 'AUTO' ? prev.status : newStatus);
+                    return {
+                        ...prev,
+                        ...(updatedData || {}),
+                        status: finalStatus,
+                        manualStatus: newStatus !== 'AUTO'
+                    };
+                });
                 fetchData();
             } else {
                 toast.error('Failed to update status');
@@ -2502,6 +2578,7 @@ const Invoice = () => {
             }
             const bal = inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0));
             addSummaryLine('Balance Due:', formatDocCurrency(bal, currency), true);
+            addSummaryLine('Status:', (inv.status || 'UNPAID').toUpperCase(), true);
 
             const pageHeight = doc.internal.pageSize.height;
             doc.setFontSize(7.5);
@@ -3562,151 +3639,72 @@ const Invoice = () => {
                     }}>
                         <ArrowLeft size={18} /> Back to Invoices
                     </button>
-                    <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {selectedInvoice.type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
-                            <button
-                                className="Invoice-btn-edit-preview"
-                                onClick={() => {
-                                    setViewMode(false);
-                                    handleEdit(selectedInvoice);
-                                }}
-                                title="Edit Invoice"
-                                style={{
-                                    background: '#2563eb',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '700',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
-                                }}
+                    <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status:</span>
+                            <select
+                                value={selectedInvoice.manualStatus ? selectedInvoice.status : 'AUTO'}
+                                onChange={(e) => handleStatusChange(selectedInvoice.id, selectedInvoice.type === 'POS_INVOICE', e.target.value)}
+                                className="Invoice-invoice-status-pill"
+                                style={getStatusStyle(selectedInvoice.manualStatus ? selectedInvoice.status : 'AUTO')}
                             >
-                                <Pencil size={18} /> Edit
+                                <option value="AUTO">Auto ({selectedInvoice.status})</option>
+                                <option value="UNPAID">UNPAID</option>
+                                <option value="PARTIAL">PARTIAL</option>
+                                <option value="PAID">PAID</option>
+                                <option value="OVERDUE">OVERDUE</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+
+                        {/* Primary Action */}
+                        {selectedInvoice.balanceAmount > 0 && hasPermission('create sales payment') ? (
+                            <button
+                                type="button"
+                                className="Invoice-btn-primary-detail payment"
+                                onClick={() => navigate('/company/sales/payment', { 
+                                    state: { 
+                                        targetInvoiceId: selectedInvoice.id, 
+                                        invoiceType: selectedInvoice.type, 
+                                        customerId: selectedInvoice.customerId 
+                                    } 
+                                })}
+                                title="Receive Payment for this Invoice"
+                            >
+                                <CreditCard size={16} />
+                                <span>Receive Payment</span>
+                            </button>
+                        ) : (
+                            <button 
+                                type="button"
+                                className="Invoice-btn-primary-detail print" 
+                                onClick={handlePrint}
+                                title="Print Invoice"
+                            >
+                                <Printer size={16} />
+                                <span>Print</span>
                             </button>
                         )}
-                        {selectedInvoice.type !== 'POS_INVOICE' && selectedInvoice.balanceAmount > 0 && hasPermission('create sales payment') && (
-                            <button
-                                className="Invoice-btn-payment"
-                                onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: selectedInvoice.id, customerId: selectedInvoice.customerId } })}
-                                style={{
-                                    background: '#1e293b',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '700',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 4px 6px -1px rgba(30, 41, 59, 0.2)'
-                                }}
-                            >
-                                <CreditCard size={18} /> Receive Payment
-                            </button>
-                        )}
-                        {selectedInvoice.type === 'POS_INVOICE' && selectedInvoice.balanceAmount > 0 && hasPermission('create sales payment') && (
-                            <button
-                                className="Invoice-btn-payment"
-                                onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: selectedInvoice.id, invoiceType: 'POS_INVOICE', customerId: selectedInvoice.customerId } })}
-                                style={{
-                                    background: '#1e293b',
-                                    color: 'white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '700',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 4px 6px -1px rgba(30, 41, 59, 0.2)'
-                                }}
-                            >
-                                <CreditCard size={18} /> Receive Payment
-                            </button>
-                        )}
-                        <button
-                            className="Invoice-btn-email"
-                            onClick={() => handleOpenEmailModal(selectedInvoice)}
-                            title="Email Invoice to Customer"
-                            style={{
-                                background: '#334155',
-                                color: 'white',
-                                padding: '8px 16px',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem',
-                                fontWeight: '700',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 4px 6px -1px rgba(51, 65, 85, 0.2)'
-                            }}
-                        >
-                            <Mail size={18} /> Email Invoice
-                        </button>
-                        <button
-                            className="Invoice-btn-download-pdf"
-                            onClick={() => handleDownloadSingleInvoicePDF(selectedInvoice)}
-                            title="Download Invoice as PDF"
-                            style={{
-                                background: '#059669',
-                                color: 'white',
-                                padding: '8px 16px',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem',
-                                fontWeight: '700',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.2)'
-                            }}
-                        >
-                            <Download size={18} /> Download PDF
-                        </button>
-                        <button className="Invoice-btn-print" onClick={handlePrint}>
-                            <Printer size={18} /> Print
-                        </button>
-                        <button
-                            className="Invoice-btn-email"
-                            onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(selectedInvoice?.invoiceNumber || '')}`)}
-                            title="View Invoice Audit Trail"
-                            style={{
-                                background: '#4f46e5',
-                                color: 'white',
-                                padding: '8px 16px',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem',
-                                fontWeight: '700',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
-                            }}
-                        >
-                            <Shield size={18} /> Audit Trail
-                        </button>
-                        <button
-                            className="Invoice-btn-print"
-                            onClick={() => setShowExportModal(true)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#0284c7', color: '#ffffff', border: 'none' }}
-                            title="Export Invoices"
-                        >
-                            <Download size={18} /> Export
-                        </button>
+
+                        {/* Clean Actions Dropdown */}
+                        <InvoiceActionDropdown
+                            invoice={selectedInvoice}
+                            variant="detail"
+                            isOpen={activeActionDropdownId === 'detail'}
+                            onToggle={() => setActiveActionDropdownId(activeActionDropdownId === 'detail' ? null : 'detail')}
+                            onClose={() => setActiveActionDropdownId(null)}
+                            hasPermission={hasPermission}
+                            handleEdit={handleEdit}
+                            handleDelete={handleDelete}
+                            handleUnpay={handleUnpay}
+                            handleOpenEmailModal={handleOpenEmailModal}
+                            handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                            handlePrintInvoice={handlePrintInvoice}
+                            handlePrint={handlePrint}
+                            navigate={navigate}
+                            setShowExportModal={setShowExportModal}
+                            setViewMode={setViewMode}
+                        />
                     </div>
                 </div>
 
@@ -3813,6 +3811,16 @@ const Invoice = () => {
                         : Math.max(0, totalVal - paidVal);
 
                     const isFullyPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || selectedInvoice?.status === 'Paid';
+
+                    const currentStatus = (() => {
+                        if (selectedInvoice?.status) return String(selectedInvoice.status).toUpperCase();
+                        if (isFullyPaid) return 'PAID';
+                        if (balanceVal > 0 && selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
+                            return 'OVERDUE';
+                        }
+                        if (paidVal > 0 && balanceVal > 0) return 'PARTIAL';
+                        return 'UNPAID';
+                    })();
 
                     const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
                     const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
@@ -4013,11 +4021,40 @@ const Invoice = () => {
                                                 {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                             </span>
                                         </div>
-                                        {isFullyPaid && (
-                                            <div className="invoice-cea-paid-indicator">
-                                                PAID
-                                            </div>
-                                        )}
+                                        <div className="invoice-cea-status-display" style={{ marginTop: '5px', textAlign: 'right' }}>
+                                            <span
+                                                className={`invoice-cea-status-badge status-${(currentStatus || '').toLowerCase()}`}
+                                                style={{
+                                                    display: 'inline-block',
+                                                    padding: '3px 14px',
+                                                    borderRadius: '9999px',
+                                                    fontSize: '12px',
+                                                    fontWeight: '800',
+                                                    letterSpacing: '0.06em',
+                                                    textTransform: 'uppercase',
+                                                    backgroundColor: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#dcfce7'
+                                                        : currentStatus === 'OVERDUE' ? '#fee2e2'
+                                                        : currentStatus === 'PARTIAL' ? '#ffedd5'
+                                                        : currentStatus === 'CANCELLED' ? '#f1f5f9'
+                                                        : '#fee2e2',
+                                                    color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#15803d'
+                                                        : currentStatus === 'OVERDUE' ? '#dc2626'
+                                                        : currentStatus === 'PARTIAL' ? '#c2410c'
+                                                        : currentStatus === 'CANCELLED' ? '#475569'
+                                                        : '#dc2626',
+                                                    border: `1.5px solid ${
+                                                        currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#86efac'
+                                                        : currentStatus === 'OVERDUE' ? '#fca5a5'
+                                                        : currentStatus === 'PARTIAL' ? '#fdba74'
+                                                        : currentStatus === 'CANCELLED' ? '#cbd5e1'
+                                                        : '#fca5a5'
+                                                    }`,
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                                }}
+                                            >
+                                                {currentStatus}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -4210,6 +4247,7 @@ const Invoice = () => {
         return invoices.filter(inv => {
             const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inv.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 inv.totalAmount?.toString().includes(searchTerm));
             const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
@@ -4478,6 +4516,7 @@ const Invoice = () => {
                                             const singleCustInvoices = invoices.filter(inv => {
                                                 const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                     inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    inv.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                     inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                     inv.totalAmount?.toString().includes(searchTerm));
                                                 const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
@@ -4549,6 +4588,7 @@ const Invoice = () => {
                                                                     <option value="UNPAID">UNPAID</option>
                                                                     <option value="PARTIAL">PARTIAL</option>
                                                                     <option value="PAID">PAID</option>
+                                                                    <option value="OVERDUE">OVERDUE</option>
                                                                     <option value="CANCELLED">CANCELLED</option>
                                                                 </select>
                                                                 {inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && (
@@ -4559,90 +4599,32 @@ const Invoice = () => {
                                                             </div>
                                                         </td>
                                                         <td className="text-right">
-                                                            <div className="Invoice-invoice-action-buttons text-nowrap">
+                                                            <div className="Invoice-invoice-action-buttons text-nowrap" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
                                                                 <button 
-                                                                    className="Invoice-invoice-action-btn Invoice-view" 
+                                                                    type="button"
+                                                                    className="Invoice-btn-view-primary" 
                                                                     onClick={() => handleView(inv)}
                                                                     title="View Invoice"
                                                                 >
-                                                                    <Eye size={16} />
+                                                                    <Eye size={14} />
+                                                                    <span>View</span>
                                                                 </button>
-                                                                {inv.type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
-                                                                    <button 
-                                                                        className="Invoice-invoice-action-btn Invoice-edit" 
-                                                                        onClick={() => handleEdit(inv)}
-                                                                        title="Edit Invoice"
-                                                                    >
-                                                                        <Pencil size={16} />
-                                                                    </button>
-                                                                )}
-                                                                {hasPermission('delete sales invoice') && (
-                                                                    <button 
-                                                                        className="Invoice-invoice-action-btn Invoice-delete" 
-                                                                        onClick={() => handleDelete(inv)}
-                                                                        title="Delete Invoice"
-                                                                    >
-                                                                        <Trash2 size={16} />
-                                                                    </button>
-                                                                )}
-                                                                {inv.balanceAmount > 0 && hasPermission('create sales payment') && (
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn Invoice-payment"
-                                                                        onClick={() => navigate('/company/sales/payment', { 
-                                                                            state: { 
-                                                                                targetInvoiceId: inv.id, 
-                                                                                invoiceType: inv.type, 
-                                                                                customerId: inv.customerId 
-                                                                            } 
-                                                                        })}
-                                                                        title="Receive Payment"
-                                                                        style={{ color: '#10b981' }}
-                                                                    >
-                                                                        <CreditCard size={16} />
-                                                                    </button>
-                                                                )}
-                                                                {inv.type !== 'POS_INVOICE' && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && hasPermission('edit sales invoice') && (
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn"
-                                                                        onClick={() => handleUnpay(inv)}
-                                                                        title="Mark as Unpaid & Revert Payments"
-                                                                        style={{ color: '#ef4444' }}
-                                                                    >
-                                                                        <RotateCcw size={16} />
-                                                                    </button>
-                                                                )}
-                                                                <button
-                                                                    className="Invoice-invoice-action-btn"
-                                                                    onClick={() => handleOpenEmailModal(inv)}
-                                                                    title="Email Invoice to Customer"
-                                                                    style={{ color: '#0284c7' }}
-                                                                >
-                                                                    <Mail size={16} />
-                                                                </button>
-                                                                <button
-                                                                    className="Invoice-invoice-action-btn"
-                                                                    onClick={() => handleDownloadSingleInvoicePDF(inv)}
-                                                                    title="Download PDF"
-                                                                    style={{ color: '#059669' }}
-                                                                >
-                                                                    <Download size={16} />
-                                                                </button>
-                                                                <button
-                                                                    className="Invoice-invoice-action-btn"
-                                                                    onClick={() => handlePrintInvoice(inv)}
-                                                                    title="Print Invoice"
-                                                                    style={{ color: '#334155' }}
-                                                                >
-                                                                    <Printer size={16} />
-                                                                </button>
-                                                                <button
-                                                                    className="Invoice-invoice-action-btn"
-                                                                    onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(inv.invoiceNumber)}`)}
-                                                                    title="View Invoice Audit Trail"
-                                                                    style={{ color: '#6366f1' }}
-                                                                >
-                                                                    <Shield size={16} />
-                                                                </button>
+                                                                <InvoiceActionDropdown
+                                                                    invoice={inv}
+                                                                    variant="row"
+                                                                    isOpen={activeActionDropdownId === `inv-${inv.type || 'INV'}-${inv.id}`}
+                                                                    onToggle={() => setActiveActionDropdownId(activeActionDropdownId === `inv-${inv.type || 'INV'}-${inv.id}` ? null : `inv-${inv.type || 'INV'}-${inv.id}`)}
+                                                                    onClose={() => setActiveActionDropdownId(null)}
+                                                                    hasPermission={hasPermission}
+                                                                    handleEdit={handleEdit}
+                                                                    handleDelete={handleDelete}
+                                                                    handleUnpay={handleUnpay}
+                                                                    handleOpenEmailModal={handleOpenEmailModal}
+                                                                    handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                    handlePrintInvoice={handlePrintInvoice}
+                                                                    navigate={navigate}
+                                                                    setShowExportModal={setShowExportModal}
+                                                                />
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -4656,6 +4638,7 @@ const Invoice = () => {
                                         invoices.filter(inv => {
                                             const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                 inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                inv.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                 inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                                 inv.totalAmount?.toString().includes(searchTerm));
                                             const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
@@ -4837,6 +4820,7 @@ const Invoice = () => {
                                                                         <option value="UNPAID">UNPAID</option>
                                                                         <option value="PARTIAL">PARTIAL</option>
                                                                         <option value="PAID">PAID</option>
+                                                                        <option value="OVERDUE">OVERDUE</option>
                                                                         <option value="CANCELLED">CANCELLED</option>
                                                                     </select>
                                                                 );
@@ -4895,78 +4879,32 @@ const Invoice = () => {
                                                                     </button>
                                                                 </div>
                                                             ) : (
-                                                                <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(group.invoices[0])} title="View Invoice"><Eye size={16} /></button>
-                                                            )}
-                                                            {group.isSingle && (
                                                                 <>
-                                                                    {group.invoices[0].type !== 'POS_INVOICE' && hasPermission('edit sales invoice') && (
-                                                                        <button className="Invoice-invoice-action-btn Invoice-edit" onClick={() => handleEdit(group.invoices[0])} title="Edit Invoice"><Pencil size={16} /></button>
-                                                                    )}
-                                                                    {hasPermission('delete sales invoice') && (
-                                                                        <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(group.invoices[0])} title="Delete Invoice"><Trash2 size={16} /></button>
-                                                                    )}
-                                                                    {group.invoices[0].type !== 'POS_INVOICE' && group.invoices[0].balanceAmount > 0 && hasPermission('create sales payment') && (
-                                                                        <button
-                                                                            className="Invoice-invoice-action-btn Invoice-payment"
-                                                                            onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: group.invoices[0].id, customerId: group.invoices[0].customerId } })}
-                                                                            title="Receive Payment"
-                                                                            style={{ color: '#10b981' }}
-                                                                        >
-                                                                            <CreditCard size={16} />
-                                                                        </button>
-                                                                    )}
-                                                                    {group.invoices[0].type === 'POS_INVOICE' && group.invoices[0].balanceAmount > 0 && hasPermission('create sales payment') && (
-                                                                        <button
-                                                                            className="Invoice-invoice-action-btn Invoice-payment"
-                                                                            onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: group.invoices[0].id, invoiceType: 'POS_INVOICE', customerId: group.invoices[0].customerId } })}
-                                                                            title="Receive Payment"
-                                                                            style={{ color: '#10b981' }}
-                                                                        >
-                                                                            <CreditCard size={16} />
-                                                                        </button>
-                                                                    )}
-                                                                    {group.invoices[0].type !== 'POS_INVOICE' && (group.invoices[0].paidAmount > 0 || group.invoices[0].status === 'PAID' || group.invoices[0].status === 'PARTIAL') && hasPermission('edit sales invoice') && (
-                                                                        <button
-                                                                            className="Invoice-invoice-action-btn"
-                                                                            onClick={() => handleUnpay(group.invoices[0])}
-                                                                            title="Mark as Unpaid & Revert Payments"
-                                                                            style={{ color: '#ef4444' }}
-                                                                        >
-                                                                            <RotateCcw size={16} />
-                                                                        </button>
-                                                                    )}
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn"
-                                                                        onClick={() => handleOpenEmailModal(group.invoices[0])}
-                                                                        title="Email Invoice to Customer"
-                                                                        style={{ color: '#0284c7' }}
+                                                                    <button 
+                                                                        type="button"
+                                                                        className="Invoice-btn-view-primary" 
+                                                                        onClick={() => handleView(group.invoices[0])}
+                                                                        title="View Invoice"
                                                                     >
-                                                                        <Mail size={16} />
+                                                                        <Eye size={14} />
+                                                                        <span>View</span>
                                                                     </button>
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn"
-                                                                        onClick={() => handleDownloadSingleInvoicePDF(group.invoices[0])}
-                                                                        title="Download PDF"
-                                                                        style={{ color: '#059669' }}
-                                                                    >
-                                                                        <Download size={16} />
-                                                                    </button>
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn"
-                                                                        onClick={() => handlePrintInvoice(group.invoices[0])}
-                                                                        title="Print Invoice"
-                                                                        style={{ color: '#334155' }}
-                                                                    >
-                                                                        <Printer size={16} />
-                                                                    </button>
-                                                                    <button
-                                                                        className="Invoice-invoice-action-btn"
-                                                                        onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(group.invoices[0].invoiceNumber)}`)}
-                                                                        title="View Invoice Audit Trail"
-                                                                        style={{ color: '#6366f1' }}
-                                                                    >
-                                                                        <Shield size={16} />
-                                                                    </button>
+                                                                    <InvoiceActionDropdown
+                                                                        invoice={group.invoices[0]}
+                                                                        variant="row"
+                                                                        isOpen={activeActionDropdownId === `group-single-${group.invoices[0].type || 'INV'}-${group.invoices[0].id}`}
+                                                                        onToggle={() => setActiveActionDropdownId(activeActionDropdownId === `group-single-${group.invoices[0].type || 'INV'}-${group.invoices[0].id}` ? null : `group-single-${group.invoices[0].type || 'INV'}-${group.invoices[0].id}`)}
+                                                                        onClose={() => setActiveActionDropdownId(null)}
+                                                                        hasPermission={hasPermission}
+                                                                        handleEdit={handleEdit}
+                                                                        handleDelete={handleDelete}
+                                                                        handleUnpay={handleUnpay}
+                                                                        handleOpenEmailModal={handleOpenEmailModal}
+                                                                        handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                        handlePrintInvoice={handlePrintInvoice}
+                                                                        navigate={navigate}
+                                                                        setShowExportModal={setShowExportModal}
+                                                                    />
                                                                 </>
                                                             )}
                                                         </div>
@@ -5041,6 +4979,7 @@ const Invoice = () => {
                                                                                                     <option value="UNPAID">UNPAID</option>
                                                                                                     <option value="PARTIAL">PARTIAL</option>
                                                                                                     <option value="PAID">PAID</option>
+                                                                                                    <option value="OVERDUE">OVERDUE</option>
                                                                                                     <option value="CANCELLED">CANCELLED</option>
                                                                                                 </select>
                                                                                                 {si.paymentDate && (si.paidAmount > 0 || si.status === 'PAID' || si.status === 'PARTIAL') && (
@@ -5051,102 +4990,33 @@ const Invoice = () => {
                                                                                             </div>
                                                                                         </td>
                                                                                         <td className="text-right">
-                                                                                            <div className="Invoice-invoice-action-buttons">
-                                                                                                <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(si)}><Eye size={14} /></button>
-                                                                                                {si.type === 'POS_INVOICE' ? (
-                                                                                                    <>
-                                                                                                        {si.balanceAmount > 0 && hasPermission('create sales payment') && (
-                                                                                                            <button
-                                                                                                                className="Invoice-invoice-action-btn Invoice-payment"
-                                                                                                                onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: si.id, invoiceType: 'POS_INVOICE', customerId: si.customerId } })}
-                                                                                                                title="Receive Payment"
-                                                                                                                style={{ color: '#10b981' }}
-                                                                                                            >
-                                                                                                                <CreditCard size={14} />
-                                                                                                            </button>
-                                                                                                        )}
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => handleDownloadSingleInvoicePDF(si)}
-                                                                                                            title="Download PDF"
-                                                                                                            style={{ color: '#059669' }}
-                                                                                                        >
-                                                                                                            <Download size={14} />
-                                                                                                        </button>
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => handlePrintInvoice(si)}
-                                                                                                            title="Print Invoice"
-                                                                                                            style={{ color: '#334155' }}
-                                                                                                        >
-                                                                                                            <Printer size={14} />
-                                                                                                        </button>
-                                                                                                        {hasPermission('delete sales invoice') && (
-                                                                                                            <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(si)}><Trash2 size={14} /></button>
-                                                                                                        )}
-                                                                                                    </>
-                                                                                                ) : (
-                                                                                                    <>
-                                                                                                        {si.balanceAmount > 0 && hasPermission('create sales payment') && (
-                                                                                                            <button
-                                                                                                                className="Invoice-invoice-action-btn Invoice-payment"
-                                                                                                                onClick={() => navigate('/company/sales/payment', { state: { targetInvoiceId: si.id, customerId: si.customerId } })}
-                                                                                                                title="Receive Payment"
-                                                                                                                style={{ color: '#10b981' }}
-                                                                                                            >
-                                                                                                                <CreditCard size={14} />
-                                                                                                            </button>
-                                                                                                        )}
-                                                                                                        {hasPermission('edit sales invoice') && (
-                                                                                                            <button className="Invoice-invoice-action-btn Invoice-edit" onClick={() => handleEdit(si)}><Pencil size={14} /></button>
-                                                                                                        )}
-                                                                                                        {(si.paidAmount > 0 || si.status === 'PAID' || si.status === 'PARTIAL') && hasPermission('edit sales invoice') && (
-                                                                                                            <button
-                                                                                                                className="Invoice-invoice-action-btn"
-                                                                                                                onClick={() => handleUnpay(si)}
-                                                                                                                title="Mark as Unpaid & Revert Payments"
-                                                                                                                style={{ color: '#ef4444' }}
-                                                                                                            >
-                                                                                                                <RotateCcw size={14} />
-                                                                                                            </button>
-                                                                                                        )}
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => handleOpenEmailModal(si)}
-                                                                                                            title="Email Invoice to Customer"
-                                                                                                            style={{ color: '#0284c7' }}
-                                                                                                        >
-                                                                                                            <Mail size={14} />
-                                                                                                        </button>
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => handleDownloadSingleInvoicePDF(si)}
-                                                                                                            title="Download PDF"
-                                                                                                            style={{ color: '#059669' }}
-                                                                                                        >
-                                                                                                            <Download size={14} />
-                                                                                                        </button>
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => handlePrintInvoice(si)}
-                                                                                                            title="Print Invoice"
-                                                                                                            style={{ color: '#334155' }}
-                                                                                                        >
-                                                                                                            <Printer size={14} />
-                                                                                                        </button>
-                                                                                                        <button
-                                                                                                            className="Invoice-invoice-action-btn"
-                                                                                                            onClick={() => navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(si.invoiceNumber)}`)}
-                                                                                                            title="View Invoice Audit Trail"
-                                                                                                            style={{ color: '#6366f1' }}
-                                                                                                        >
-                                                                                                            <Shield size={14} />
-                                                                                                        </button>
-                                                                                                        {hasPermission('delete sales invoice') && (
-                                                                                                            <button className="Invoice-invoice-action-btn Invoice-delete" onClick={() => handleDelete(si)}><Trash2 size={14} /></button>
-                                                                                                        )}
-                                                                                                    </>
-                                                                                                )}
+                                                                                            <div className="Invoice-invoice-action-buttons" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                                                                <button 
+                                                                                                    type="button"
+                                                                                                    className="Invoice-btn-view-primary" 
+                                                                                                    onClick={() => handleView(si)}
+                                                                                                    title="View Invoice"
+                                                                                                    style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                                                                                >
+                                                                                                    <Eye size={13} />
+                                                                                                    <span>View</span>
+                                                                                                </button>
+                                                                                                <InvoiceActionDropdown
+                                                                                                    invoice={si}
+                                                                                                    variant="row"
+                                                                                                    isOpen={activeActionDropdownId === `sub-inv-${si.type || 'INV'}-${si.id}`}
+                                                                                                    onToggle={() => setActiveActionDropdownId(activeActionDropdownId === `sub-inv-${si.type || 'INV'}-${si.id}` ? null : `sub-inv-${si.type || 'INV'}-${si.id}`)}
+                                                                                                    onClose={() => setActiveActionDropdownId(null)}
+                                                                                                    hasPermission={hasPermission}
+                                                                                                    handleEdit={handleEdit}
+                                                                                                    handleDelete={handleDelete}
+                                                                                                    handleUnpay={handleUnpay}
+                                                                                                    handleOpenEmailModal={handleOpenEmailModal}
+                                                                                                    handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                                                    handlePrintInvoice={handlePrintInvoice}
+                                                                                                    navigate={navigate}
+                                                                                                    setShowExportModal={setShowExportModal}
+                                                                                                />
                                                                                             </div>
                                                                                         </td>
                                                                                     </tr>
@@ -5263,8 +5133,13 @@ const Invoice = () => {
                                         <input type="date"
                                             value={invoiceMeta.date} onChange={(e) => {
                                                 const newDate = e.target.value;
-                                                const newDueDate = calculateDueDate(newDate, selectedCustomerCreditPeriod);
-                                                setInvoiceMeta({ ...invoiceMeta, date: newDate, dueDate: newDueDate });
+                                                let newDueDate = invoiceMeta.dueDate;
+                                                if (paymentTerm !== 'custom') {
+                                                    newDueDate = calculateDueDate(newDate, parseInt(paymentTerm) || 0);
+                                                } else if (selectedCustomerCreditPeriod) {
+                                                    newDueDate = calculateDueDate(newDate, selectedCustomerCreditPeriod);
+                                                }
+                                                setInvoiceMeta(prev => ({ ...prev, date: newDate, dueDate: newDueDate }));
                                             }}
                                             style={{ width: '100%', maxWidth: '280px' }}
                                             className="Invoice-compact-input" />
@@ -5307,7 +5182,13 @@ const Invoice = () => {
 
                                                             setCustomerShippingAddresses(addresses);
                                                             setSelectedCustomerCreditPeriod(c.creditPeriod || 0);
-                                                            const newDueDate = calculateDueDate(invoiceMeta.date, c.creditPeriod || 0);
+                                                            const custDays = c.creditPeriod || 0;
+                                                            if (custDays === 0) setPaymentTerm('0');
+                                                            else if (custDays === 7) setPaymentTerm('7');
+                                                            else if (custDays === 30) setPaymentTerm('30');
+                                                            else if (custDays === 60) setPaymentTerm('60');
+                                                            else setPaymentTerm('custom');
+                                                            const newDueDate = calculateDueDate(invoiceMeta.date, custDays);
                                                             setInvoiceMeta(prev => ({ ...prev, dueDate: newDueDate }));
                                                             setBillingDetails({
                                                                 name: c.billingName || c.name || '',
@@ -5369,11 +5250,31 @@ const Invoice = () => {
 
 
                                     <div className="Invoice-meta-col">
-                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>DUE DATE</label>
-                                        <input type="date"
-                                            value={invoiceMeta.dueDate} onChange={(e) => setInvoiceMeta({ ...invoiceMeta, dueDate: e.target.value })}
-                                            style={{ width: '100%', maxWidth: '280px' }}
-                                            className="Invoice-compact-input" />
+                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
+                                            DUE DATE & TERMS
+                                        </label>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '280px' }}>
+                                            <select
+                                                value={paymentTerm}
+                                                onChange={(e) => handlePaymentTermChange(e.target.value)}
+                                                className="Invoice-compact-select"
+                                                style={{ width: '100%', height: '34px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0 8px' }}
+                                                title="Select payment terms or due date offset"
+                                            >
+                                                <option value="0">Due upon receipt (0 days)</option>
+                                                <option value="7">Net 7 (7 days from invoice date)</option>
+                                                <option value="30">Net 30 (30 days from invoice date)</option>
+                                                <option value="60">Net 60 (60 days from invoice date)</option>
+                                                <option value="custom">Custom Date</option>
+                                            </select>
+                                            <input
+                                                type="date"
+                                                value={invoiceMeta.dueDate}
+                                                onChange={(e) => handleCustomDueDateChange(e.target.value)}
+                                                style={{ width: '100%' }}
+                                                className="Invoice-compact-input"
+                                            />
+                                        </div>
                                     </div>
 
                                     {showCurrencyField && (

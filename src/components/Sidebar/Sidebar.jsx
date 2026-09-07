@@ -87,7 +87,6 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                     { path: '/company/accounts/charts', label: 'Charts of Accounts', perm: 'view charts of accounts' },
                     { path: '/company/accounts/customers', label: 'Customers/Debtors', perm: 'view customers' },
                     { path: '/company/accounts/vendors', label: 'Vendors/Creditors', perm: 'view vendors' },
-                    { path: '/company/bank-transfer', label: 'Bank Transfer', perm: 'view charts of accounts' },
                     { path: '/company/accounts/currency-revaluation', label: 'Currency Revaluation', perm: 'view charts of accounts' },
                     { path: '/company/accounts/fiscal-year-rollover', label: 'Fiscal Year Rollover', perm: 'view charts of accounts' },
                     { path: '/company/accounts/fixed-assets', label: 'Fixed Assets', perm: 'view charts of accounts' },

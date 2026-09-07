@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import companyService from '../api/companyService';
 import GetCompanyId from '../api/GetCompanyId';
 import { AuthContext } from './AuthContext';
+import { resolveLogoUrl } from '../utils/logoUrl';
 
 export const CompanyContext = createContext();
 
@@ -51,6 +52,10 @@ export const CompanyProvider = ({ children }) => {
                 if (!data.currency || !['EUR', 'GBP', 'USD', 'INR'].includes(data.currency)) {
                     data.currency = 'EUR';
                 }
+                if (data.logo) data.logo = resolveLogoUrl(data.logo);
+                if (data.invoiceLogo) data.invoiceLogo = resolveLogoUrl(data.invoiceLogo);
+                if (data.receiptLogo) data.receiptLogo = resolveLogoUrl(data.receiptLogo);
+                if (data.paymentLogo) data.paymentLogo = resolveLogoUrl(data.paymentLogo);
                 setCompanySettings(data);
             } catch (error) {
                 console.error("Error fetching company settings:", error);

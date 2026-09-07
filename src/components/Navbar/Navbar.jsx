@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from '../../context/LanguageContext';
 import { CompanyContext } from '../../context/CompanyContext';
 import CreateCompanyModal from './CreateCompanyModal';
+import { resolveLogoUrl } from '../../utils/logoUrl';
 import './Navbar.css';
 
 const SUPERADMIN_MENUS = [
@@ -95,6 +96,55 @@ const COMPANY_MENUS = [
     { label: 'Password Requests', path: '/company/settings/password-requests', category: 'Settings', perm: 'view settings', icon: Key },
     { label: 'Audit Logs', path: '/company/settings/audit-logs', category: 'Settings', perm: 'view settings', icon: ClipboardList }
 ];
+
+const CompanyAvatar = ({ logo, name, size = 24, iconSize = 14, defaultBg = '#0284c7', defaultColor = '#ffffff' }) => {
+    const [hasError, setHasError] = useState(false);
+    const resolvedUrl = resolveLogoUrl(logo);
+
+    useEffect(() => {
+        setHasError(false);
+    }, [logo]);
+
+    const showImg = Boolean(resolvedUrl && !hasError);
+
+    return (
+        <div style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            borderRadius: '6px',
+            background: showImg ? '#ffffff' : defaultBg,
+            color: defaultColor,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.max(10, Math.round(size * 0.42))}px`,
+            fontWeight: '700',
+            overflow: 'hidden',
+            flexShrink: 0,
+            border: showImg ? '1px solid #e2e8f0' : 'none',
+            padding: showImg ? '2px' : 0,
+            boxSizing: 'border-box'
+        }}>
+            {showImg ? (
+                <img
+                    src={resolvedUrl}
+                    alt={name || 'Logo'}
+                    onError={() => setHasError(true)}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block'
+                    }}
+                />
+            ) : name ? (
+                name.charAt(0).toUpperCase()
+            ) : (
+                <Building2 size={iconSize} />
+            )}
+        </div>
+    );
+};
 
 const Navbar = ({ toggleSidebar }) => {
     const { currentUser, logout, hasPermission, switchCompany, refreshCompanies } = useContext(AuthContext);
@@ -487,26 +537,14 @@ const Navbar = ({ toggleSidebar }) => {
                                 e.currentTarget.style.background = '#f8fafc';
                             }}
                         >
-                            <div style={{
-                                width: '24px',
-                                height: '24px',
-                                borderRadius: '6px',
-                                background: '#0284c7',
-                                color: '#ffffff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                overflow: 'hidden',
-                                flexShrink: 0
-                            }}>
-                                {companySettings?.logo ? (
-                                    <img src={companySettings.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                ) : (
-                                    <Building2 size={14} />
-                                )}
-                            </div>
+                            <CompanyAvatar
+                                logo={companySettings?.logo || currentUser?.company?.logo}
+                                name={companySettings?.name || currentUser?.company?.name || 'Company'}
+                                size={24}
+                                iconSize={14}
+                                defaultBg="#0284c7"
+                                defaultColor="#ffffff"
+                            />
                             <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {companySettings?.name || currentUser?.company?.name || 'Company'}
                             </span>
@@ -576,21 +614,14 @@ const Navbar = ({ toggleSidebar }) => {
                                                 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                                                    <div style={{
-                                                        width: '28px',
-                                                        height: '28px',
-                                                        borderRadius: '6px',
-                                                        background: isActive ? '#10b981' : '#e2e8f0',
-                                                        color: isActive ? '#ffffff' : '#475569',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: '700',
-                                                        flexShrink: 0
-                                                    }}>
-                                                        {c.name?.charAt(0).toUpperCase() || 'C'}
-                                                    </div>
+                                                    <CompanyAvatar
+                                                        logo={c.logo || (isActive ? (companySettings?.logo || currentUser?.company?.logo) : null)}
+                                                        name={c.name}
+                                                        size={28}
+                                                        iconSize={16}
+                                                        defaultBg={isActive ? '#10b981' : '#e2e8f0'}
+                                                        defaultColor={isActive ? '#ffffff' : '#475569'}
+                                                    />
                                                     <div style={{ minWidth: 0 }}>
                                                         <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {c.name}

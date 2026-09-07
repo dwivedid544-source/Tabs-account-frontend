@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
     ArrowRightLeft, Landmark, Search, Filter, CheckCircle2, AlertCircle,
     Check, X, ChevronDown, ChevronUp, Clock, Plus, Tag, RotateCcw,
-    FileText, Calendar, DollarSign, ArrowUpRight, ArrowDownLeft
+    FileText, Calendar, DollarSign, ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CompanyContext } from '../../../context/CompanyContext';
@@ -46,11 +46,14 @@ const TransactionMatching = () => {
                     chartOfAccountsService.getChartOfAccounts()
                 ]);
 
-                if (accRes?.success) {
-                    setAccounts(accRes.data || []);
-                    if (!selectedAccountId && accRes.data.length > 0) {
+                if (accRes?.success && accRes.data && accRes.data.length > 0) {
+                    setAccounts(accRes.data);
+                    if (!selectedAccountId) {
                         setSelectedAccountId(accRes.data[0].id.toString());
                     }
+                } else {
+                    setAccounts(accRes?.data || []);
+                    setLoading(false);
                 }
 
                 const rawGroups = Array.isArray(coaRes?.data) ? coaRes.data : (coaRes?.data?.data || []);
@@ -69,13 +72,17 @@ const TransactionMatching = () => {
                 }
             } catch (err) {
                 console.error(err);
+                setLoading(false);
             }
         };
         init();
     }, []);
 
     const fetchTransactions = async () => {
-        if (!selectedAccountId) return;
+        if (!selectedAccountId) {
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
             const res = await bankingService.getBankTransactions({
@@ -93,10 +100,13 @@ const TransactionMatching = () => {
                 txList.filter(t => t.status === 'UNMATCHED' || t.status === 'PENDING').slice(0, 25).forEach(t => {
                     checkMatchesForTx(t.id);
                 });
+            } else {
+                setTransactions([]);
             }
         } catch (err) {
             console.error(err);
             toast.error('Failed to load bank transactions');
+            setTransactions([]);
         } finally {
             setLoading(false);
         }
@@ -229,11 +239,15 @@ const TransactionMatching = () => {
                         onChange={(e) => setSelectedAccountId(e.target.value)}
                         className="account-dropdown"
                     >
-                        {accounts.map(acc => (
-                            <option key={acc.id} value={acc.id}>
-                                {acc.accountName} ({acc.bankName} ••••{acc.accountNumber?.slice(-4)})
-                            </option>
-                        ))}
+                        {accounts.length === 0 ? (
+                            <option value="">No bank accounts available</option>
+                        ) : (
+                            accounts.map(acc => (
+                                <option key={acc.id} value={acc.id}>
+                                    {acc.accountName} ({acc.bankName} ••••{acc.accountNumber?.slice(-4)})
+                                </option>
+                            ))
+                        )}
                     </select>
                 </div>
 
@@ -298,11 +312,27 @@ const TransactionMatching = () => {
                         <div className="spinner"></div>
                         <p>Scanning bank feeds...</p>
                     </div>
+                ) : accounts.length === 0 ? (
+                    <div className="empty-feed">
+                        <Landmark size={44} className="empty-icon text-muted" />
+                        <h3>No Bank Accounts Found</h3>
+                        <p>You haven't set up any bank accounts yet. Please add a bank account to import statements and review bank feeds.</p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                            <button className="btn btn-primary" onClick={() => navigate('/company/banking/overview')}>
+                                <Plus size={16} /> Manage Bank Accounts
+                            </button>
+                        </div>
+                    </div>
                 ) : transactions.length === 0 ? (
                     <div className="empty-feed">
                         <CheckCircle2 size={44} className="empty-icon text-success" />
                         <h3>You're All Caught Up!</h3>
                         <p>No transactions found for this filter. Import a new statement to review feeds.</p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                            <button className="btn btn-secondary" onClick={() => navigate('/company/banking/import')}>
+                                <ArrowRightLeft size={16} /> Import Statement
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <div className="table-responsive">

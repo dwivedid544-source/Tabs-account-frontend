@@ -15,6 +15,7 @@ import { AuthContext } from '../../../../context/AuthContext';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { useTranslation } from '../../../../context/LanguageContext';
 import SmtpSettings from '../SmtpSettings/SmtpSettings';
+import { resolveLogoUrl } from '../../../../utils/logoUrl';
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
 const purchaseTypes = ['purchasequotation', 'purchaseorder', 'purchasebill', 'purchasereturn', 'payment'];
 const otherTypes = ['goodsreceiptnote', 'voucher', 'stocktransfer', 'adjustment'];
@@ -203,7 +204,7 @@ const CountrySelect = ({ value, onChange }) => {
 
 const CompanySettings = () => {
     const { fetchCompanySettings } = React.useContext(CompanyContext);
-    const { hasPermission } = React.useContext(AuthContext);
+    const { hasPermission, refreshCompanies } = React.useContext(AuthContext);
     const { changeLanguageByCountry } = useTranslation();
     const [activeTab, setActiveTab] = useState('general');
     const [logoPreview, setLogoPreview] = useState(null);
@@ -478,7 +479,7 @@ const CompanySettings = () => {
                     color: data.invoiceColor || '#004aad',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     logo: null,
-                    logoPreview: data.invoiceLogo || null
+                    logoPreview: resolveLogoUrl(data.invoiceLogo) || null
                 });
 
                 if (data.invoiceTableHeaders) {
@@ -535,7 +536,7 @@ const CompanySettings = () => {
                     color: data.receiptColor || '#004aad',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     logo: null,
-                    logoPreview: data.receiptLogo || null
+                    logoPreview: resolveLogoUrl(data.receiptLogo) || null
                 });
 
                 if (data.receiptTableHeaders) {
@@ -585,7 +586,7 @@ const CompanySettings = () => {
                     color: data.paymentColor || '#004aad',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     logo: null,
-                    logoPreview: data.paymentLogo || null
+                    logoPreview: resolveLogoUrl(data.paymentLogo) || null
                 });
 
                 if (data.paymentTableHeaders) {
@@ -649,7 +650,7 @@ const CompanySettings = () => {
                 }
 
                 if (data.logo) {
-                    setLogoPreview(data.logo);
+                    setLogoPreview(resolveLogoUrl(data.logo));
                 }
                 if (data.customFieldsConfig) {
                     try {
@@ -773,6 +774,9 @@ const CompanySettings = () => {
             }
 
             await fetchCompanySettings();
+            if (refreshCompanies) {
+                await refreshCompanies();
+            }
             if (formData.country) {
                 changeLanguageByCountry(formData.country);
             }

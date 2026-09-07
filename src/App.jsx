@@ -12,7 +12,6 @@ import { Toaster } from 'react-hot-toast';
 import './index.css';
 
 import Plans from './pages/superadmin/Plans/Plans';
-import RequestPlan from './pages/superadmin/RequestPlan/RequestPlan';
 import PlanRequests from './pages/superadmin/PlanRequests/PlanRequests';
 import Payments from './pages/superadmin/Payments/Payments';
 import ManagePasswords from './pages/superadmin/ManagePasswords/ManagePasswords';

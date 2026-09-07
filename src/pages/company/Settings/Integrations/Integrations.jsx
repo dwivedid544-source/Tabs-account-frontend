@@ -38,24 +38,7 @@ const Integrations = () => {
         status: 'NOT_CONFIGURED'
     });
 
-    const [syncLogs, setSyncLogs] = useState([
-        {
-            id: 1,
-            crm: 'Bitrix24 CRM',
-            action: 'Automated Nightly Sync',
-            timestamp: new Date(Date.now() - 3600000 * 4).toLocaleString(),
-            status: 'SUCCESS',
-            details: 'Synchronized 42 contacts and 18 invoices'
-        },
-        {
-            id: 2,
-            crm: 'HubSpot CRM',
-            action: 'Manual Contact Sync',
-            timestamp: new Date(Date.now() - 3600000 * 26).toLocaleString(),
-            status: 'SUCCESS',
-            details: 'Synced 15 new contacts to HubSpot CRM Portal'
-        }
-    ]);
+    const [syncLogs, setSyncLogs] = useState([]);
 
     const fetchSettings = async () => {
         try {
@@ -65,6 +48,9 @@ const Integrations = () => {
                 const { bitrix24, hubspot } = res.data.data;
                 if (bitrix24) setBitrixForm(bitrix24);
                 if (hubspot) setHubspotForm(hubspot);
+            }
+            if (res.data?.logs && Array.isArray(res.data.logs)) {
+                setSyncLogs(res.data.logs);
             }
         } catch (err) {
             console.error('Error loading integration settings:', err);
@@ -120,17 +106,6 @@ const Integrations = () => {
             if (res.data?.success) {
                 toast.success(res.data.message || 'Bitrix24 sync finished!');
                 fetchSettings();
-                setSyncLogs(prev => [
-                    {
-                        id: Date.now(),
-                        crm: 'Bitrix24 CRM',
-                        action: 'Manual Full Sync',
-                        timestamp: new Date().toLocaleString(),
-                        status: 'SUCCESS',
-                        details: res.data.message
-                    },
-                    ...prev
-                ]);
             }
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error executing Bitrix24 sync');
@@ -182,17 +157,6 @@ const Integrations = () => {
             if (res.data?.success) {
                 toast.success(res.data.message || 'HubSpot sync finished!');
                 fetchSettings();
-                setSyncLogs(prev => [
-                    {
-                        id: Date.now(),
-                        crm: 'HubSpot CRM',
-                        action: 'Manual Full Sync',
-                        timestamp: new Date().toLocaleString(),
-                        status: 'SUCCESS',
-                        details: res.data.message
-                    },
-                    ...prev
-                ]);
             }
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error executing HubSpot sync');
@@ -396,19 +360,32 @@ const Integrations = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {syncLogs.map(log => (
-                                <tr key={log.id}>
-                                    <td style={{ fontWeight: 700, color: '#0f172a' }}>{log.crm}</td>
-                                    <td>{log.action}</td>
-                                    <td>{log.timestamp}</td>
-                                    <td>
-                                        <span className="int-pill success">
-                                            <CheckCircle2 size={12} style={{ marginRight: '4px' }} /> {log.status}
-                                        </span>
+                            {syncLogs.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                        No synchronization logs recorded yet. Configure and test your CRM above to start syncing.
                                     </td>
-                                    <td style={{ color: '#475569' }}>{log.details}</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                syncLogs.map(log => (
+                                    <tr key={log.id}>
+                                        <td style={{ fontWeight: 700, color: '#0f172a' }}>{log.crm}</td>
+                                        <td>{log.action}</td>
+                                        <td>{log.timestamp}</td>
+                                        <td>
+                                            <span className={`int-pill ${log.status?.toLowerCase() === 'success' ? 'success' : 'error'}`}>
+                                                {log.status?.toLowerCase() === 'success' ? (
+                                                    <CheckCircle2 size={12} style={{ marginRight: '4px' }} />
+                                                ) : (
+                                                    <AlertCircle size={12} style={{ marginRight: '4px' }} />
+                                                )}
+                                                {log.status}
+                                            </span>
+                                        </td>
+                                        <td style={{ color: '#475569', fontSize: '0.84rem' }}>{log.details}</td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

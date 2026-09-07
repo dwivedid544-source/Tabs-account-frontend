@@ -1,14 +1,33 @@
 import React, { createContext, useState, useEffect } from 'react';
 import authService from '../services/authService';
 import axiosInstance from '../api/axiosInstance';
+import { resolveLogoUrl } from '../utils/logoUrl';
 
 export const AuthContext = createContext();
+
+const normalizeUserData = (user) => {
+    if (!user) return user;
+    const normalized = { ...user };
+    if (normalized.company && normalized.company.logo) {
+        normalized.company = {
+            ...normalized.company,
+            logo: resolveLogoUrl(normalized.company.logo)
+        };
+    }
+    if (Array.isArray(normalized.companies)) {
+        normalized.companies = normalized.companies.map(c => ({
+            ...c,
+            logo: resolveLogoUrl(c.logo)
+        }));
+    }
+    return normalized;
+};
 
 export const AuthProvider = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(undefined);
 
     useEffect(() => {
-        const user = authService.getCurrentUser();
+        const user = normalizeUserData(authService.getCurrentUser());
         if (user) {
             setCurrentUser(user);
         } else {
@@ -18,13 +37,15 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         const response = await authService.login({ email, password });
-        setCurrentUser(response.user);
+        const normalized = normalizeUserData(response.user);
+        setCurrentUser(normalized);
         return response;
     };
 
     const register = async (name, email, password, company_id) => {
         const response = await authService.register({ name, email, password, company_id });
-        setCurrentUser(response.user);
+        const normalized = normalizeUserData(response.user);
+        setCurrentUser(normalized);
         return response;
     };
 
@@ -34,16 +55,18 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateCurrentUser = (userData) => {
-        localStorage.setItem('user', JSON.stringify(userData));
-        setCurrentUser(userData);
+        const normalized = normalizeUserData(userData);
+        localStorage.setItem('user', JSON.stringify(normalized));
+        setCurrentUser(normalized);
     };
 
     const switchCompany = async (companyId) => {
         const response = await axiosInstance.post('/auth/switch-company', { companyId });
         if (response.data && response.data.token) {
+            const normalized = normalizeUserData(response.data.user);
             localStorage.setItem('token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            setCurrentUser(response.data.user);
+            localStorage.setItem('user', JSON.stringify(normalized));
+            setCurrentUser(normalized);
         }
         return response.data;
     };
@@ -52,7 +75,11 @@ export const AuthProvider = ({ children }) => {
         try {
             const res = await axiosInstance.get('/companies/user-companies');
             if (res.data && res.data.companies && currentUser) {
-                const updatedUser = { ...currentUser, companies: res.data.companies };
+                const mappedCompanies = res.data.companies.map(c => ({
+                    ...c,
+                    logo: resolveLogoUrl(c.logo)
+                }));
+                const updatedUser = { ...currentUser, companies: mappedCompanies };
                 localStorage.setItem('user', JSON.stringify(updatedUser));
                 setCurrentUser(updatedUser);
             }
