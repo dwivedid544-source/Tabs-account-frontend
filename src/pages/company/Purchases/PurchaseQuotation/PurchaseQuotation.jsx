@@ -347,7 +347,7 @@ const PurchaseQuotation = () => {
 
             if (type !== 'checkbox' && typeof processedValue === 'string') {
                 if (name === 'phone' || name === 'billingPhone' || name === 'shippingPhone') {
-                    processedValue = processedValue.replace(/\D/g, '');
+                    processedValue = processedValue.replace(/\D/g, '').slice(0, 10);
                 } else if (name === 'accountBalance') {
                     processedValue = processedValue.replace(/-/g, '');
                     if (processedValue !== '') {
@@ -383,7 +383,7 @@ const PurchaseQuotation = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -1740,7 +1740,8 @@ const PurchaseQuotation = () => {
                                                                 className="PurchaseQuotation-detail-input-compact"
                                                                 disabled={isViewMode}
                                                                 value={vendorDetails.phone}
-                                                                onChange={(e) => setVendorDetails({ ...vendorDetails, phone: e.target.value })}
+                                                                 onChange={(e) => setVendorDetails({ ...vendorDetails, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                                 maxLength={10}
                                                                 style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
                                                             />
                                                         </div>
@@ -2447,6 +2448,7 @@ const PurchaseQuotation = () => {
                                             name="phone"
                                             value={vendorFormData.phone}
                                             onChange={handleVendorInputChange}
+                                            maxLength={10}
                                             placeholder="Enter Phone"
                                             required
                                         />
@@ -2528,6 +2530,7 @@ const PurchaseQuotation = () => {
                                                 name="billingPhone"
                                                 value={vendorFormData.billingPhone}
                                                 onChange={handleVendorInputChange}
+                                                maxLength={10}
                                                 placeholder="Enter Phone"
                                             />
                                         </div>
@@ -2668,6 +2671,7 @@ const PurchaseQuotation = () => {
                                                         className="Vendors-form-input"
                                                         value={addr.phone}
                                                         onChange={(e) => handleVendorShippingAddressChange(index, 'phone', e.target.value)}
+                                                        maxLength={10}
                                                         placeholder="Enter Phone"
                                                     />
                                                 </div>

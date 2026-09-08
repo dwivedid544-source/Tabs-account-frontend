@@ -335,7 +335,7 @@ const PurchaseOrder = () => {
         const { name, value, type, checked } = e.target;
         let val = type === 'checkbox' ? checked : value;
         if ((name === 'phone' || name === 'billingPhone' || name === 'alternativePhone') && typeof value === 'string') {
-            val = value.replace(/\D/g, '');
+            val = value.replace(/\D/g, '').slice(0, 10);
         }
         setVendorFormData(prev => {
             const newData = { ...prev, [name]: val };
@@ -362,7 +362,7 @@ const PurchaseOrder = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -2478,6 +2478,7 @@ const PurchaseOrder = () => {
                                                 name="phone"
                                                 value={vendorFormData.phone}
                                                 onChange={handleVendorInputChange}
+                                                maxLength={10}
                                                 placeholder="Enter Phone"
                                             />
                                         </div>
@@ -2557,6 +2558,7 @@ const PurchaseOrder = () => {
                                                     name="billingPhone"
                                                     value={vendorFormData.billingPhone}
                                                     onChange={handleVendorInputChange}
+                                                    maxLength={10}
                                                     placeholder="Enter Phone"
                                                 />
                                             </div>
@@ -2698,6 +2700,7 @@ const PurchaseOrder = () => {
                                                             className="Vendors-form-input"
                                                             value={addr.phone}
                                                             onChange={(e) => handleVendorShippingAddressChange(index, 'phone', e.target.value)}
+                                                            maxLength={10}
                                                             placeholder="Enter Phone"
                                                         />
                                                     </div>

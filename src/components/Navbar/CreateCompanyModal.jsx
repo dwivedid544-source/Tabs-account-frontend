@@ -26,9 +26,13 @@ const CreateCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     if (!isOpen) return null;
 
     const handleChange = (e) => {
+        let val = e.target.value;
+        if (e.target.name === 'phone') {
+            val = val.replace(/\D/g, '').slice(0, 10);
+        }
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [e.target.name]: val
         }));
     };
 
@@ -255,6 +259,7 @@ const CreateCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
+                                maxLength={10}
                                 placeholder="+1 234 567 890"
                                 style={{
                                     width: '100%',

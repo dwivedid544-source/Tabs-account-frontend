@@ -8,6 +8,7 @@ import chartOfAccountsService from '../../../services/chartOfAccountsService';
 import { CompanyContext } from '../../../context/CompanyContext';
 import { AuthContext } from '../../../context/AuthContext';
 import axiosInstance from '../../../api/axiosInstance';
+import GetCompanyId from '../../../api/GetCompanyId';
 import './Customers.css';
 import ExcelImportModal from '../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../utils/excelService';
@@ -74,13 +75,14 @@ const Customers = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [companySettings?.id]);
 
     const fetchData = async () => {
         try {
             setLoading(true);
+            const companyId = GetCompanyId();
             const [customersRes, typesRes] = await Promise.all([
-                customerService.getAllCustomers(),
+                customerService.getAllCustomers(companyId),
                 chartOfAccountsService.getAccountTypes()
             ]);
 
@@ -106,7 +108,7 @@ const Customers = () => {
 
             if (type !== 'checkbox' && typeof processedValue === 'string') {
                 if (name === 'phone' || name === 'billingPhone' || name === 'shippingPhone') {
-                    processedValue = processedValue.replace(/\D/g, '');
+                    processedValue = processedValue.replace(/\D/g, '').slice(0, 10);
                 } else if (name === 'accountBalance') {
                     processedValue = processedValue.replace(/-/g, '');
                     if (processedValue !== '') {
@@ -217,7 +219,7 @@ const Customers = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -266,6 +268,10 @@ const Customers = () => {
         }
 
         payload.shippingAddresses = shippingAddresses;
+        const companyId = GetCompanyId();
+        if (companyId) {
+            payload.companyId = parseInt(companyId);
+        }
 
         try {
             if (modalMode === 'create') {
@@ -280,7 +286,11 @@ const Customers = () => {
             fetchData();
         } catch (error) {
             console.error('Error saving customer:', error);
-            toast.error(error.message || 'Failed to save customer');
+            const msg = error.message || error.response?.data?.message || 'Failed to save customer';
+            toast.error(msg);
+            if (msg.toLowerCase().includes('already exists') || error.response?.status === 409 || error.status === 409) {
+                fetchData();
+            }
         }
     };
 
@@ -612,9 +622,9 @@ const Customers = () => {
                             {/* Basic Information */}
                             <div className="Customers-form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
                                 <h3 className="Customers-section-subtitle">Basic Information</h3>
-                                <div className="Customers-form-row Customers-mixed-col">
-                                    <div className="Customers-form-group Customers-half-width">
-                                        <label className="Customers-form-label">Name (English) <span className="Customers-text-red">*</span></label>
+                                <div className="Customers-form-row">
+                                    <div className="Customers-form-group Customers-half-width" style={{ flex: 1, width: '100%' }}>
+                                        <label className="Customers-form-label">Name <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="text"
                                             className="Customers-form-input"
@@ -623,18 +633,6 @@ const Customers = () => {
                                             onChange={handleInputChange}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Name"
-                                        />
-                                    </div>
-                                    <div className="Customers-form-group Customers-half-width">
-                                        <label className="Customers-form-label">Name (Arabic)</label>
-                                        <input
-                                            type="text"
-                                            className="Customers-form-input"
-                                            name="nameArabic"
-                                            value={formData.nameArabic}
-                                            onChange={handleInputChange}
-                                            disabled={modalMode === 'view'}
-                                            placeholder="Enter Name (Arabic)"
                                         />
                                     </div>
                                 </div>
@@ -902,6 +900,7 @@ const Customers = () => {
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
+                                            maxLength={10}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Phone"
                                         />
@@ -987,6 +986,7 @@ const Customers = () => {
                                                 name="billingPhone"
                                                 value={formData.billingPhone}
                                                 onChange={handleInputChange}
+                                                maxLength={10}
                                                 disabled={modalMode === 'view'}
                                                 placeholder="Enter Phone"
                                             />
@@ -1139,6 +1139,7 @@ const Customers = () => {
                                                         className="Customers-form-input"
                                                         value={addr.phone}
                                                         onChange={(e) => handleShippingAddressChange(index, 'phone', e.target.value)}
+                                                        maxLength={10}
                                                         disabled={modalMode === 'view'}
                                                         placeholder="Enter Phone"
                                                     />

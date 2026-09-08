@@ -1067,7 +1067,8 @@ const CompanySettings = () => {
                                             <input
                                                 type="tel"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                maxLength={10}
                                                 placeholder="Enter phone number"
                                             />
                                         </div>

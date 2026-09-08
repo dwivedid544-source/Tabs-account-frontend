@@ -104,7 +104,7 @@ const Vendors = () => {
 
             if (type !== 'checkbox' && typeof processedValue === 'string') {
                 if (name === 'phone' || name === 'billingPhone' || name === 'shippingPhone') {
-                    processedValue = processedValue.replace(/\D/g, '');
+                    processedValue = processedValue.replace(/\D/g, '').slice(0, 10);
                 } else if (name === 'accountBalance') {
                     processedValue = processedValue.replace(/-/g, '');
                     if (processedValue !== '') {
@@ -218,7 +218,7 @@ const Vendors = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -840,6 +840,7 @@ const Vendors = () => {
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
+                                            maxLength={10}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Phone"
                                         />
@@ -925,6 +926,7 @@ const Vendors = () => {
                                                 name="billingPhone"
                                                 value={formData.billingPhone}
                                                 onChange={handleInputChange}
+                                                maxLength={10}
                                                 disabled={modalMode === 'view'}
                                                 placeholder="Enter Phone"
                                             />
@@ -1077,6 +1079,7 @@ const Vendors = () => {
                                                         className="Vendors-form-input"
                                                         value={addr.phone}
                                                         onChange={(e) => handleShippingAddressChange(index, 'phone', e.target.value)}
+                                                        maxLength={10}
                                                         disabled={modalMode === 'view'}
                                                         placeholder="Enter Phone"
                                                     />
