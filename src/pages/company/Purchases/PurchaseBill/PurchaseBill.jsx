@@ -753,7 +753,7 @@ const PurchaseBill = () => {
         const { name, value, type, checked } = e.target;
         let val = type === 'checkbox' ? checked : value;
         if ((name === 'phone' || name === 'billingPhone' || name === 'alternativePhone') && typeof value === 'string') {
-            val = value.replace(/\D/g, '');
+            val = value.replace(/\D/g, '').slice(0, 10);
         }
         setVendorFormData(prev => {
             const newData = { ...prev, [name]: val };
@@ -780,7 +780,7 @@ const PurchaseBill = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -3900,7 +3900,8 @@ const PurchaseBill = () => {
                                                 <input
                                                     type="text"
                                                     value={billMeta.deliveryPersonMobile || ''}
-                                                    onChange={(e) => setBillMeta({ ...billMeta, deliveryPersonMobile: e.target.value })}
+                                                    onChange={(e) => setBillMeta({ ...billMeta, deliveryPersonMobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                    maxLength={10}
                                                     placeholder="Driver Phone"
                                                     className="PBILL-compact-input"
                                                 />
@@ -4604,6 +4605,7 @@ const PurchaseBill = () => {
                                                 name="phone"
                                                 value={vendorFormData.phone}
                                                 onChange={handleVendorInputChange}
+                                                maxLength={10}
                                                 placeholder="Enter Phone"
                                             />
                                         </div>
@@ -4683,6 +4685,7 @@ const PurchaseBill = () => {
                                                     name="billingPhone"
                                                     value={vendorFormData.billingPhone}
                                                     onChange={handleVendorInputChange}
+                                                    maxLength={10}
                                                     placeholder="Enter Phone"
                                                 />
                                             </div>
@@ -4824,6 +4827,7 @@ const PurchaseBill = () => {
                                                             className="Vendors-form-input"
                                                             value={addr.phone}
                                                             onChange={(e) => handleVendorShippingAddressChange(index, 'phone', e.target.value)}
+                                                            maxLength={10}
                                                             placeholder="Enter Phone"
                                                         />
                                                     </div>
@@ -5392,7 +5396,8 @@ const PurchaseBill = () => {
                                 <input
                                     type="text"
                                     value={salespersonFormData.phone}
-                                    onChange={(e) => setSalespersonFormData({ ...salespersonFormData, phone: e.target.value })}
+                                    onChange={(e) => setSalespersonFormData({ ...salespersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    maxLength={10}
                                     className="PBILL-compact-input"
                                     style={{ width: '100%' }}
                                     placeholder="Phone number"
@@ -5505,7 +5510,8 @@ const PurchaseBill = () => {
                                 <input
                                     type="text"
                                     value={deliverypersonFormData.phone}
-                                    onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value })}
+                                    onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    maxLength={10}
                                     className="PBILL-compact-input"
                                     style={{ width: '100%' }}
                                     placeholder="Phone number"

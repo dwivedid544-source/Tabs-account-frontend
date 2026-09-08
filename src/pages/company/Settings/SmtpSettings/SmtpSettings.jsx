@@ -30,6 +30,8 @@ const SmtpSettings = ({ isTab = false }) => {
         password: '',
         fromEmail: '',
         fromName: '',
+        invoiceSubjectTemplate: 'Invoice #{InvoiceNumber} from {CompanyName}',
+        invoiceBodyTemplate: 'Dear {CustomerName},\n\nPlease find attached your invoice #{InvoiceNumber} for {InvoiceAmount}, due on {DueDate}.\n\nYou can also review and pay your invoice online through our secure portal.\n\nThank you for your business.\n\nKind regards,\n{CompanyName}',
         hasPassword: false,
         isConfigured: false,
         lastTestedAt: null,
@@ -53,6 +55,8 @@ const SmtpSettings = ({ isTab = false }) => {
                     password: data.hasPassword ? '••••••••' : '',
                     fromEmail: data.fromEmail || '',
                     fromName: data.fromName || '',
+                    invoiceSubjectTemplate: data.invoiceSubjectTemplate || 'Invoice #{InvoiceNumber} from {CompanyName}',
+                    invoiceBodyTemplate: data.invoiceBodyTemplate || 'Dear {CustomerName},\n\nPlease find attached your invoice #{InvoiceNumber} for {InvoiceAmount}, due on {DueDate}.\n\nYou can also review and pay your invoice online through our secure portal.\n\nThank you for your business.\n\nKind regards,\n{CompanyName}',
                     hasPassword: Boolean(data.hasPassword),
                     isConfigured: Boolean(data.isConfigured),
                     lastTestedAt: data.lastTestedAt,
@@ -451,6 +455,97 @@ const SmtpSettings = ({ isTab = false }) => {
                             </div>
                             <span className="smtp-hint">Sender name displayed in customer's email inbox</span>
                         </div>
+                    </div>
+                </div>
+
+                {/* Card 3: Default Invoice Email Template */}
+                <div className="smtp-card">
+                    <div className="smtp-card-header">
+                        <div className="smtp-card-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h2 className="smtp-card-title">Default Invoice Email Template</h2>
+                            <p className="smtp-card-desc">
+                                Configure the pre-filled email subject and message body used when sending invoices to customers.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 16px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            Click to insert placeholders into message body:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {[
+                                { tag: '{CustomerName}', label: 'Customer Name' },
+                                { tag: '{InvoiceNumber}', label: 'Invoice #' },
+                                { tag: '{InvoiceAmount}', label: 'Total Amount' },
+                                { tag: '{DueDate}', label: 'Due Date' },
+                                { tag: '{CompanyName}', label: 'Company Name' }
+                            ].map(({ tag, label }) => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            invoiceBodyTemplate: (prev.invoiceBodyTemplate || '') + ' ' + tag
+                                        }));
+                                        toast.success(`Inserted ${tag}`);
+                                    }}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        background: '#ffffff',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '6px',
+                                        padding: '4px 10px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: '#0f172a',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                    }}
+                                    title={`Click to insert ${tag} into message body`}
+                                >
+                                    <span style={{ color: '#2563eb' }}>{tag}</span>
+                                    <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 400 }}>({label})</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="smtp-form-group" style={{ marginBottom: '16px' }}>
+                        <label className="smtp-label">
+                            Email Subject Template
+                        </label>
+                        <div className="smtp-input-wrapper">
+                            <input
+                                type="text"
+                                className="smtp-input no-icon"
+                                placeholder="e.g. Invoice #{InvoiceNumber} from {CompanyName}"
+                                value={formData.invoiceSubjectTemplate}
+                                onChange={(e) => setFormData({ ...formData, invoiceSubjectTemplate: e.target.value })}
+                            />
+                        </div>
+                        <span className="smtp-hint">Dynamic placeholders like <code>&#123;InvoiceNumber&#125;</code> and <code>&#123;CompanyName&#125;</code> will be substituted automatically.</span>
+                    </div>
+
+                    <div className="smtp-form-group">
+                        <label className="smtp-label">
+                            Email Message Body Template
+                        </label>
+                        <textarea
+                            className="smtp-input no-icon"
+                            rows={7}
+                            style={{ minHeight: '140px', padding: '10px 12px', lineHeight: '1.5', fontFamily: 'inherit', resize: 'vertical' }}
+                            placeholder="Write your email body template..."
+                            value={formData.invoiceBodyTemplate}
+                            onChange={(e) => setFormData({ ...formData, invoiceBodyTemplate: e.target.value })}
+                        />
+                        <span className="smtp-hint">Supports multi-line text and dynamic placeholders.</span>
                     </div>
                 </div>
 

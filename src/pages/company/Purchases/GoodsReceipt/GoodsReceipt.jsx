@@ -438,7 +438,7 @@ const GoodsReceipt = () => {
         const { name, value, type, checked } = e.target;
         let val = type === 'checkbox' ? checked : value;
         if ((name === 'phone' || name === 'billingPhone' || name === 'alternativePhone') && typeof value === 'string') {
-            val = value.replace(/\D/g, '');
+            val = value.replace(/\D/g, '').slice(0, 10);
         }
         setVendorFormData(prev => {
             const newData = { ...prev, [name]: val };
@@ -465,7 +465,7 @@ const GoodsReceipt = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -1760,7 +1760,8 @@ const GoodsReceipt = () => {
                                                             placeholder="Enter mobile"
                                                             disabled={isViewMode}
                                                             value={grnMeta.contactMobile || ''}
-                                                            onChange={e => setGrnMeta({ ...grnMeta, contactMobile: e.target.value })}
+                                                            onChange={e => setGrnMeta({ ...grnMeta, contactMobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                            maxLength={10}
                                                         />
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2315,6 +2316,7 @@ const GoodsReceipt = () => {
                                                 name="phone"
                                                 value={vendorFormData.phone}
                                                 onChange={handleVendorInputChange}
+                                                maxLength={10}
                                                 placeholder="Enter Phone"
                                             />
                                         </div>
@@ -2394,6 +2396,7 @@ const GoodsReceipt = () => {
                                                     name="billingPhone"
                                                     value={vendorFormData.billingPhone}
                                                     onChange={handleVendorInputChange}
+                                                    maxLength={10}
                                                     placeholder="Enter Phone"
                                                 />
                                             </div>
@@ -2535,6 +2538,7 @@ const GoodsReceipt = () => {
                                                             className="Vendors-form-input"
                                                             value={addr.phone}
                                                             onChange={(e) => handleVendorShippingAddressChange(index, 'phone', e.target.value)}
+                                                            maxLength={10}
                                                             placeholder="Enter Phone"
                                                         />
                                                     </div>
@@ -3153,7 +3157,8 @@ const GoodsReceipt = () => {
                                         type="text"
                                         placeholder="Enter mobile number"
                                         value={deliverypersonFormData.phone}
-                                        onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value })}
+                                         onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                         maxLength={10}
                                         style={{
                                             width: '100%',
                                             padding: '10px 14px',

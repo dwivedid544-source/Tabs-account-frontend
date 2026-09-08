@@ -137,8 +137,13 @@ const Pricing = () => {
   };
 
   const handleDurationChange = (e) => setBillingDuration(e.target.value);
-  const handleInputChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleInputChange = (e) => {
+    let val = e.target.value;
+    if (e.target.name === 'phone') {
+      val = val.replace(/\D/g, '').slice(0, 10);
+    }
+    setFormData({ ...formData, [e.target.name]: val });
+  };
 
   // Updated handleSubmit function to make API call
   const handleSubmit = async (e) => {
@@ -393,6 +398,7 @@ const Pricing = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
+                  maxLength={10}
                   placeholder="Enter Contact Number"
                   required
                 />

@@ -208,53 +208,56 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-    const getOverallDiscountAmt = () => {
-        if (document.overallDiscount > 0) {
-            if (document.overallDiscountType === 'percentage') {
-                const F = (parseFloat(document.overallDiscount) || 0) / 100;
-                if (F >= 1) return document.discountAmount || 0;
-                const sub = parseFloat(document.subtotal) || 0;
-                const totDisc = parseFloat(document.discountAmount) || 0;
-                const tax = parseFloat(document.taxAmount) || 0;
-                return ((sub - totDisc + tax) * F) / (1 - F);
-            }
-            return parseFloat(document.overallDiscount) || 0;
-        }
-        return 0;
-    };
+    const rawItems = items || [];
+    const subtotalVal = document?.subtotal !== undefined && document?.subtotal !== null
+        ? parseFloat(document.subtotal)
+        : rawItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
 
-    const overallDiscountAmt = getOverallDiscountAmt();
-    const itemDiscountAmt = Math.max(0, (parseFloat(document.discountAmount) || 0) - overallDiscountAmt);
+    const lineDiscountsTotal = rawItems.reduce((sum, it) => sum + (parseFloat(it.discount || 0) || 0), 0);
+    const ovDiscountValue = parseFloat(document?.overallDiscount || 0);
+    const ovDiscountType = document?.overallDiscountType || 'percentage';
+    const netBeforeOv = Math.max(0, subtotalVal - lineDiscountsTotal);
+    let calculatedOvDiscountAmt = 0;
+    if (ovDiscountValue > 0) {
+        calculatedOvDiscountAmt = ovDiscountType === 'percentage'
+            ? (netBeforeOv * Math.min(100, ovDiscountValue)) / 100
+            : Math.min(netBeforeOv, ovDiscountValue);
+    }
 
-    const rawItems = items;
+    let totalDiscountVal = parseFloat(document?.discountAmount || 0);
+    if (totalDiscountVal === 0 && (lineDiscountsTotal > 0 || calculatedOvDiscountAmt > 0)) {
+        totalDiscountVal = lineDiscountsTotal + calculatedOvDiscountAmt;
+    }
+    const taxableVal = Math.max(0, subtotalVal - totalDiscountVal);
+    const overallDiscountRatio = netBeforeOv > 0 ? (calculatedOvDiscountAmt / netBeforeOv) : 0;
+
     const groups = {};
     rawItems.forEach(item => {
         const rate = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
         const qty = parseFloat(item.quantity !== undefined ? item.quantity : (item.qty || 1));
         const unitRate = parseFloat(item.rate !== undefined ? item.rate : (item.price || 0));
-        const netAmt = qty * unitRate;
-        const vatAmt = netAmt * (rate / 100);
+        const lineGross = qty * unitRate;
+        const lineNetBeforeOv = Math.max(0, lineGross - (parseFloat(item.discount || 0) || 0));
+        const lineDiscountedTaxable = lineNetBeforeOv * (1 - overallDiscountRatio);
+        const discountedAmt = (item.amount !== undefined && item.amount !== null && parseFloat(item.amount) <= lineGross + 0.01)
+            ? parseFloat(item.amount)
+            : lineDiscountedTaxable;
+
         const rateKey = rate.toFixed(2);
         if (!groups[rateKey]) {
             groups[rateKey] = { rate, vatAmount: 0, netAmount: 0 };
         }
-        groups[rateKey].vatAmount += vatAmt;
-        groups[rateKey].netAmount += netAmt;
+        groups[rateKey].netAmount += discountedAmt;
+        if (rate > 0) {
+            groups[rateKey].vatAmount += (discountedAmt * rate) / 100;
+        }
     });
-    let vatSummaryList = Object.values(groups);
+    let vatSummaryList = Object.values(groups).sort((a, b) => b.rate - a.rate);
     if (vatSummaryList.length === 0 && (document?.taxAmount > 0 || document?.subtotal > 0)) {
-        const sub = parseFloat(document?.subtotal || 0);
         const tax = parseFloat(document?.taxAmount || 0);
-        const calcRate = sub > 0 ? (tax / sub) * 100 : 0;
-        vatSummaryList = [{ rate: calcRate, vatAmount: tax, netAmount: sub }];
+        const calcRate = taxableVal > 0 ? (tax / taxableVal) * 100 : 0;
+        vatSummaryList = [{ rate: calcRate, vatAmount: tax, netAmount: taxableVal }];
     }
-
-    const subtotalVal = document?.subtotal !== undefined && document?.subtotal !== null
-        ? parseFloat(document.subtotal)
-        : rawItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
-
-    const totalDiscountVal = parseFloat(document?.discountAmount || 0);
-    const taxableVal = Math.max(0, subtotalVal - totalDiscountVal);
 
     const isFullyPaid = (document?.balanceAmount === 0 || (document?.paidAmount >= document?.totalAmount && document?.totalAmount > 0));
     const paymentReceivedDate = document?.paymentDate || document?.receipt?.[0]?.date || document?.allocations?.[0]?.receipt?.date;
@@ -438,13 +441,12 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             <table className="invoice-cea-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '12%', textAlign: 'left' }}>DATE</th>
-                                        <th style={{ width: '18%', textAlign: 'left' }}>ACTIVITY</th>
-                                        <th style={{ width: '34%', textAlign: 'left' }}>DESCRIPTION</th>
+                                        <th style={{ width: '22%', textAlign: 'left' }}>ACTIVITY</th>
+                                        <th style={{ width: '38%', textAlign: 'left' }}>DESCRIPTION</th>
                                         <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
-                                        <th style={{ width: '6%', textAlign: 'right' }}>QTY</th>
-                                        <th style={{ width: '10%', textAlign: 'right' }}>RATE</th>
-                                        <th style={{ width: '10%', textAlign: 'right' }}>AMOUNT</th>
+                                        <th style={{ width: '8%', textAlign: 'right' }}>QTY</th>
+                                        <th style={{ width: '11%', textAlign: 'right' }}>RATE</th>
+                                        <th style={{ width: '11%', textAlign: 'right' }}>AMOUNT</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -455,12 +457,12 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
                                         const itemRate = item.rate !== undefined ? item.rate : (item.price || 200);
                                         const itemAmt = item.amount !== undefined ? item.amount : (itemQty * itemRate);
-                                        const isStandardTax = parseFloat(itemTax) === 23 || !itemTax;
-                                        const taxDisplay = isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`);
+                                        const isZeroTax = parseFloat(itemTax) === 0;
+                                        const isStandardTax = parseFloat(itemTax) === 23;
+                                        const taxDisplay = isZeroTax ? 'No VAT' : (isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`));
 
                                         return (
                                             <tr key={idx}>
-                                                <td>{item.date ? formatCeaDate(item.date) : ''}</td>
                                                 <td>{productName}</td>
                                                 <td>{itemDesc}</td>
                                                 <td>{taxDisplay}</td>
@@ -571,7 +573,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         {vatSummaryList.map((vat, i) => (
                                             <tr key={i}>
                                                 <td></td>
-                                                <td style={{ textAlign: 'left' }}>VAT @ {parseFloat(vat.rate || 23).toFixed(0)}%</td>
+                                                <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(vat.rate || 23).toFixed(0)}%`}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
                                             </tr>

@@ -77,7 +77,11 @@ const Company = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        let updatedFormData = { ...formData, [name]: value };
+        let processedValue = value;
+        if (name === 'phone' && typeof value === 'string') {
+            processedValue = value.replace(/\D/g, '').slice(0, 10);
+        }
+        let updatedFormData = { ...formData, [name]: processedValue };
 
         if (name === 'planId' && value) {
             const selectedPlan = availablePlans.find(plan => String(plan.id) === String(value));
@@ -573,6 +577,7 @@ const Company = () => {
                                         placeholder="Enter Phone Number"
                                         value={formData.phone}
                                         onChange={handleInputChange}
+                                        maxLength={10}
                                     />
                                 </div>
                                 <div className="supercompany-form-group">

@@ -1,10 +1,16 @@
 import axiosInstance from '../api/axiosInstance';
+import GetCompanyId from '../api/GetCompanyId';
 
 const customerService = {
     // Create new customer
     createCustomer: async (customerData) => {
         try {
-            const response = await axiosInstance.post('/customers', customerData);
+            const companyId = customerData?.companyId || GetCompanyId();
+            const payload = { ...customerData };
+            if (companyId && !payload.companyId) {
+                payload.companyId = parseInt(companyId);
+            }
+            const response = await axiosInstance.post('/customers', payload);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
@@ -14,7 +20,8 @@ const customerService = {
     // Get all customers
     getAllCustomers: async (companyId) => {
         try {
-            const query = companyId ? `?companyId=${companyId}` : '';
+            const cId = companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
             const response = await axiosInstance.get(`/customers${query}`);
             return response.data;
         } catch (error) {
@@ -23,9 +30,11 @@ const customerService = {
     },
 
     // Get customer by ID
-    getCustomerById: async (id) => {
+    getCustomerById: async (id, companyId) => {
         try {
-            const response = await axiosInstance.get(`/customers/${id}`);
+            const cId = companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
+            const response = await axiosInstance.get(`/customers/${id}${query}`);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
@@ -33,9 +42,11 @@ const customerService = {
     },
 
     // Update customer
-    updateCustomer: async (id, customerData) => {
+    updateCustomer: async (id, customerData, companyId) => {
         try {
-            const response = await axiosInstance.put(`/customers/${id}`, customerData);
+            const cId = companyId || customerData?.companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
+            const response = await axiosInstance.put(`/customers/${id}${query}`, customerData);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
@@ -43,9 +54,11 @@ const customerService = {
     },
 
     // Delete customer
-    deleteCustomer: async (id) => {
+    deleteCustomer: async (id, companyId) => {
         try {
-            const response = await axiosInstance.delete(`/customers/${id}`);
+            const cId = companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
+            const response = await axiosInstance.delete(`/customers/${id}${query}`);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
@@ -62,22 +75,25 @@ const customerService = {
     },
 
     getById: async (id, companyId) => {
-        return customerService.getCustomerById(id);
+        return customerService.getCustomerById(id, companyId);
     },
 
-    getStatement: async (id, companyId) => {
+    getStatement: async (id, companyId, params = {}) => {
         try {
-            const query = companyId ? `?companyId=${companyId}` : '';
-            const response = await axiosInstance.get(`/customers/${id}/statement${query}`);
+            const cId = companyId || GetCompanyId();
+            const queryParams = cId ? { ...params, companyId: cId } : params;
+            const response = await axiosInstance.get(`/customers/${id}/statement`, { params: queryParams });
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
         }
     },
 
-    recalculateBalance: async (id) => {
+    recalculateBalance: async (id, companyId) => {
         try {
-            const response = await axiosInstance.post(`/customers/${id}/recalculate`);
+            const cId = companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
+            const response = await axiosInstance.post(`/customers/${id}/recalculate${query}`);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;
@@ -85,9 +101,11 @@ const customerService = {
     },
 
     // Recalculate ALL customer balances from transaction history (fixes stale data)
-    recalculateAllBalances: async () => {
+    recalculateAllBalances: async (companyId) => {
         try {
-            const response = await axiosInstance.post('/customers/recalculate-all');
+            const cId = companyId || GetCompanyId();
+            const query = cId ? `?companyId=${cId}` : '';
+            const response = await axiosInstance.post(`/customers/recalculate-all${query}`);
             return response.data;
         } catch (error) {
             throw error.response?.data || error;

@@ -279,7 +279,7 @@ const SalesOrder = () => {
 
             if (type !== 'checkbox' && typeof processedValue === 'string') {
                 if (name === 'phone' || name === 'billingPhone' || name === 'shippingPhone') {
-                    processedValue = processedValue.replace(/\D/g, '');
+                    processedValue = processedValue.replace(/\D/g, '').slice(0, 10);
                 } else if (name === 'accountBalance') {
                     processedValue = processedValue.replace(/-/g, '');
                     if (processedValue !== '') {
@@ -315,7 +315,7 @@ const SalesOrder = () => {
             const newAddresses = [...prev.shippingAddresses];
             let processedValue = value;
             if (field === 'phone' && typeof value === 'string') {
-                processedValue = value.replace(/\D/g, '');
+                processedValue = value.replace(/\D/g, '').slice(0, 10);
             }
             newAddresses[index] = { ...newAddresses[index], [field]: processedValue };
             return { ...prev, shippingAddresses: newAddresses };
@@ -2272,9 +2272,9 @@ const SalesOrder = () => {
                             {/* Basic Information */}
                             <div className="Customers-form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
                                 <h3 className="Customers-section-subtitle">Basic Information</h3>
-                                <div className="Customers-form-row Customers-mixed-col">
-                                    <div className="Customers-form-group Customers-half-width">
-                                        <label className="Customers-form-label">Name (English) <span className="Customers-text-red">*</span></label>
+                                <div className="Customers-form-row">
+                                    <div className="Customers-form-group Customers-half-width" style={{ flex: 1, width: '100%' }}>
+                                        <label className="Customers-form-label">Name <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="text"
                                             className="Customers-form-input"
@@ -2283,17 +2283,6 @@ const SalesOrder = () => {
                                             onChange={handleCustomerInputChange}
                                             placeholder="Enter Name"
                                             required
-                                        />
-                                    </div>
-                                    <div className="Customers-form-group Customers-half-width">
-                                        <label className="Customers-form-label">Name (Arabic)</label>
-                                        <input
-                                            type="text"
-                                            className="Customers-form-input"
-                                            name="nameArabic"
-                                            value={customerFormData.nameArabic}
-                                            onChange={handleCustomerInputChange}
-                                            placeholder="Enter Name (Arabic)"
                                         />
                                     </div>
                                 </div>
@@ -2522,6 +2511,7 @@ const SalesOrder = () => {
                                             name="phone"
                                             value={customerFormData.phone}
                                             onChange={handleCustomerInputChange}
+                                            maxLength={10}
                                             placeholder="Enter Phone"
                                             required
                                         />
@@ -2603,6 +2593,7 @@ const SalesOrder = () => {
                                                 name="billingPhone"
                                                 value={customerFormData.billingPhone}
                                                 onChange={handleCustomerInputChange}
+                                                maxLength={10}
                                                 placeholder="Enter Phone"
                                             />
                                         </div>
@@ -2744,6 +2735,7 @@ const SalesOrder = () => {
                                                         className="Customers-form-input"
                                                         value={addr.phone}
                                                         onChange={(e) => handleCustomerShippingAddressChange(index, 'phone', e.target.value)}
+                                                        maxLength={10}
                                                         placeholder="Enter Phone"
                                                     />
                                                 </div>
