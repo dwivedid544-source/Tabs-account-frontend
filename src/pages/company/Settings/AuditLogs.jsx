@@ -1,25 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Clock, User, Shield, Loader2,
     Calendar, RefreshCw, ChevronLeft, ChevronRight, FileText, Download,
-    ChevronDown, ChevronUp
+    ChevronDown, ChevronUp, ArrowLeft, Eye, X, Copy, Check, Trash2,
+    Building, AlertCircle, Info, ShoppingBag, Hash, Tag, DollarSign,
+    CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../../../api/axiosInstance';
 import GetCompanyId from '../../../api/GetCompanyId';
+import { AuthContext } from '../../../context/AuthContext';
 import * as XLSX from 'xlsx';
 import './AuditLogs.css';
 
 const AuditLogs = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { currentUser } = useContext(AuthContext);
+    const isSuperAdmin = currentUser?.role?.toUpperCase() === 'SUPERADMIN';
+
     const [searchParams] = useSearchParams();
     const initialSearch = searchParams.get('search') || searchParams.get('invoiceNumber') || '';
     const initialEntity = searchParams.get('entity') || (initialSearch ? 'Invoice' : '');
     const initialAction = searchParams.get('action') || '';
     const initialEntityId = searchParams.get('entityId') || searchParams.get('invoiceId') || '';
 
+    // Preserve invoice context from navigation state or URL query params
+    const fromInvoiceState = location.state?.fromInvoice;
+    const fromInvoiceParamId = searchParams.get('fromInvoiceId') || searchParams.get('invoiceId');
+    const fromInvoiceParamNumber = searchParams.get('invoiceNumber');
+    const fromInvoiceParamType = searchParams.get('invoiceType') || searchParams.get('type');
+
+    // Consolidated invoice origin context
+    const invoiceContext = fromInvoiceState || (fromInvoiceParamId || fromInvoiceParamNumber ? {
+        id: fromInvoiceParamId ? (isNaN(parseInt(fromInvoiceParamId)) ? fromInvoiceParamId : parseInt(fromInvoiceParamId)) : undefined,
+        invoiceNumber: fromInvoiceParamNumber || searchParams.get('search') || '',
+        type: fromInvoiceParamType || 'TAX_INVOICE'
+    } : null);
+
+    const [resolvedInvoiceId, setResolvedInvoiceId] = useState(invoiceContext?.id || null);
+
     const [logs, setLogs] = useState([]);
     const [users, setUsers] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     
     // Filter states
@@ -28,6 +52,7 @@ const AuditLogs = () => {
     const [entity, setEntity] = useState(initialEntity);
     const [entityId, setEntityId] = useState(initialEntityId);
     const [userId, setUserId] = useState('');
+    const [selectedCompanyId, setSelectedCompanyId] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     
@@ -37,12 +62,18 @@ const AuditLogs = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalLogs, setTotalLogs] = useState(0);
 
-    // Expandable changes state
+    // Expandable changes state in table
     const [expandedLogIds, setExpandedLogIds] = useState(new Set());
+
+    // Selected log for Detail Modal
+    const [selectedLog, setSelectedLog] = useState(null);
+    const [showRawJson, setShowRawJson] = useState(false);
+    const [copiedJson, setCopiedJson] = useState(false);
 
     const companyId = GetCompanyId();
 
-    const toggleExpand = (logId) => {
+    const toggleExpand = (logId, e) => {
+        if (e) e.stopPropagation();
         setExpandedLogIds(prev => {
             const next = new Set(prev);
             if (next.has(logId)) next.delete(logId);
@@ -51,17 +82,32 @@ const AuditLogs = () => {
         });
     };
 
+    const copyJsonToClipboard = (data) => {
+        try {
+            navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+            setCopiedJson(true);
+            toast.success('Raw log JSON copied to clipboard');
+            setTimeout(() => setCopiedJson(false), 2000);
+        } catch {
+            toast.error('Failed to copy JSON');
+        }
+    };
+
     const exportToExcel = () => {
         if (!logs || logs.length === 0) {
             toast.error('No audit logs to export');
             return;
         }
 
+        const headers = ['Timestamp', 'User Name', 'User Email', 'Action', 'Entity Type', 'Entity ID'];
+        if (isSuperAdmin) headers.push('Company');
+        headers.push('Details / Description');
+
         const rows = [
             ['TAB ACCOUNTS - Audit Trail Activity Log'],
             [`Exported On: ${new Date().toLocaleString()}`],
             [],
-            ['Timestamp', 'User Name', 'User Email', 'Action', 'Entity Type', 'Entity ID', 'Details / Description']
+            headers
         ];
 
         logs.forEach(log => {
@@ -73,15 +119,21 @@ const AuditLogs = () => {
                 }
             } catch {}
 
-            rows.push([
+            const row = [
                 new Date(log.createdAt).toLocaleString(),
                 log.userName || log.user?.name || 'System',
                 log.userEmail || log.user?.email || '-',
                 log.action,
                 log.entity,
-                log.entityId || '-',
-                detailText
-            ]);
+                log.entityId || '-'
+            ];
+
+            if (isSuperAdmin) {
+                row.push(log.company?.name || `Company #${log.companyId}`);
+            }
+
+            row.push(detailText);
+            rows.push(row);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -93,15 +145,19 @@ const AuditLogs = () => {
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+        if (isSuperAdmin) {
+            fetchCompanies();
+        }
+    }, [isSuperAdmin]);
 
     useEffect(() => {
         fetchAuditLogs();
-    }, [page, limit, action, entity, entityId, userId, startDate, endDate]);
+    }, [page, limit, action, entity, entityId, userId, selectedCompanyId, startDate, endDate]);
 
     const fetchUsers = async () => {
         try {
-            const response = await axiosInstance.get(`/users?companyId=${companyId}`);
+            const url = companyId ? `/users?companyId=${companyId}` : '/users';
+            const response = await axiosInstance.get(url);
             if (response.data && response.data.success) {
                 setUsers(response.data.data || []);
             } else if (Array.isArray(response.data)) {
@@ -109,6 +165,19 @@ const AuditLogs = () => {
             }
         } catch (error) {
             console.error('Error fetching users for filter:', error);
+        }
+    };
+
+    const fetchCompanies = async () => {
+        try {
+            const response = await axiosInstance.get('/companies');
+            if (response.data && response.data.data) {
+                setCompanies(response.data.data || []);
+            } else if (Array.isArray(response.data)) {
+                setCompanies(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching companies for superadmin filter:', error);
         }
     };
 
@@ -123,16 +192,25 @@ const AuditLogs = () => {
                 entity: entity || undefined,
                 entityId: entityId.trim() || undefined,
                 userId: userId || undefined,
+                companyId: selectedCompanyId || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined
             };
 
             const response = await axiosInstance.get('/audit-logs', { params });
             if (response.data) {
-                setLogs(response.data.logs || []);
+                const fetchedLogs = response.data.logs || [];
+                setLogs(fetchedLogs);
                 if (response.data.pagination) {
                     setTotalPages(response.data.pagination.totalPages || 1);
                     setTotalLogs(response.data.pagination.total || 0);
+                }
+
+                if (!invoiceContext?.id && fetchedLogs.length > 0) {
+                    const match = fetchedLogs.find(l => (l.entity === 'Invoice' || l.entityType === 'Invoice' || l.entity === 'Sales Invoice') && l.entityId);
+                    if (match && match.entityId) {
+                        setResolvedInvoiceId(match.entityId);
+                    }
                 }
             }
         } catch (error) {
@@ -155,6 +233,7 @@ const AuditLogs = () => {
         setEntity('');
         setEntityId('');
         setUserId('');
+        setSelectedCompanyId('');
         setStartDate('');
         setEndDate('');
         setPage(1);
@@ -219,19 +298,23 @@ const AuditLogs = () => {
         }
     };
 
-    const renderDetails = (detailsStr, entityType, logId) => {
-        if (!detailsStr) return <span className="text-gray-400 italic">No details provided</span>;
-
-        let parsed = null;
-        if (typeof detailsStr === 'object') {
-            parsed = detailsStr;
-        } else if (typeof detailsStr === 'string' && (detailsStr.startsWith('{') || detailsStr.startsWith('['))) {
+    const parseDetails = (detailsStr) => {
+        if (!detailsStr) return null;
+        if (typeof detailsStr === 'object') return detailsStr;
+        if (typeof detailsStr === 'string' && (detailsStr.startsWith('{') || detailsStr.startsWith('['))) {
             try {
-                parsed = JSON.parse(detailsStr);
+                return JSON.parse(detailsStr);
             } catch {
-                parsed = null;
+                return null;
             }
         }
+        return null;
+    };
+
+    const renderDetailsSummary = (detailsStr, entityType, logId) => {
+        if (!detailsStr) return <span className="text-gray-400 italic">No details provided</span>;
+
+        const parsed = parseDetails(detailsStr);
 
         if (!parsed || typeof parsed !== 'object') {
             return <span>{detailsStr}</span>;
@@ -251,14 +334,14 @@ const AuditLogs = () => {
                         <button
                             type="button"
                             className="audit-changes-btn"
-                            onClick={() => toggleExpand(logId)}
+                            onClick={(e) => toggleExpand(logId, e)}
                         >
                             {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             <span>{isExpanded ? 'Hide Changes' : `View Field Changes (${parsed.changes.length})`}</span>
                         </button>
 
                         {isExpanded && (
-                            <div className="audit-diff-box">
+                            <div className="audit-diff-box" onClick={(e) => e.stopPropagation()}>
                                 <table className="audit-diff-table">
                                     <thead>
                                         <tr>
@@ -297,12 +380,325 @@ const AuditLogs = () => {
         );
     };
 
+    const activeInvoiceNumber = invoiceContext?.invoiceNumber || (entity === 'Invoice' && search.trim() ? search.trim() : (searchParams.get('entity') === 'Invoice' && searchParams.get('search') ? searchParams.get('search') : ''));
+    const hasInvoiceContext = Boolean(resolvedInvoiceId || invoiceContext?.id || activeInvoiceNumber);
+
+    const handleBack = () => {
+        const targetInvoiceId = invoiceContext?.id || resolvedInvoiceId;
+        const targetInvoiceNumber = invoiceContext?.invoiceNumber || activeInvoiceNumber;
+        const targetType = invoiceContext?.type || searchParams.get('invoiceType') || searchParams.get('type') || 'TAX_INVOICE';
+
+        if (targetInvoiceId || targetInvoiceNumber) {
+            navigate('/company/sales/invoice', {
+                state: {
+                    targetInvoiceId: targetInvoiceId || undefined,
+                    targetInvoiceNumber: targetInvoiceNumber || undefined,
+                    type: targetType,
+                    autoOpenDetail: true
+                }
+            });
+            return;
+        }
+
+        if (window.history.length > 1) {
+            navigate(-1);
+        } else {
+            navigate('/company/sales/invoice');
+        }
+    };
+
+    // Helper to render Detail Modal contents
+    const renderModalBody = (log) => {
+        if (!log) return null;
+        const parsed = parseDetails(log.details) || {};
+        const isDelete = log.action === 'DELETE';
+        const deletedRecord = parsed.deletedRecord || (isDelete ? parsed.previousValue : null);
+        const deletedItems = parsed.items || deletedRecord?.items || [];
+        const changes = Array.isArray(parsed.changes) ? parsed.changes : [];
+
+        return (
+            <div className="audit-modal-body">
+                {/* Meta Overview Cards */}
+                <div className="audit-meta-grid">
+                    <div className="audit-meta-card">
+                        <div className="audit-meta-card-label">User / Performed By</div>
+                        <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <User size={14} style={{ color: '#64748b' }} />
+                            <span>{log.userName || log.user?.name || 'System / Automated'}</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                            {log.userEmail || log.user?.email || 'N/A'} {log.user?.role ? `(${log.user.role})` : ''}
+                        </div>
+                    </div>
+
+                    <div className="audit-meta-card">
+                        <div className="audit-meta-card-label">Entity & ID</div>
+                        <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Tag size={14} style={{ color: '#64748b' }} />
+                            <span>{log.entity} #{log.entityId || parsed.invoiceNumber || 'N/A'}</span>
+                        </div>
+                        {parsed.poNumber && (
+                            <div style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600, marginTop: '2px' }}>
+                                PO #: {parsed.poNumber}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="audit-meta-card">
+                        <div className="audit-meta-card-label">Timestamp</div>
+                        <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Clock size={14} style={{ color: '#64748b' }} />
+                            <span>{new Date(log.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                            {new Date(log.createdAt).toLocaleTimeString()}
+                        </div>
+                    </div>
+
+                    {isSuperAdmin && (
+                        <div className="audit-meta-card">
+                            <div className="audit-meta-card-label">Company</div>
+                            <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Building size={14} style={{ color: '#64748b' }} />
+                                <span>{log.company?.name || `Company #${log.companyId}`}</span>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                                ID: {log.companyId}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Summary Banner */}
+                <div className={`audit-summary-banner ${isDelete ? 'is-delete' : (log.action === 'CREATE' ? 'is-create' : '')}`}>
+                    <strong>Event Summary: </strong>
+                    {parsed.summary || (typeof log.details === 'string' ? log.details : 'Activity logged successfully.')}
+                </div>
+
+                {/* DELETED RECORD VIEW (Special Snapshot Card) */}
+                {isDelete && deletedRecord && (
+                    <div className="audit-deleted-snapshot-card">
+                        <div className="audit-deleted-header">
+                            <Trash2 size={18} />
+                            <span>Deleted Record Snapshot (What Was Inside)</span>
+                        </div>
+
+                        <div className="audit-snapshot-details-grid">
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Invoice / Record #</span>
+                                <span className="audit-snapshot-item-val">{deletedRecord.invoiceNumber || parsed.invoiceNumber || log.entityId || '-'}</span>
+                            </div>
+
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Customer / Party</span>
+                                <span className="audit-snapshot-item-val">{deletedRecord.customerName || parsed.customerName || (deletedRecord.customerId ? `Customer #${deletedRecord.customerId}` : '-')}</span>
+                            </div>
+
+                            {deletedRecord.poNumber && (
+                                <div className="audit-snapshot-item">
+                                    <span className="audit-snapshot-item-label">Purchase Order (P.O. #)</span>
+                                    <span className="audit-snapshot-item-val" style={{ color: '#2563eb' }}>{deletedRecord.poNumber}</span>
+                                </div>
+                            )}
+
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Invoice Date</span>
+                                <span className="audit-snapshot-item-val">{deletedRecord.date || '-'}</span>
+                            </div>
+
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Due Date</span>
+                                <span className="audit-snapshot-item-val">{deletedRecord.dueDate || '-'}</span>
+                            </div>
+
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Status Before Delete</span>
+                                <span className="audit-snapshot-item-val">
+                                    <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#f1f5f9', fontWeight: 700, fontSize: '0.8rem' }}>
+                                        {deletedRecord.status || 'N/A'}
+                                    </span>
+                                </span>
+                            </div>
+
+                            <div className="audit-snapshot-item">
+                                <span className="audit-snapshot-item-label">Total Amount</span>
+                                <span className="audit-snapshot-item-val" style={{ color: '#059669', fontSize: '1.05rem', fontWeight: 700 }}>
+                                    {deletedRecord.totalAmount ? Number(deletedRecord.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                </span>
+                            </div>
+
+                            {deletedRecord.paidAmount !== undefined && (
+                                <div className="audit-snapshot-item">
+                                    <span className="audit-snapshot-item-label">Paid / Balance</span>
+                                    <span className="audit-snapshot-item-val">
+                                        Paid: {Number(deletedRecord.paidAmount || 0).toFixed(2)} | Bal: {Number(deletedRecord.balanceAmount || 0).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Deleted Line Items Table */}
+                        {Array.isArray(deletedItems) && deletedItems.length > 0 ? (
+                            <div>
+                                <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    Line Items Inside Record ({deletedItems.length})
+                                </div>
+                                <div className="audit-items-table-wrapper">
+                                    <table className="audit-items-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '5%' }}>#</th>
+                                                <th style={{ width: '40%' }}>Description / Item</th>
+                                                <th style={{ width: '12%', textAlign: 'right' }}>Quantity</th>
+                                                <th style={{ width: '13%', textAlign: 'right' }}>Rate</th>
+                                                <th style={{ width: '10%', textAlign: 'right' }}>Disc</th>
+                                                <th style={{ width: '10%', textAlign: 'right' }}>Tax %</th>
+                                                <th style={{ width: '15%', textAlign: 'right' }}>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {deletedItems.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{idx + 1}</td>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600 }}>{item.description || item.productName || 'Sales Item'}</div>
+                                                        {item.productId && <div style={{ fontSize: '0.725rem', color: '#64748b' }}>Prod ID: {item.productId}</div>}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right' }}>{item.quantity || 0}</td>
+                                                    <td style={{ textAlign: 'right' }}>{Number(item.rate || 0).toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right' }}>{item.discount ? `${item.discount}` : '-'}</td>
+                                                    <td style={{ textAlign: 'right' }}>{item.taxRate ? `${item.taxRate}%` : '0%'}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                        {Number(item.amount || (item.quantity * item.rate) || 0).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            <tr className="audit-items-table-total-row">
+                                                <td colSpan="6" style={{ textAlign: 'right' }}>Grand Total:</td>
+                                                <td style={{ textAlign: 'right', color: '#059669' }}>
+                                                    {deletedRecord.totalAmount ? Number(deletedRecord.totalAmount).toFixed(2) : '-'}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', borderRadius: '6px', fontSize: '0.825rem', color: '#64748b', fontStyle: 'italic' }}>
+                                No specific individual line item breakdown was recorded for this deletion snapshot.
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* FIELD CHANGES TABLE (For Updates or Any Changes) */}
+                {changes.length > 0 && (
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem' }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Info size={16} style={{ color: '#2563eb' }} />
+                            <span>Detailed Field Changes ({changes.length})</span>
+                        </div>
+                        <div className="audit-items-table-wrapper" style={{ marginTop: 0 }}>
+                            <table className="audit-items-table">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '30%' }}>Field Name</th>
+                                        <th style={{ width: '35%' }}>Previous Value</th>
+                                        <th style={{ width: '35%' }}>New / Updated Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {changes.map((c, i) => (
+                                        <tr key={i}>
+                                            <td className="audit-diff-field">{c.fieldLabel || c.field}</td>
+                                            <td>
+                                                {c.previousValue !== null && c.previousValue !== undefined ? (
+                                                    <span className="audit-diff-prev">{String(c.previousValue)}</span>
+                                                ) : (
+                                                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>None / Empty</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                {c.newValue !== null && c.newValue !== undefined ? (
+                                                    <span className="audit-diff-new">{String(c.newValue)}</span>
+                                                ) : (
+                                                    <span style={{ color: '#ef4444', fontStyle: 'italic' }}>Removed / Cleared</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Technical Raw JSON Inspector */}
+                <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowRawJson(prev => !prev)}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#475569',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            {showRawJson ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            <span>{showRawJson ? 'Hide Raw Technical JSON Payload' : 'Inspect Raw Technical JSON Payload'}</span>
+                        </button>
+                    </div>
+
+                    {showRawJson && (
+                        <div className="audit-json-box">
+                            <button
+                                type="button"
+                                className="audit-json-copy-btn"
+                                onClick={() => copyJsonToClipboard(parsed)}
+                                title="Copy JSON"
+                            >
+                                {copiedJson ? <Check size={12} /> : <Copy size={12} />}
+                                <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                            </button>
+                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                                <code>{JSON.stringify(parsed, null, 2)}</code>
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="audit-logs-page">
+            <div className="audit-top-bar">
+                <button
+                    type="button"
+                    onClick={handleBack}
+                    className="audit-btn-back"
+                    id="audit-back-btn"
+                    title={activeInvoiceNumber ? `Return to Invoice ${activeInvoiceNumber}` : 'Back'}
+                >
+                    <ArrowLeft size={16} />
+                    <span>{hasInvoiceContext ? (activeInvoiceNumber ? `Back to Invoice (${activeInvoiceNumber})` : 'Back to Invoice') : 'Back'}</span>
+                </button>
+            </div>
+
             <div className="audit-page-header">
                 <div>
                     <h1 className="audit-page-title">Audit Logs</h1>
-                    <p className="audit-page-subtitle">Track and monitor all user activities and data mutations</p>
+                    <p className="audit-page-subtitle">
+                        Track, monitor and inspect all user activities, mutations and deleted items
+                        {isSuperAdmin && <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: '4px', background: '#1e293b', color: '#ffffff', fontSize: '0.75rem', fontWeight: 600 }}>Super Admin Access</span>}
+                    </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={exportToExcel} className="audit-btn-refresh" title="Export to Excel" style={{ background: '#1e293b', color: '#ffffff', borderColor: '#1e293b' }}>
@@ -324,7 +720,7 @@ const AuditLogs = () => {
                             <Search size={18} className="audit-search-icon" />
                             <input
                                 type="text"
-                                placeholder="Search logs by keyword, email or description..."
+                                placeholder="Search logs by keyword, email, invoice number or description..."
                                 className="audit-search-field"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -335,7 +731,7 @@ const AuditLogs = () => {
                     </div>
                 </form>
 
-                <div className="audit-filters-grid">
+                <div className="audit-filters-grid" style={{ gridTemplateColumns: isSuperAdmin ? 'repeat(auto-fit, minmax(160px, 1fr))' : undefined }}>
                     <div className="audit-filter-group">
                         <label className="audit-filter-label">Action</label>
                         <select className="audit-filter-select" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
@@ -377,6 +773,18 @@ const AuditLogs = () => {
                             onChange={(e) => { setEntityId(e.target.value); setPage(1); }}
                         />
                     </div>
+
+                    {isSuperAdmin && (
+                        <div className="audit-filter-group">
+                            <label className="audit-filter-label">Company</label>
+                            <select className="audit-filter-select" value={selectedCompanyId} onChange={(e) => { setSelectedCompanyId(e.target.value); setPage(1); }}>
+                                <option value="">All Companies</option>
+                                {companies.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name || `Company #${c.id}`}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="audit-filter-group">
                         <label className="audit-filter-label">User</label>
@@ -429,17 +837,19 @@ const AuditLogs = () => {
                             <table className="audit-data-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '15%' }}>Timestamp</th>
-                                        <th style={{ width: '20%' }}>User</th>
+                                        <th style={{ width: '14%' }}>Timestamp</th>
+                                        <th style={{ width: isSuperAdmin ? '16%' : '18%' }}>User</th>
                                         <th style={{ width: '12%' }}>Action</th>
-                                        <th style={{ width: '13%' }}>Entity Type</th>
-                                        <th style={{ width: '40%' }}>Details</th>
+                                        <th style={{ width: '12%' }}>Entity</th>
+                                        {isSuperAdmin && <th style={{ width: '12%' }}>Company</th>}
+                                        <th style={{ width: isSuperAdmin ? '34%' : '36%' }}>Details / Summary</th>
+                                        <th style={{ width: '8%', textAlign: 'center' }}>Inspect</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {logs.length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" className="audit-empty-state">
+                                            <td colSpan={isSuperAdmin ? 7 : 6} className="audit-empty-state">
                                                 <FileText size={48} className="audit-empty-icon mx-auto mb-2" />
                                                 <p className="audit-empty-title">No activity logs found</p>
                                                 <p className="audit-empty-subtitle">Try adjusting your filters or keyword search</p>
@@ -447,7 +857,12 @@ const AuditLogs = () => {
                                         </tr>
                                     ) : (
                                         logs.map((log) => (
-                                            <tr key={log.id}>
+                                            <tr
+                                                key={log.id}
+                                                className="audit-row-clickable"
+                                                onClick={() => setSelectedLog(log)}
+                                                title="Click to view complete details of this entry"
+                                            >
                                                 <td className="audit-timestamp-cell">
                                                     <div className="audit-timestamp-wrapper">
                                                         <Clock size={12} className="audit-timestamp-icon" />
@@ -468,11 +883,32 @@ const AuditLogs = () => {
                                                 <td>{getActionBadge(log.action)}</td>
                                                 <td>
                                                     <span className="audit-entity-tag">
-                                                        {log.entity}
+                                                        {log.entity} {log.entityId ? `#${log.entityId}` : ''}
                                                     </span>
                                                 </td>
+                                                {isSuperAdmin && (
+                                                    <td>
+                                                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                                                            {log.company?.name || `Company #${log.companyId}`}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 <td className="audit-log-details-cell">
-                                                    {renderDetails(log.details, log.entity, log.id)}
+                                                    {renderDetailsSummary(log.details, log.entity, log.id)}
+                                                </td>
+                                                <td style={{ textAlign: 'center' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="audit-btn-view-detail"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedLog(log);
+                                                        }}
+                                                        title="Click to inspect this log entry"
+                                                    >
+                                                        <Eye size={13} />
+                                                        <span>View</span>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
@@ -528,6 +964,41 @@ const AuditLogs = () => {
                     </>
                 )}
             </div>
+
+            {/* Clickable Detail Modal */}
+            {selectedLog && (
+                <div className="audit-modal-backdrop" onClick={() => setSelectedLog(null)}>
+                    <div className="audit-modal-dialog" onClick={(e) => e.stopPropagation()}>
+                        <div className="audit-modal-header">
+                            <div className="audit-modal-header-left">
+                                {getActionBadge(selectedLog.action)}
+                                <span className="audit-entity-tag">{selectedLog.entity}</span>
+                                <h2 className="audit-modal-title">Audit Entry #{selectedLog.id}</h2>
+                            </div>
+                            <button
+                                type="button"
+                                className="audit-modal-close-btn"
+                                onClick={() => setSelectedLog(null)}
+                                title="Close dialog"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {renderModalBody(selectedLog)}
+
+                        <div className="audit-modal-footer">
+                            <button
+                                type="button"
+                                className="audit-modal-close-action-btn"
+                                onClick={() => setSelectedLog(null)}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -4,7 +4,7 @@ import {
     ChevronDown, FileText, ArrowUpCircle, ArrowDownCircle,
     ArrowRightCircle
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
 import axiosInstance from '../../../../api/axiosInstance';
 import GetCompanyId from '../../../../api/GetCompanyId';
@@ -17,6 +17,7 @@ import './DayBook.css';
 
 const DayBook = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
     const today = new Date().toISOString().split('T')[0];
 
@@ -107,7 +108,16 @@ const DayBook = () => {
             case 'SALES':
             case 'SALES_INVOICE':
             case 'SALES INVOICE':
-                navigate('/company/sales/invoice', { state: { ...stateArgs, targetInvoiceId: targetId, type: 'TAX_INVOICE' } });
+                navigate('/company/sales/invoice', {
+                    state: {
+                        ...stateArgs,
+                        targetInvoiceId: targetId,
+                        type: 'TAX_INVOICE',
+                        from: location.pathname + location.search,
+                        sourceName: 'Day Book',
+                        fromReport: true
+                    }
+                });
                 break;
             case 'POS':
             case 'POS_INVOICE':

@@ -573,7 +573,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         {vatSummaryList.map((vat, i) => (
                                             <tr key={i}>
                                                 <td></td>
-                                                <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(vat.rate || 23).toFixed(0)}%`}</td>
+                                                <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(vat.rate !== undefined ? vat.rate : 23).toFixed(2))}%`}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
                                             </tr>

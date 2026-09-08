@@ -363,7 +363,49 @@ export const downloadSampleTemplate = (entityType) => {
     XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions & Guidelines');
 
     // 5. Download file
-    XLSX.writeFile(wb, schema.fileName);
+    downloadWorkbook(wb, schema.fileName);
+};
+
+/**
+ * Robust Workbook Downloader for Browsers with Delayed URL Revoke
+ */
+export const downloadWorkbook = (wb, fileName) => {
+    const rawName = (fileName || 'Export.xlsx').replace(/[\\/:*?"<>|#]/g, '_');
+    const finalFileName = rawName.endsWith('.xlsx') ? rawName : `${rawName}.xlsx`;
+
+    // 1. Browser Blob download (recommended and standard across all modern browsers)
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        try {
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = finalFileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                try {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch {}
+            }, 60000);
+            return;
+        } catch (blobErr) {
+            console.warn('Blob download failed, falling back to XLSX.writeFile:', blobErr);
+        }
+    }
+
+    // 2. Fallback to XLSX.writeFile
+    try {
+        XLSX.writeFile(wb, finalFileName);
+    } catch (writeErr) {
+        console.error('Workbook download failed completely:', writeErr);
+        throw writeErr;
+    }
 };
 
 /**
@@ -375,28 +417,104 @@ export const exportToExcel = (data, fileName = 'Export.xlsx', sheetName = 'Sheet
         return;
     }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(data);
+    try {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
 
-    // Auto-calculate column widths
-    const headers = Object.keys(data[0] || {});
-    const colWidths = headers.map(header => {
-        let maxLen = header.length;
-        data.forEach(row => {
-            const cellVal = row[header] !== undefined && row[header] !== null ? String(row[header]) : '';
-            if (cellVal.length > maxLen) {
-                maxLen = cellVal.length;
-            }
+        // Auto-calculate column widths
+        const headers = Object.keys(data[0] || {});
+        const colWidths = headers.map(header => {
+            let maxLen = header.length;
+            data.forEach(row => {
+                const cellVal = row[header] !== undefined && row[header] !== null ? String(row[header]) : '';
+                if (cellVal.length > maxLen) {
+                    maxLen = cellVal.length;
+                }
+            });
+            return { wch: Math.min(Math.max(maxLen + 3, 12), 50) };
         });
-        return { wch: Math.min(Math.max(maxLen + 3, 12), 50) };
-    });
-    ws['!cols'] = colWidths;
+        ws['!cols'] = colWidths;
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-    // Trigger file download
-    const finalFileName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
-    XLSX.writeFile(wb, finalFileName);
+        // Trigger file download
+        downloadWorkbook(wb, fileName);
+    } catch (err) {
+        console.error('Error in exportToExcel:', err);
+        throw err;
+    }
+};
+
+/**
+ * Export a Single Detailed Invoice to Excel (Summary + Line Items)
+ */
+export const exportSingleInvoiceToExcel = (invoice, customFileName) => {
+    if (!invoice) return;
+    try {
+        const rawInvNumber = (invoice.invoiceNumber || 'Invoice').replace(/[\\/:*?"<>|#]/g, '_');
+        const items = invoice.invoiceitem || invoice.posinvoiceitem || invoice.items || [];
+
+        const currency = invoice.currency || 'EUR';
+        const subtotal = parseFloat(invoice.subtotal || 0);
+        const discount = parseFloat(invoice.discountAmount || 0);
+        const tax = parseFloat(invoice.taxAmount || 0);
+        const total = parseFloat(invoice.totalAmount || 0);
+        const paid = parseFloat(invoice.paidAmount || 0);
+        const balance = invoice.balanceAmount !== undefined ? parseFloat(invoice.balanceAmount) : (total - paid);
+
+        // Format items data
+        const itemsData = items.map((item, idx) => ({
+            '#': idx + 1,
+            'Item Name / Description': item.product?.name || item.service?.name || item.description || item.activity || 'Item',
+            'SKU / Code': item.product?.sku || '',
+            'Quantity': parseFloat(item.quantity || 0),
+            'Unit Rate': parseFloat(item.rate || 0),
+            'Discount': parseFloat(item.discount || 0),
+            'Tax Rate %': parseFloat(item.taxRate || 0),
+            'Line Total': parseFloat(item.amount || 0)
+        }));
+
+        // Format invoice summary sheet
+        const summaryData = [
+            { 'Invoice Field': 'Invoice Number', 'Value': invoice.invoiceNumber || 'Invoice' },
+            { 'Invoice Field': 'Type', 'Value': invoice.type === 'POS_INVOICE' ? 'POS Invoice' : 'Sales Invoice' },
+            { 'Invoice Field': 'Customer Name', 'Value': invoice.customer?.name || invoice.billingName || 'Walk-in Customer' },
+            { 'Invoice Field': 'Customer Phone', 'Value': invoice.customer?.phone || '' },
+            { 'Invoice Field': 'Customer Email', 'Value': invoice.customer?.email || '' },
+            { 'Invoice Field': 'Billing Address', 'Value': invoice.billingAddress || invoice.customer?.billingAddress || '' },
+            { 'Invoice Field': 'Invoice Date', 'Value': invoice.date ? new Date(invoice.date).toLocaleDateString() : '' },
+            { 'Invoice Field': 'Due Date', 'Value': invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A' },
+            { 'Invoice Field': 'Status', 'Value': invoice.status || 'UNPAID' },
+            { 'Invoice Field': 'Currency', 'Value': currency },
+            { 'Invoice Field': 'Subtotal', 'Value': subtotal },
+            { 'Invoice Field': 'Discount Amount', 'Value': discount },
+            { 'Invoice Field': 'Tax Amount', 'Value': tax },
+            { 'Invoice Field': 'Total Amount', 'Value': total },
+            { 'Invoice Field': 'Paid Amount', 'Value': paid },
+            { 'Invoice Field': 'Balance Due', 'Value': balance }
+        ];
+
+        const wb = XLSX.utils.book_new();
+
+        // Sheet 1: Items
+        const wsItems = XLSX.utils.json_to_sheet(itemsData.length > 0 ? itemsData : [{ 'Message': 'No line items recorded' }]);
+        wsItems['!cols'] = [{ wch: 6 }, { wch: 35 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, wsItems, 'Items');
+
+        // Sheet 2: Summary
+        const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+        wsSummary['!cols'] = [{ wch: 22 }, { wch: 35 }];
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Invoice Details');
+
+        let rawName = customFileName || `${rawInvNumber}_Export`;
+        rawName = rawName.replace(/[\\/:*?"<>|#]/g, '_');
+        const fileName = rawName.endsWith('.xlsx') ? rawName : `${rawName}.xlsx`;
+
+        downloadWorkbook(wb, fileName);
+    } catch (err) {
+        console.error('Error in exportSingleInvoiceToExcel:', err);
+        throw err;
+    }
 };
 
 /**

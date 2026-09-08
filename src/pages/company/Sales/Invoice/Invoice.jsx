@@ -39,7 +39,7 @@ import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { Upload, Loader2 } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
-import { exportToExcel } from '../../../../utils/excelService';
+import { exportToExcel, exportSingleInvoiceToExcel } from '../../../../utils/excelService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
@@ -56,6 +56,48 @@ const getCompanyLogoSrc = (logoVal) => {
         return `${serverUrl}${cleanPath}`;
     }
     return tabAccountsLogo;
+};
+
+const safeAutoTable = (doc, options) => {
+    if (typeof doc.autoTable === 'function') {
+        return doc.autoTable(options);
+    }
+    if (typeof autoTable === 'function') {
+        return autoTable(doc, options);
+    }
+    if (autoTable && typeof autoTable.default === 'function') {
+        return autoTable.default(doc, options);
+    }
+    throw new Error('PDF AutoTable generator is not available');
+};
+
+const safeSavePdf = (doc, fileName) => {
+    const rawName = (fileName || 'Invoice.pdf').replace(/[\\/:*?"<>|#]/g, '_');
+    const finalName = rawName.endsWith('.pdf') ? rawName : `${rawName}.pdf`;
+    try {
+        doc.save(finalName);
+    } catch (saveErr) {
+        console.warn('doc.save failed, trying Blob fallback:', saveErr);
+        try {
+            const pdfBlob = doc.output('blob');
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = finalName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                try {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch {}
+            }, 60000);
+        } catch (blobErr) {
+            console.error('All PDF download mechanisms failed:', blobErr);
+            throw blobErr;
+        }
+    }
 };
 
 const Invoice = () => {
@@ -78,7 +120,20 @@ const Invoice = () => {
     const [customerViewOption, setCustomerViewOption] = useState('all'); // 'all' (Combined for all customers) | 'single' (For one selected customer only)
     const [selectedCustomerIdFilter, setSelectedCustomerIdFilter] = useState('');
     const [showExportModal, setShowExportModal] = useState(false);
-    const [exportScope, setExportScope] = useState('filtered'); // 'filtered' | 'all'
+    const [exportScope, setExportScope] = useState('filtered'); // 'filtered' | 'all' | 'single'
+    const [invoiceToExport, setInvoiceToExport] = useState(null);
+
+    const handleOpenExportModal = (inv = null) => {
+        setInvoiceToExport(inv || null);
+        if (inv) {
+            setExportScope('single');
+        } else {
+            const hasFilters = Boolean(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter));
+            setExportScope(hasFilters ? 'filtered' : 'all');
+        }
+        setShowExportModal(true);
+    };
+
     const [selectedCurrency, setSelectedCurrency] = useState(() => companySettings?.currency || 'EUR');
     const [exchangeRate, setExchangeRate] = useState(1.0);
     const [customFieldValues, setCustomFieldValues] = useState({});
@@ -422,6 +477,26 @@ const Invoice = () => {
     // View Request State
     const [viewMode, setViewMode] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [originRoute, setOriginRoute] = useState(() => {
+        const s = location.state;
+        if (s?.from || s?.returnUrl) {
+            return {
+                path: s.from || s.returnUrl,
+                name: s.sourceName || 'Report',
+                returnState: s.returnState || null,
+                fromReport: Boolean(s.fromReport || s.from || s.sourceName)
+            };
+        }
+        if (s?.targetInvoiceId || s?.viewInvoiceId || s?.targetInvoiceNumber) {
+            return {
+                path: -1,
+                name: s.sourceName || 'Report',
+                returnState: s.returnState || null,
+                fromReport: Boolean(s.fromReport)
+            };
+        }
+        return null;
+    });
     const viewRate = getSyncRate(selectedInvoice?.currency || 'USD', companySettings?.currency || 'EUR');
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
     const [editingId, setEditingId] = useState(null);
@@ -448,12 +523,13 @@ const Invoice = () => {
     const [customerShippingAddresses, setCustomerShippingAddresses] = useState([]);
     const [availableReceipts, setAvailableReceipts] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
-    const [manualStatus, setManualStatus] = useState(false);
-    const [overrideStatus, setOverrideStatus] = useState('UNPAID');
+
     const [salespersonsList, setSalespersonsList] = useState([]);
     const [salespersonId, setSalespersonId] = useState('');
     const [carNumber, setCarNumber] = useState('');
     const [manualReference, setManualReference] = useState('');
+    const [poNumber, setPoNumber] = useState('');
+    const [showPoNumberField, setShowPoNumberField] = useState(true);
     const [numberingMode, setNumberingMode] = useState('auto');
     const [shouldAutoOpenNext, setShouldAutoOpenNext] = useState(false);
     const [showAddSalespersonModal, setShowAddSalespersonModal] = useState(false);
@@ -552,8 +628,7 @@ const Invoice = () => {
                 setOverallDiscountType(inv.overallDiscountType || 'percentage');
                 setSelectedCurrency(inv.currency || companySettings?.currency || 'EUR');
                 setExchangeRate(inv.exchangeRate || 1.0);
-                setManualStatus(inv.manualStatus || false);
-                setOverrideStatus(inv.status || 'UNPAID');
+
                 setCustomerShippingAddresses(inv.customer?.shippingaddress || []);
                 let fieldValues = {};
                 if (inv.customFields) {
@@ -578,6 +653,7 @@ const Invoice = () => {
 
                 setCarNumber(inv.carNumber || '');
                 setManualReference(inv.manualReference || '');
+                setPoNumber(inv.poNumber || inv.manualReference || '');
                 setNumberingMode('manual');
                 const loadedDate = new Date(inv.date).toISOString().split('T')[0];
                 const loadedDueDate = inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '';
@@ -677,7 +753,8 @@ const Invoice = () => {
             const data = {
                 customFields: JSON.stringify(customFieldsPayload),
                 invoiceNumber: invoiceMeta.manualNo,
-                manualReference: manualReference || null,
+                manualReference: manualReference || poNumber || null,
+                poNumber: poNumber || manualReference || null,
                 salespersonId: salespersonId ? parseInt(salespersonId) : null,
                 carNumber: carNumber || null,
                 salesOrderId: selectedOrder ? parseInt(selectedOrder.id) : null,
@@ -687,8 +764,8 @@ const Invoice = () => {
                 customerId: parseInt(customerId),
                 companyId: parseInt(companyId),
                 notes: notes,
-                manualStatus,
-                status: manualStatus ? overrideStatus : undefined,
+                manualStatus: false,
+                status: undefined,
                 billingName: billingDetails.name,
                 billingAddress: billingDetails.address,
                 billingCity: billingDetails.city,
@@ -818,60 +895,120 @@ const Invoice = () => {
     // Handle Deep Link from Navigation State
     const deepLinkHandledRef = useRef(null);
     useEffect(() => {
-        const targetId = location.state?.targetInvoiceId ? parseInt(location.state.targetInvoiceId) : null;
-        if (targetId && deepLinkHandledRef.current !== targetId) {
-            deepLinkHandledRef.current = targetId;
+        if (location.state?.from || location.state?.returnUrl) {
+            setOriginRoute({
+                path: location.state.from || location.state.returnUrl,
+                name: location.state.sourceName || 'Report',
+                returnState: location.state.returnState || null,
+                fromReport: Boolean(location.state.fromReport || location.state.from || location.state.sourceName)
+            });
+        } else if ((location.state?.targetInvoiceId || location.state?.viewInvoiceId || location.state?.targetInvoiceNumber) && !location.state?.fromInvoiceList) {
+            setOriginRoute(prev => prev || {
+                path: -1,
+                name: location.state.sourceName || 'Report',
+                returnState: location.state.returnState || null,
+                fromReport: Boolean(location.state.fromReport)
+            });
+        }
+
+        const searchParamsObj = new URLSearchParams(location.search);
+        const rawTargetId = location.state?.targetInvoiceId || location.state?.viewInvoiceId || searchParamsObj.get('targetInvoiceId') || searchParamsObj.get('viewInvoiceId') || searchParamsObj.get('id');
+        const isCombined = typeof rawTargetId === 'string' && (rawTargetId.toLowerCase().startsWith('combined-') || rawTargetId.toLowerCase().includes('combined'));
+        const targetId = isCombined ? rawTargetId : (rawTargetId && !isNaN(parseInt(rawTargetId)) ? parseInt(rawTargetId) : null);
+        const targetInvoiceNumber = location.state?.targetInvoiceNumber || searchParamsObj.get('invoiceNumber');
+        const invoiceType = location.state?.type || searchParamsObj.get('type') || searchParamsObj.get('invoiceType');
+        const forceOpen = Boolean(location.state?.autoOpenDetail);
+
+        const lookupKey = targetId ? `id_${targetId}` : (targetInvoiceNumber ? `num_${targetInvoiceNumber}` : null);
+
+        if (lookupKey && (deepLinkHandledRef.current !== lookupKey || forceOpen)) {
+            deepLinkHandledRef.current = lookupKey;
             const fetchTarget = async () => {
                 try {
                     const companyId = GetCompanyId();
                     let response;
                     let found = false;
 
-                    if (location.state.type === 'POS_INVOICE') {
-                        try {
-                            response = await posService.getPOSInvoiceById(targetId, companyId);
-                            if (response && response.success && response.data) {
-                                setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
-                                setViewMode(true);
-                                found = true;
-                            }
-                        } catch (e) {}
-                    }
-
-                    if (!found) {
-                        try {
-                            response = await salesInvoiceService.getById(targetId, companyId);
-                            if (response.data && response.data.success) {
-                                if (location.state.isEdit || location.state.autoEdit) {
-                                    handleEdit({ ...response.data.data, type: 'TAX_INVOICE' });
-                                } else {
-                                    setSelectedInvoice({ ...response.data.data, type: 'TAX_INVOICE' });
+                    if (targetId) {
+                        if (invoiceType === 'POS_INVOICE') {
+                            try {
+                                response = await posService.getPOSInvoiceById(targetId, companyId);
+                                if (response && response.success && response.data) {
+                                    setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
                                     setViewMode(true);
+                                    found = true;
                                 }
-                                found = true;
-                            }
-                        } catch (e) {}
+                            } catch (e) {}
+                        }
+
+                        if (!found) {
+                            try {
+                                response = await salesInvoiceService.getById(targetId, companyId);
+                                if (response.data && response.data.success) {
+                                    if (location.state?.isEdit || location.state?.autoEdit) {
+                                        handleEdit({ ...response.data.data, type: 'TAX_INVOICE' });
+                                    } else {
+                                        setSelectedInvoice({ ...response.data.data, type: 'TAX_INVOICE' });
+                                        setViewMode(true);
+                                    }
+                                    found = true;
+                                }
+                            } catch (e) {}
+                        }
+
+                        if (!found && invoiceType !== 'POS_INVOICE') {
+                            try {
+                                response = await posService.getPOSInvoiceById(targetId, companyId);
+                                if (response && response.success && response.data) {
+                                    setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
+                                    setViewMode(true);
+                                    found = true;
+                                }
+                            } catch (e) {}
+                        }
                     }
 
-                    if (!found && location.state.type !== 'POS_INVOICE') {
+                    if (!found && targetInvoiceNumber) {
                         try {
-                            response = await posService.getPOSInvoiceById(targetId, companyId);
-                            if (response && response.success && response.data) {
-                                setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
+                            const res = await salesInvoiceService.getAll(companyId);
+                            const list = res.data?.data || res.data || [];
+                            const match = list.find(inv => String(inv.invoiceNumber).trim().toLowerCase() === String(targetInvoiceNumber).trim().toLowerCase());
+                            if (match) {
+                                const detailRes = await salesInvoiceService.getById(match.id, companyId);
+                                if (detailRes.data && detailRes.data.success) {
+                                    setSelectedInvoice({ ...detailRes.data.data, type: match.type || 'TAX_INVOICE' });
+                                } else {
+                                    setSelectedInvoice({ ...match, type: match.type || 'TAX_INVOICE' });
+                                }
                                 setViewMode(true);
                                 found = true;
                             }
-                        } catch (e) {}
+                        } catch (e) {
+                            console.error("Error finding invoice by number", e);
+                        }
                     }
                 } catch (error) {
                     console.error("Error loading target invoice", error);
                 } finally {
-                    navigate(location.pathname, { replace: true, state: {} });
+                    const currentFrom = location.state?.from || location.state?.returnUrl;
+                    const currentSourceName = location.state?.sourceName;
+                    const currentReturnState = location.state?.returnState;
+                    const currentFromReport = location.state?.fromReport;
+                    navigate(location.pathname, { 
+                        replace: true, 
+                        state: { 
+                            from: currentFrom,
+                            sourceName: currentSourceName,
+                            returnState: currentReturnState,
+                            fromReport: currentFromReport,
+                            deepLinkDone: true
+                        } 
+                    });
                 }
             };
             fetchTarget();
         }
-    }, [location.state, navigate]);
+    }, [location.state, location.search, navigate]);
 
     const fetchCompanyDetails = async () => {
         try {
@@ -1563,6 +1700,7 @@ const Invoice = () => {
         setShowCurrencyField(false);
         setCarNumber('');
         setManualReference('');
+        setPoNumber('');
         setNumberingMode('auto');
         setNotes(companyDetails.notes || '');
         setTerms(companyDetails.termsInvoice || companyDetails.terms || '');
@@ -1896,6 +2034,7 @@ const Invoice = () => {
     // --- Actions Handlers ---
 
     const handleView = async (invoice) => {
+        setOriginRoute(null);
         try {
             // POS invoices already have all data from the list fetch
             if (invoice.type === 'POS_INVOICE') {
@@ -1922,6 +2061,7 @@ const Invoice = () => {
     };
 
     const handleCombinedView = (group) => {
+        setOriginRoute(null);
         const allItems = [];
         const allReceipts = [];
         const currencyTotals = {};
@@ -2053,7 +2193,8 @@ const Invoice = () => {
             const data = {
                 customFields: JSON.stringify(customFieldsPayload),
                 invoiceNumber: invoiceMeta.manualNo || `INV-${Date.now()}`,
-                manualReference: overrideManualRef !== null ? overrideManualRef : (manualReference || null),
+                manualReference: overrideManualRef !== null ? overrideManualRef : (manualReference || poNumber || null),
+                poNumber: poNumber || (overrideManualRef !== null ? overrideManualRef : (manualReference || null)),
                 salespersonId: salespersonId ? parseInt(salespersonId) : null,
                 carNumber: carNumber || null,
                 date: invoiceMeta.date,
@@ -2063,8 +2204,8 @@ const Invoice = () => {
                 salesOrderId: selectedOrder ? parseInt(selectedOrder.id) : null,
                 deliveryChallanId: selectedChallan ? parseInt(selectedChallan.id) : null,
                 notes: notes,
-                manualStatus,
-                status: manualStatus ? overrideStatus : undefined,
+                manualStatus: false,
+                status: undefined,
                 billingName: billingDetails.name,
                 billingAddress: billingDetails.address,
                 billingCity: billingDetails.city,
@@ -2408,44 +2549,7 @@ const Invoice = () => {
         }
     };
 
-    const handleStatusChange = async (invoiceId, isPos, newStatus) => {
-        try {
-            const companyId = GetCompanyId();
-            let response;
-            const payload = {
-                onlyUpdateStatus: true,
-                manualStatus: newStatus !== 'AUTO',
-                status: newStatus === 'AUTO' ? undefined : newStatus
-            };
 
-            if (isPos) {
-                response = await posService.updatePOSInvoice(invoiceId, payload, companyId);
-            } else {
-                response = await salesInvoiceService.update(invoiceId, payload, companyId);
-            }
-
-            if (response.data?.success || response.success) {
-                toast.success('Status updated successfully');
-                const updatedData = response.data?.data || response.data?.invoice || response.data;
-                setSelectedInvoice(prev => {
-                    if (!prev || String(prev.id) !== String(invoiceId)) return prev;
-                    const finalStatus = updatedData?.status || (newStatus === 'AUTO' ? prev.status : newStatus);
-                    return {
-                        ...prev,
-                        ...(updatedData || {}),
-                        status: finalStatus,
-                        manualStatus: newStatus !== 'AUTO'
-                    };
-                });
-                fetchData();
-            } else {
-                toast.error('Failed to update status');
-            }
-        } catch (error) {
-            console.error('Error changing status:', error);
-            toast.error(error.response?.data?.message || 'Error updating status');
-        }
-    };
 
     const handlePrint = () => {
         window.print();
@@ -2523,32 +2627,47 @@ const Invoice = () => {
                 }
             ];
 
-            // Resolve company logo (base64 or URL)
+            // Resolve company logo (base64 or URL) with timeout and fallback
             let logoBase64 = null;
             const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo);
-            if (logoRaw && logoRaw !== tabAccountsLogo) {
-                try {
-                    logoBase64 = await new Promise((resolve) => {
-                        if (logoRaw.startsWith('data:image/')) return resolve(logoRaw);
-                        const img = new Image();
-                        img.crossOrigin = 'Anonymous';
-                        img.onload = () => {
-                            try {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = img.naturalWidth || img.width;
-                                canvas.height = img.naturalHeight || img.height;
-                                const ctx = canvas.getContext('2d');
-                                ctx.drawImage(img, 0, 0);
-                                resolve(canvas.toDataURL('image/png'));
-                            } catch (err) {
-                                resolve(logoRaw);
-                            }
-                        };
-                        img.onerror = () => resolve(null);
-                        img.src = logoRaw;
-                    });
-                } catch (e) {
-                    console.warn('Could not convert logo to base64 for PDF:', e);
+            if (logoRaw && logoRaw !== tabAccountsLogo && typeof logoRaw === 'string') {
+                if (logoRaw.startsWith('data:image/')) {
+                    logoBase64 = logoRaw;
+                } else {
+                    try {
+                        logoBase64 = await new Promise((resolve) => {
+                            const timer = setTimeout(() => {
+                                console.warn('Company logo load timed out for PDF');
+                                resolve(null);
+                            }, 1500);
+
+                            const img = new Image();
+                            img.crossOrigin = 'Anonymous';
+                            img.onload = () => {
+                                clearTimeout(timer);
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = img.naturalWidth || img.width || 120;
+                                    canvas.height = img.naturalHeight || img.height || 60;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(img, 0, 0);
+                                    const dataUrl = canvas.toDataURL('image/png');
+                                    resolve(dataUrl.startsWith('data:image/') ? dataUrl : null);
+                                } catch (err) {
+                                    console.warn('Canvas toDataURL failed for logo (cross-origin):', err);
+                                    resolve(null);
+                                }
+                            };
+                            img.onerror = () => {
+                                clearTimeout(timer);
+                                resolve(null);
+                            };
+                            img.src = logoRaw;
+                        });
+                    } catch (e) {
+                        console.warn('Could not convert logo to base64 for PDF:', e);
+                        logoBase64 = null;
+                    }
                 }
             }
 
@@ -2704,11 +2823,18 @@ const Invoice = () => {
             }
 
             // Top Right Logo
-            if (logoBase64) {
+            if (logoBase64 && typeof logoBase64 === 'string' && logoBase64.startsWith('data:image/')) {
                 try {
                     doc.addImage(logoBase64, 'PNG', 156, 14, 40, 18);
                 } catch (e) {
                     console.warn('Could not add image logo to PDF:', e);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(22);
+                    doc.setTextColor(148, 163, 184);
+                    doc.text('CEA', 196, 22, { align: 'right' });
+                    doc.setFontSize(7.5);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('A R C H I T E C T S', 196, 26, { align: 'right' });
                 }
             } else {
                 doc.setFont('helvetica', 'bold');
@@ -2792,7 +2918,7 @@ const Invoice = () => {
                 Number(it.amt).toFixed(2)
             ]);
 
-            autoTable(doc, {
+            safeAutoTable(doc, {
                 startY: tableStartY,
                 head: tableHead,
                 body: tableBody,
@@ -2921,12 +3047,12 @@ const Invoice = () => {
             const vatTableHead = [['', 'RATE', 'VAT', 'NET']];
             const vatTableBody = vatSummaryList.map(v => [
                 '',
-                parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(v.rate).toFixed(0)}%`,
+                parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate).toFixed(2))}%`,
                 Number(v.vatAmount).toFixed(2),
                 Number(v.netAmount).toFixed(2)
             ]);
 
-            autoTable(doc, {
+            safeAutoTable(doc, {
                 startY: vatSectionY + 2,
                 head: vatTableHead,
                 body: vatTableBody,
@@ -2987,14 +3113,312 @@ const Invoice = () => {
                 doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
             }
 
-            const fileName = `${inv.invoiceNumber || 'Invoice'}.pdf`;
-            doc.save(fileName);
+            const cleanInvNum = String(inv.invoiceNumber || 'Invoice').replace(/[\\/:*?"<>|#]/g, '_');
+            const fileName = `${cleanInvNum}.pdf`;
+            safeSavePdf(doc, fileName);
             toast.dismiss('single-inv-pdf');
             toast.success(`Invoice ${inv.invoiceNumber || ''} downloaded as PDF!`);
         } catch (error) {
             console.error('Error generating invoice PDF:', error);
             toast.dismiss('single-inv-pdf');
             toast.error('Failed to generate PDF. Please try again.');
+        }
+    };
+
+    const getInvoicesForExport = () => {
+        const term = (searchTerm || '').trim().toLowerCase();
+        return invoices.filter(inv => {
+            if (!inv) return false;
+
+            // Search filter
+            let matchesSearch = true;
+            if (term) {
+                const invNum = (inv.invoiceNumber || '').toLowerCase();
+                const custName = (inv.customer?.name || inv.billingName || 'Walk-in Customer').toLowerCase();
+                const status = (inv.status || '').toLowerCase();
+                const type = (inv.type === 'POS_INVOICE' ? 'pos' : 'sales invoice').toLowerCase();
+                const total = String(inv.totalAmount || '');
+                matchesSearch = invNum.includes(term) ||
+                    custName.includes(term) ||
+                    status.includes(term) ||
+                    type.includes(term) ||
+                    total.includes(term);
+            }
+
+            // Date filters
+            let matchStart = true;
+            let matchEnd = true;
+            if (startDate || endDate) {
+                const invDate = inv.date ? new Date(inv.date).setHours(0, 0, 0, 0) : null;
+                if (invDate && !isNaN(invDate)) {
+                    if (startDate) {
+                        matchStart = invDate >= new Date(startDate).setHours(0, 0, 0, 0);
+                    }
+                    if (endDate) {
+                        matchEnd = invDate <= new Date(endDate).setHours(0, 0, 0, 0);
+                    }
+                }
+            }
+
+            // Customer filter
+            let matchCust = true;
+            if (customerViewOption === 'single' && selectedCustomerIdFilter) {
+                matchCust = String(inv.customerId) === String(selectedCustomerIdFilter);
+            }
+
+            return Boolean(matchesSearch && matchStart && matchEnd && matchCust);
+        });
+    };
+
+    const handleExportExcel = async (scope = exportScope) => {
+        try {
+            const targetSingle = invoiceToExport || (viewMode ? selectedInvoice : null);
+            if (scope === 'single' && targetSingle) {
+                toast.loading('Exporting invoice to Excel...', { id: 'export-excel-toast' });
+                let inv = targetSingle;
+                const companyId = GetCompanyId();
+                const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
+
+                if (!isCombined && inv.id) {
+                    if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0)) {
+                        try {
+                            const res = await salesInvoiceService.getById(inv.id, companyId);
+                            if (res?.data?.success && res.data.data) {
+                                inv = res.data.data;
+                            }
+                        } catch (e) {
+                            console.warn('Could not fetch single invoice details for Excel:', e);
+                        }
+                    } else if (inv.type === 'POS_INVOICE' && (!inv.posinvoiceitem || inv.posinvoiceitem.length === 0)) {
+                        try {
+                            const res = await posService.getPOSInvoiceById(inv.id, companyId);
+                            if (res?.success && res.data) {
+                                inv = { ...res.data, type: 'POS_INVOICE' };
+                            }
+                        } catch (e) {
+                            console.warn('Could not fetch POS invoice details for Excel:', e);
+                        }
+                    }
+                }
+
+                exportSingleInvoiceToExcel(inv);
+                toast.dismiss('export-excel-toast');
+                toast.success(`Exported invoice ${inv.invoiceNumber || ''} to Excel.`);
+                setShowExportModal(false);
+                setInvoiceToExport(null);
+                return;
+            }
+
+            const hasActiveFilters = Boolean(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter));
+            let targetInvoices = (scope === 'all' || !hasActiveFilters)
+                ? invoices
+                : getInvoicesForExport();
+
+            if ((!targetInvoices || !targetInvoices.length) && scope === 'all') {
+                const companyId = GetCompanyId();
+                if (companyId) {
+                    try {
+                        const res = await salesInvoiceService.getAll(companyId);
+                        const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
+                        if (Array.isArray(fetched) && fetched.length > 0) {
+                            targetInvoices = fetched;
+                            setInvoices(fetched);
+                        }
+                    } catch (fetchErr) {
+                        console.error('Failed to fetch invoices for export:', fetchErr);
+                    }
+                }
+            }
+
+            if (!targetInvoices || !targetInvoices.length) {
+                toast.error('No invoices available to export');
+                return;
+            }
+
+            toast.loading('Exporting invoices to Excel...', { id: 'export-excel-toast' });
+
+            const exportData = targetInvoices.map(inv => {
+                const tot = parseFloat(inv.totalAmount || 0);
+                const paid = parseFloat(inv.paidAmount || 0);
+                const bal = inv.balanceAmount !== undefined ? parseFloat(inv.balanceAmount) : (tot - paid);
+
+                let dateDisplay = '';
+                if (inv.date) {
+                    const d = new Date(inv.date);
+                    dateDisplay = isNaN(d.getTime()) ? String(inv.date).slice(0, 10) : d.toLocaleDateString();
+                }
+
+                let dueDateDisplay = '';
+                if (inv.dueDate) {
+                    const d = new Date(inv.dueDate);
+                    dueDateDisplay = isNaN(d.getTime()) ? String(inv.dueDate).slice(0, 10) : d.toLocaleDateString();
+                }
+
+                let paymentDateDisplay = 'N/A';
+                if (inv.paymentDate) {
+                    const d = new Date(inv.paymentDate);
+                    paymentDateDisplay = isNaN(d.getTime()) ? String(inv.paymentDate).slice(0, 10) : d.toLocaleDateString();
+                }
+
+                return {
+                    'Invoice #': inv.invoiceNumber || 'N/A',
+                    'Purchase Order #': inv.poNumber || inv.manualReference || 'N/A',
+                    'Type': inv.type === 'POS_INVOICE' ? 'POS' : 'Sales Invoice',
+                    'Customer Name': inv.customer?.name || inv.billingName || 'Walk-in Customer',
+                    'Customer Phone': inv.customer?.phone || '',
+                    'Date': dateDisplay,
+                    'Due Date': dueDateDisplay,
+                    'Subtotal': parseFloat(inv.subtotal || 0),
+                    'Discount': parseFloat(inv.discountAmount || 0),
+                    'Tax Amount': parseFloat(inv.taxAmount || 0),
+                    'Total Amount': tot,
+                    'Paid Amount': paid,
+                    'Balance Due': bal,
+                    'Status': inv.status || 'UNPAID',
+                    'Payment Date': paymentDateDisplay,
+                    'Currency': inv.currency || companySettings?.currency || 'EUR'
+                };
+            });
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            exportToExcel(exportData, `Sales_Invoices_${dateStr}.xlsx`, 'Invoices');
+            toast.dismiss('export-excel-toast');
+            toast.success(`Exported ${exportData.length} invoices to Excel.`);
+            setShowExportModal(false);
+            setInvoiceToExport(null);
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            toast.dismiss('export-excel-toast');
+            toast.error(`Failed to export Excel: ${error.message || 'Unknown error'}`);
+        }
+    };
+
+    const handleExportPDF = async (scope = exportScope) => {
+        try {
+            const targetSingle = invoiceToExport || (viewMode ? selectedInvoice : null);
+            if (scope === 'single' && targetSingle) {
+                await handleDownloadSingleInvoicePDF(targetSingle);
+                setShowExportModal(false);
+                setInvoiceToExport(null);
+                return;
+            }
+
+            const hasActiveFilters = Boolean(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter));
+            let targetInvoices = (scope === 'all' || !hasActiveFilters)
+                ? invoices
+                : getInvoicesForExport();
+
+            if ((!targetInvoices || !targetInvoices.length) && scope === 'all') {
+                const companyId = GetCompanyId();
+                if (companyId) {
+                    try {
+                        const res = await salesInvoiceService.getAll(companyId);
+                        const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
+                        if (Array.isArray(fetched) && fetched.length > 0) {
+                            targetInvoices = fetched;
+                            setInvoices(fetched);
+                        }
+                    } catch (fetchErr) {
+                        console.error('Failed to fetch invoices for export:', fetchErr);
+                    }
+                }
+            }
+
+            if (!targetInvoices || !targetInvoices.length) {
+                toast.error('No invoices available to export');
+                return;
+            }
+
+            toast.loading('Generating invoices PDF...', { id: 'export-pdf-toast' });
+
+            const doc = new jsPDF('l', 'mm', 'a4');
+            const companyName = companySettings?.name || 'TAB ACCOUNTS';
+
+            // Header
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59);
+            doc.text(`${companyName} - Sales Invoices Register`, 14, 15);
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            let filterSummary = `Export Date: ${new Date().toLocaleDateString()} | Total Records: ${targetInvoices.length}`;
+            if (startDate || endDate) {
+                filterSummary += ` | Period: ${startDate || 'Start'} to ${endDate || 'Current'}`;
+            }
+            if (customerViewOption === 'single' && selectedCustomerIdFilter) {
+                const cust = customers.find(c => String(c.id) === String(selectedCustomerIdFilter));
+                if (cust) filterSummary += ` | Customer: ${cust.name}`;
+            }
+            doc.text(filterSummary, 14, 22);
+
+            const headers = [["Invoice #", "P.O. #", "Type", "Customer", "Date", "Due Date", "Total Amount", "Paid", "Balance Due", "Status"]];
+            const body = targetInvoices.map(inv => {
+                const invCurr = inv.currency || companySettings?.currency || 'EUR';
+                const tot = parseFloat(inv.totalAmount || 0);
+                const paid = parseFloat(inv.paidAmount || 0);
+                const bal = inv.balanceAmount !== undefined ? parseFloat(inv.balanceAmount) : (tot - paid);
+
+                let dateDisplay = '';
+                if (inv.date) {
+                    const d = new Date(inv.date);
+                    dateDisplay = isNaN(d.getTime()) ? String(inv.date).slice(0, 10) : d.toLocaleDateString();
+                }
+
+                let dueDateDisplay = 'N/A';
+                if (inv.dueDate) {
+                    const d = new Date(inv.dueDate);
+                    dueDateDisplay = isNaN(d.getTime()) ? String(inv.dueDate).slice(0, 10) : d.toLocaleDateString();
+                }
+
+                return [
+                    inv.invoiceNumber || 'N/A',
+                    inv.poNumber || inv.manualReference || '-',
+                    inv.type === 'POS_INVOICE' ? 'POS' : 'INV',
+                    inv.customer?.name || inv.billingName || 'Walk-in Customer',
+                    dateDisplay,
+                    dueDateDisplay,
+                    `${invCurr} ${Number(tot).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    `${invCurr} ${Number(paid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    `${invCurr} ${Number(bal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    inv.paymentDate && (paid > 0 || inv.status === 'PAID')
+                        ? `${inv.status || 'PAID'} (${new Date(inv.paymentDate).toLocaleDateString()})`
+                        : (inv.status || 'UNPAID')
+                ];
+            });
+
+            safeAutoTable(doc, {
+                head: headers,
+                body: body,
+                startY: 26,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [30, 41, 59],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 8.5
+                },
+                bodyStyles: {
+                    fontSize: 8,
+                    textColor: [30, 41, 59]
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                margin: { top: 26, left: 14, right: 14 }
+            });
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            safeSavePdf(doc, `Sales_Invoices_${dateStr}.pdf`);
+            toast.dismiss('export-pdf-toast');
+            toast.success(`Exported ${targetInvoices.length} invoices to PDF.`);
+            setShowExportModal(false);
+            setInvoiceToExport(null);
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            toast.dismiss('export-pdf-toast');
+            toast.error(`Failed to export PDF: ${error.message || 'Unknown error'}`);
         }
     };
 
@@ -3768,13 +4192,19 @@ const Invoice = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <Download size={20} style={{ color: '#38bdf8' }} />
                                 <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#ffffff' }}>Export Invoices</h3>
-                                    <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>Choose your preferred export file format</p>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#ffffff' }}>
+                                        {invoiceToExport ? `Export Invoice #${invoiceToExport.invoiceNumber || ''}` : 'Export Invoices'}
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+                                        {invoiceToExport
+                                            ? `Exporting for ${invoiceToExport.customer?.name || invoiceToExport.billingName || 'Walk-in Customer'}`
+                                            : 'Choose your preferred export file format'}
+                                    </p>
                                 </div>
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setShowExportModal(false)}
+                                onClick={() => { setShowExportModal(false); setInvoiceToExport(null); }}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -3792,8 +4222,8 @@ const Invoice = () => {
 
                         {/* Body */}
                         <div style={{ padding: '24px' }}>
-                            {/* Scope Selector (if filters applied) */}
-                            {(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter)) && (
+                            {/* Scope Selector */}
+                            {invoiceToExport ? (
                                 <div style={{
                                     marginBottom: '20px',
                                     padding: '12px 16px',
@@ -3810,29 +4240,71 @@ const Invoice = () => {
                                         display: 'block',
                                         marginBottom: '8px'
                                     }}>
-                                        Select Export Range
+                                        Export Scope
                                     </span>
-                                    <div style={{ display: 'flex', gap: '18px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '600' }}>
                                             <input
                                                 type="radio"
                                                 name="invoiceExportScope"
-                                                checked={exportScope === 'filtered'}
-                                                onChange={() => setExportScope('filtered')}
+                                                checked={exportScope === 'single'}
+                                                onChange={() => setExportScope('single')}
                                             />
-                                            <span>Current Filtered ({getInvoicesForExport().length} invoices)</span>
+                                            <span>This Invoice only ({invoiceToExport.invoiceNumber || 'Selected'})</span>
                                         </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
                                             <input
                                                 type="radio"
                                                 name="invoiceExportScope"
                                                 checked={exportScope === 'all'}
                                                 onChange={() => setExportScope('all')}
                                             />
-                                            <span>All Invoices ({invoices.length} invoices)</span>
+                                            <span>All Invoices register ({invoices.length} invoices)</span>
                                         </label>
                                     </div>
                                 </div>
+                            ) : (
+                                (searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter)) && (
+                                    <div style={{
+                                        marginBottom: '20px',
+                                        padding: '12px 16px',
+                                        background: '#f8fafc',
+                                        borderRadius: '10px',
+                                        border: '1px solid #e2e8f0'
+                                    }}>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            fontWeight: '700',
+                                            color: '#64748b',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.025em',
+                                            display: 'block',
+                                            marginBottom: '8px'
+                                        }}>
+                                            Select Export Range
+                                        </span>
+                                        <div style={{ display: 'flex', gap: '18px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="invoiceExportScope"
+                                                    checked={exportScope === 'filtered'}
+                                                    onChange={() => setExportScope('filtered')}
+                                                />
+                                                <span>Current Filtered ({getInvoicesForExport().length} invoices)</span>
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.86rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="invoiceExportScope"
+                                                    checked={exportScope === 'all'}
+                                                    onChange={() => setExportScope('all')}
+                                                />
+                                                <span>All Invoices ({invoices.length} invoices)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                )
                             )}
 
                             {/* Format Cards */}
@@ -3886,7 +4358,9 @@ const Invoice = () => {
                                             </span>
                                         </div>
                                         <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                                            Full data spreadsheet for accounting, analysis, and custom formulas.
+                                            {exportScope === 'single' && invoiceToExport
+                                                ? 'Invoice line items, quantities, rates, discounts, tax, and customer summary.'
+                                                : 'Full data spreadsheet for accounting, analysis, and custom formulas.'}
                                         </p>
                                     </div>
                                     <button
@@ -3957,7 +4431,9 @@ const Invoice = () => {
                                             </span>
                                         </div>
                                         <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                                            Printable formal invoice register with headers, totals, and statuses.
+                                            {exportScope === 'single' && invoiceToExport
+                                                ? 'Official printable invoice with company logo, tax rates, and totals.'
+                                                : 'Printable formal invoice register with headers, totals, and statuses.'}
                                         </p>
                                     </div>
                                     <button
@@ -3991,7 +4467,7 @@ const Invoice = () => {
                         }}>
                             <button
                                 type="button"
-                                onClick={() => setShowExportModal(false)}
+                                onClick={() => { setShowExportModal(false); setInvoiceToExport(null); }}
                                 style={{
                                     background: '#f1f5f9',
                                     color: '#475569',
@@ -4014,10 +4490,44 @@ const Invoice = () => {
 
     // --- RENDER FULL PAGE VIEW IF IN VIEW MODE ---
     if (viewMode && selectedInvoice) {
+        const viewTotal = parseFloat(selectedInvoice.totalAmount || 0);
+        const viewPaid = selectedInvoice.paidAmount !== undefined && selectedInvoice.paidAmount !== null
+            ? parseFloat(selectedInvoice.paidAmount)
+            : 0;
+        const viewBalance = selectedInvoice.balanceAmount !== undefined && selectedInvoice.balanceAmount !== null
+            ? parseFloat(selectedInvoice.balanceAmount)
+            : Math.max(0, viewTotal - viewPaid);
+        const viewDuePassed = Boolean(selectedInvoice.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const viewStatus = (() => {
+            const raw = (selectedInvoice.status || '').toUpperCase();
+            if (raw === 'CANCELLED') return 'CANCELLED';
+            const tol = 0.01;
+            if (viewBalance <= tol && (viewTotal > 0 || viewPaid > 0)) return 'PAID';
+            if (viewBalance > tol && viewDuePassed) return 'OVERDUE';
+            if (viewPaid > tol && viewBalance > tol) return 'PARTIAL';
+            if (viewBalance <= tol && viewTotal === 0) return 'PAID';
+            return 'UNPAID';
+        })();
+
         return (
             <div className="Invoice-invoice-full-page-view">
                 <div className="Invoice-view-page-header Invoice-no-print">
                     <button className="Invoice-btn-back" onClick={async () => {
+                        if (originRoute) {
+                            const returnTarget = originRoute.path;
+                            const returnState = originRoute.returnState;
+                            setOriginRoute(null);
+                            setViewMode(false);
+                            setSelectedInvoice(null);
+                            if (window.history.length > 1) {
+                                navigate(-1);
+                            } else if (typeof returnTarget === 'string' && returnTarget !== '-1') {
+                                navigate(returnTarget, { state: returnState });
+                            } else {
+                                navigate('/company/reports/sales');
+                            }
+                            return;
+                        }
                         setViewMode(false);
                         if (shouldAutoOpenNext) {
                             setShouldAutoOpenNext(false);
@@ -4045,19 +4555,16 @@ const Invoice = () => {
                     <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status:</span>
-                            <select
-                                value={selectedInvoice.manualStatus ? selectedInvoice.status : 'AUTO'}
-                                onChange={(e) => handleStatusChange(selectedInvoice.id, selectedInvoice.type === 'POS_INVOICE', e.target.value)}
+                            <span
                                 className="Invoice-invoice-status-pill"
-                                style={getStatusStyle(selectedInvoice.manualStatus ? selectedInvoice.status : 'AUTO')}
+                                style={{
+                                    ...getStatusStyle(viewStatus),
+                                    cursor: 'default',
+                                    userSelect: 'none'
+                                }}
                             >
-                                <option value="AUTO">Auto ({selectedInvoice.status})</option>
-                                <option value="UNPAID">UNPAID</option>
-                                <option value="PARTIAL">PARTIAL</option>
-                                <option value="PAID">PAID</option>
-                                <option value="OVERDUE">OVERDUE</option>
-                                <option value="CANCELLED">CANCELLED</option>
-                            </select>
+                                {viewStatus}
+                            </span>
                         </div>
 
                         {/* Primary Action */}
@@ -4106,6 +4613,7 @@ const Invoice = () => {
                             handlePrint={handlePrint}
                             navigate={navigate}
                             setShowExportModal={setShowExportModal}
+                            handleOpenExportModal={handleOpenExportModal}
                             setViewMode={setViewMode}
                         />
                     </div>
@@ -4215,21 +4723,22 @@ const Invoice = () => {
 
                     const paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
                         ? parseFloat(selectedInvoice.paidAmount)
-                        : totalVal;
+                        : 0;
 
                     const balanceVal = selectedInvoice?.balanceAmount !== undefined && selectedInvoice?.balanceAmount !== null
                         ? parseFloat(selectedInvoice.balanceAmount)
                         : Math.max(0, totalVal - paidVal);
 
-                    const isFullyPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || selectedInvoice?.status === 'Paid';
+                    const isDuePassedDate = Boolean(selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
 
                     const currentStatus = (() => {
-                        if (selectedInvoice?.status) return String(selectedInvoice.status).toUpperCase();
-                        if (isFullyPaid) return 'PAID';
-                        if (balanceVal > 0 && selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
-                            return 'OVERDUE';
-                        }
-                        if (paidVal > 0 && balanceVal > 0) return 'PARTIAL';
+                        const rawStatus = (selectedInvoice?.status || '').toUpperCase();
+                        if (rawStatus === 'CANCELLED') return 'CANCELLED';
+                        const tol = 0.01;
+                        if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+                        if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
+                        if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
+                        if (balanceVal <= tol && totalVal === 0) return 'PAID';
                         return 'UNPAID';
                     })();
 
@@ -4318,6 +4827,13 @@ const Invoice = () => {
 
                                             <span className="invoice-cea-kv-key">DATE</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '06-05-2026'}</span>
+
+                                            {(selectedInvoice?.poNumber || selectedInvoice?.manualReference) && (
+                                                <>
+                                                    <span className="invoice-cea-kv-key">P.O. #</span>
+                                                    <span className="invoice-cea-kv-val">{selectedInvoice.poNumber || selectedInvoice.manualReference}</span>
+                                                </>
+                                            )}
 
                                             <span className="invoice-cea-kv-key">TERMS</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.paymentTerms || 'Net 7'}</span>
@@ -4486,7 +5002,7 @@ const Invoice = () => {
                                             {vatSummaryList.map((vat, i) => (
                                                 <tr key={i}>
                                                     <td></td>
-                                                    <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(vat.rate || defaultVat || 23).toFixed(0)}%`}</td>
+                                                    <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(vat.rate !== undefined ? vat.rate : (defaultVat || 23)).toFixed(2))}%`}</td>
                                                     <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
                                                     <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
                                                 </tr>
@@ -4655,127 +5171,6 @@ const Invoice = () => {
             );
         }
 
-    const getInvoicesForExport = () => {
-        return invoices.filter(inv => {
-            const matchesSearch = (inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                inv.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                inv.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                inv.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                inv.totalAmount?.toString().includes(searchTerm));
-            const invoiceDate = new Date(inv.date).setHours(0, 0, 0, 0);
-            const matchStart = startDate ? invoiceDate >= new Date(startDate).setHours(0, 0, 0, 0) : true;
-            const matchEnd = endDate ? invoiceDate <= new Date(endDate).setHours(0, 0, 0, 0) : true;
-            const matchCust = (customerViewOption === 'single' && selectedCustomerIdFilter)
-                ? inv.customerId === parseInt(selectedCustomerIdFilter)
-                : true;
-            return matchesSearch && matchStart && matchEnd && matchCust;
-        });
-    };
-
-    const handleExportExcel = (scope = exportScope) => {
-        const targetInvoices = (scope === 'all' || (!searchTerm && !startDate && !endDate && (customerViewOption !== 'single' || !selectedCustomerIdFilter)))
-            ? invoices
-            : getInvoicesForExport();
-
-        if (!targetInvoices.length) {
-            toast.error('No invoices available to export');
-            return;
-        }
-
-        const exportData = targetInvoices.map(inv => ({
-            'Invoice #': inv.invoiceNumber || 'N/A',
-            'Type': inv.type === 'POS_INVOICE' ? 'POS' : 'Sales Invoice',
-            'Customer Name': inv.customer?.name || inv.billingName || 'Walk-in Customer',
-            'Date': inv.date ? new Date(inv.date).toLocaleDateString() : '',
-            'Due Date': inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '',
-            'Total Amount': inv.totalAmount || 0,
-            'Paid Amount': inv.paidAmount || 0,
-            'Balance Due': inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0)),
-            'Status': inv.status || 'UNPAID',
-            'Payment Date': inv.paymentDate ? new Date(inv.paymentDate).toLocaleDateString() : 'N/A',
-            'Currency': inv.currency || companySettings?.currency || 'EUR'
-        }));
-
-        const dateStr = new Date().toISOString().slice(0, 10);
-        exportToExcel(exportData, `Sales_Invoices_${dateStr}.xlsx`, 'Invoices');
-        toast.success(`Exported ${exportData.length} invoices to Excel.`);
-        setShowExportModal(false);
-    };
-
-    const handleExportPDF = (scope = exportScope) => {
-        const targetInvoices = (scope === 'all' || (!searchTerm && !startDate && !endDate && (customerViewOption !== 'single' || !selectedCustomerIdFilter)))
-            ? invoices
-            : getInvoicesForExport();
-
-        if (!targetInvoices.length) {
-            toast.error('No invoices available to export');
-            return;
-        }
-
-        const doc = new jsPDF('l', 'mm', 'a4');
-        const companyName = companySettings?.name || 'TAB ACCOUNTS';
-
-        // Header
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text(`${companyName} - Sales Invoices Register`, 14, 15);
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
-        let filterSummary = `Export Date: ${new Date().toLocaleDateString()} | Total Records: ${targetInvoices.length}`;
-        if (startDate || endDate) {
-            filterSummary += ` | Period: ${startDate || 'Start'} to ${endDate || 'Current'}`;
-        }
-        if (customerViewOption === 'single' && selectedCustomerIdFilter) {
-            const cust = customers.find(c => c.id === parseInt(selectedCustomerIdFilter));
-            if (cust) filterSummary += ` | Customer: ${cust.name}`;
-        }
-        doc.text(filterSummary, 14, 22);
-
-        const headers = [["Invoice #", "Type", "Customer", "Date", "Due Date", "Total Amount", "Paid", "Balance Due", "Status"]];
-        const body = targetInvoices.map(inv => [
-            inv.invoiceNumber || 'N/A',
-            inv.type === 'POS_INVOICE' ? 'POS' : 'INV',
-            inv.customer?.name || inv.billingName || 'Walk-in Customer',
-            inv.date ? new Date(inv.date).toLocaleDateString() : '',
-            inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A',
-            formatDocCurrency(inv.totalAmount || 0, inv.currency),
-            formatDocCurrency(inv.paidAmount || 0, inv.currency),
-            formatDocCurrency(inv.balanceAmount !== undefined ? inv.balanceAmount : ((inv.totalAmount || 0) - (inv.paidAmount || 0)), inv.currency),
-            inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID')
-                ? `${inv.status} (${new Date(inv.paymentDate).toLocaleDateString()})`
-                : (inv.status || 'UNPAID')
-        ]);
-
-        autoTable(doc, {
-            head: headers,
-            body: body,
-            startY: 26,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [30, 41, 59],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: 8.5
-            },
-            bodyStyles: {
-                fontSize: 8,
-                textColor: [30, 41, 59]
-            },
-            alternateRowStyles: {
-                fillColor: [248, 250, 252]
-            },
-            margin: { top: 26, left: 14, right: 14 }
-        });
-
-        const dateStr = new Date().toISOString().slice(0, 10);
-        doc.save(`Sales_Invoices_${dateStr}.pdf`);
-        toast.success(`Exported ${targetInvoices.length} invoices to PDF.`);
-        setShowExportModal(false);
-    };
-
     // --- DEFAULT RENDER (LIST) ---
     return (
         <div className="Invoice-invoice-page">
@@ -4790,7 +5185,7 @@ const Invoice = () => {
                             <button
                                 className="Invoice-btn-add"
                                 style={{ background: '#334155' }}
-                                onClick={() => setShowExportModal(true)}
+                                onClick={() => handleOpenExportModal(null)}
                             >
                                 <Download size={18} className="mr-2" /> Export
                             </button>
@@ -4990,19 +5385,16 @@ const Invoice = () => {
                                                         </td>
                                                         <td>
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                <select
-                                                                    value={inv.manualStatus ? inv.status : 'AUTO'}
-                                                                    onChange={(e) => handleStatusChange(inv.id, inv.type === 'POS_INVOICE', e.target.value)}
+                                                                <span
                                                                     className="Invoice-invoice-status-pill"
-                                                                    style={getStatusStyle(inv.manualStatus ? inv.status : 'AUTO')}
+                                                                    style={{
+                                                                        ...getStatusStyle(inv.status || 'UNPAID'),
+                                                                        cursor: 'default',
+                                                                        userSelect: 'none'
+                                                                    }}
                                                                 >
-                                                                    <option value="AUTO">Auto ({inv.status})</option>
-                                                                    <option value="UNPAID">UNPAID</option>
-                                                                    <option value="PARTIAL">PARTIAL</option>
-                                                                    <option value="PAID">PAID</option>
-                                                                    <option value="OVERDUE">OVERDUE</option>
-                                                                    <option value="CANCELLED">CANCELLED</option>
-                                                                </select>
+                                                                    {inv.status || 'UNPAID'}
+                                                                </span>
                                                                 {inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && (
                                                                     <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: '600' }}>
                                                                         Paid: {new Date(inv.paymentDate).toLocaleDateString()}
@@ -5036,6 +5428,7 @@ const Invoice = () => {
                                                                     handlePrintInvoice={handlePrintInvoice}
                                                                     navigate={navigate}
                                                                     setShowExportModal={setShowExportModal}
+                                                                    handleOpenExportModal={handleOpenExportModal}
                                                                 />
                                                             </div>
                                                         </td>
@@ -5222,19 +5615,16 @@ const Invoice = () => {
                                                             if (group.isSingle) {
                                                                 const singleInv = group.invoices[0];
                                                                 return (
-                                                                    <select
-                                                                        value={singleInv.manualStatus ? singleInv.status : 'AUTO'}
-                                                                        onChange={(e) => handleStatusChange(singleInv.id, singleInv.type === 'POS_INVOICE', e.target.value)}
+                                                                    <span
                                                                         className="Invoice-invoice-status-pill"
-                                                                        style={getStatusStyle(singleInv.manualStatus ? singleInv.status : 'AUTO')}
+                                                                        style={{
+                                                                            ...getStatusStyle(singleInv.status || 'UNPAID'),
+                                                                            cursor: 'default',
+                                                                            userSelect: 'none'
+                                                                        }}
                                                                     >
-                                                                        <option value="AUTO">Auto ({singleInv.status})</option>
-                                                                        <option value="UNPAID">UNPAID</option>
-                                                                        <option value="PARTIAL">PARTIAL</option>
-                                                                        <option value="PAID">PAID</option>
-                                                                        <option value="OVERDUE">OVERDUE</option>
-                                                                        <option value="CANCELLED">CANCELLED</option>
-                                                                    </select>
+                                                                        {singleInv.status || 'UNPAID'}
+                                                                    </span>
                                                                 );
                                                             }
                                                             return (
@@ -5316,6 +5706,7 @@ const Invoice = () => {
                                                                         handlePrintInvoice={handlePrintInvoice}
                                                                         navigate={navigate}
                                                                         setShowExportModal={setShowExportModal}
+                                                                        handleOpenExportModal={handleOpenExportModal}
                                                                     />
                                                                 </>
                                                             )}
@@ -5381,19 +5772,16 @@ const Invoice = () => {
                                                                                         </td>
                                                                                         <td>
                                                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                                                <select
-                                                                                                    value={si.manualStatus ? si.status : 'AUTO'}
-                                                                                                    onChange={(e) => handleStatusChange(si.id, si.type === 'POS_INVOICE', e.target.value)}
+                                                                                                <span
                                                                                                     className="Invoice-invoice-status-pill"
-                                                                                                    style={getStatusStyle(si.manualStatus ? si.status : 'AUTO')}
+                                                                                                    style={{
+                                                                                                        ...getStatusStyle(si.status || 'UNPAID'),
+                                                                                                        cursor: 'default',
+                                                                                                        userSelect: 'none'
+                                                                                                    }}
                                                                                                 >
-                                                                                                    <option value="AUTO">Auto ({si.status})</option>
-                                                                                                    <option value="UNPAID">UNPAID</option>
-                                                                                                    <option value="PARTIAL">PARTIAL</option>
-                                                                                                    <option value="PAID">PAID</option>
-                                                                                                    <option value="OVERDUE">OVERDUE</option>
-                                                                                                    <option value="CANCELLED">CANCELLED</option>
-                                                                                                </select>
+                                                                                                    {si.status || 'UNPAID'}
+                                                                                                </span>
                                                                                                 {si.paymentDate && (si.paidAmount > 0 || si.status === 'PAID' || si.status === 'PARTIAL') && (
                                                                                                     <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                                                                         Paid: {new Date(si.paymentDate).toLocaleDateString()}
@@ -5428,6 +5816,7 @@ const Invoice = () => {
                                                                                                     handlePrintInvoice={handlePrintInvoice}
                                                                                                     navigate={navigate}
                                                                                                     setShowExportModal={setShowExportModal}
+                                                                                                    handleOpenExportModal={handleOpenExportModal}
                                                                                                 />
                                                                                             </div>
                                                                                         </td>
@@ -5509,6 +5898,10 @@ const Invoice = () => {
                                 alignItems: 'center'
                             }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Optional Fields:</span>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={showPoNumberField} onChange={(e) => setShowPoNumberField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
+                                    Purchase Order No.
+                                </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={showCurrencyField} onChange={(e) => setShowCurrencyField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
                                     Show Currency
@@ -5660,6 +6053,21 @@ const Invoice = () => {
                                 {/* RIGHT COLUMN */}
                                 <div className="Invoice-header-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '300px' }}>
 
+                                    {showPoNumberField && (
+                                        <div className="Invoice-meta-col">
+                                            <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
+                                                PURCHASE ORDER NO.
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={poNumber}
+                                                onChange={(e) => setPoNumber(e.target.value)}
+                                                placeholder="e.g. PO-00123"
+                                                style={{ width: '100%', maxWidth: '280px' }}
+                                                className="Invoice-compact-input"
+                                            />
+                                        </div>
+                                    )}
 
                                     <div className="Invoice-meta-col">
                                         <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
@@ -7812,7 +8220,7 @@ const Invoice = () => {
                                                 </div>
                                             </div>
                                             <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)*</label>
+                                                <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
                                                 <div className="Zirak-Inventory-input-with-action">
                                                     <select
                                                         name="uomId" className="Zirak-Inventory-form-input"
@@ -7825,7 +8233,6 @@ const Invoice = () => {
                                                                 salesUomId: val
                                                             }));
                                                         }}
-                                                        required
                                                     >
                                                         <option value="">Select Base UOM</option>
                                                         {allUoms.filter(u => u.uomType === 'Simple').map(uom => (

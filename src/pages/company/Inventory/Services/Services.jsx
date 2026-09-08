@@ -224,7 +224,7 @@ const Services = () => {
                                     <tr key={s.id}>
                                         <td className="Zirak-Services-font-semibold">{s.name}</td>
                                         <td>{s.description || '-'}</td>
-                                        <td>{s.uom?.unitName}</td>
+                                        <td>{s.uom?.unitName || '-'}</td>
                                         <td>{formatCurrency(s.price)}</td>
                                         <td>
                                              <div className="Zirak-Services-action-buttons">
@@ -282,9 +282,9 @@ const Services = () => {
                                     <textarea name="description" className="Zirak-Services-form-input Zirak-Services-textarea" placeholder="Describe the service" rows={3} value={formData.description} onChange={handleInputChange}></textarea>
                                 </div>
                                 <div className="Zirak-Services-form-group">
-                                    <label className="Zirak-Services-form-label">Unit of Measure <span className="Zirak-Services-text-red">*</span></label>
-                                    <select name="uomId" className="Zirak-Services-form-input" required value={formData.uomId} onChange={handleInputChange}>
-                                        <option value="">Select UOM</option>
+                                    <label className="Zirak-Services-form-label">Unit of Measure (Optional)</label>
+                                    <select name="uomId" className="Zirak-Services-form-input" value={formData.uomId} onChange={handleInputChange}>
+                                        <option value="">Select UOM (Optional)</option>
                                         {uoms.map(uom => (
                                             <option key={uom.id} value={uom.id}>{uom.unitName}</option>
                                         ))}
@@ -343,7 +343,7 @@ const Services = () => {
                                 </div>
                                 <div className="Zirak-Services-view-item">
                                     <label>Unit of Measure</label>
-                                    <p>{selectedService?.uom?.unitName}</p>
+                                    <p>{selectedService?.uom?.unitName || 'N/A'}</p>
                                 </div>
                                 <div className="Zirak-Services-view-item">
                                     <label>Price</label>
@@ -391,9 +391,9 @@ const Services = () => {
                                     <textarea name="description" className="Zirak-Services-form-input Zirak-Services-textarea" rows={3} value={formData.description} onChange={handleInputChange}></textarea>
                                 </div>
                                 <div className="Zirak-Services-form-group">
-                                    <label className="Zirak-Services-form-label">Unit of Measure <span className="Zirak-Services-text-red">*</span></label>
-                                    <select name="uomId" className="Zirak-Services-form-input" required value={formData.uomId} onChange={handleInputChange}>
-                                        <option value="">Select UOM</option>
+                                    <label className="Zirak-Services-form-label">Unit of Measure (Optional)</label>
+                                    <select name="uomId" className="Zirak-Services-form-input" value={formData.uomId} onChange={handleInputChange}>
+                                        <option value="">Select UOM (Optional)</option>
                                         {uoms.map(uom => (
                                             <option key={uom.id} value={uom.id}>{uom.unitName}</option>
                                         ))}

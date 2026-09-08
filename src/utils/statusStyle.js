@@ -22,19 +22,23 @@ export const getStatusStyle = (status) => {
 
     // Green — fully settled / delivered / accepted
     if (['PAID', 'COMPLETED', 'RECEIVED', 'CLEARED', 'ACCEPTED'].includes(s))
-        return { ...base, background: '#f1f5f9', color: '#334155' };
+        return { ...base, background: '#dcfce7', color: '#15803d' };
 
     // Orange / Yellow — partial or mid-state
     if (['PARTIAL', 'PARTIALLY_PAID', 'PARTIALLY PAID'].includes(s))
-        return { ...base, background: '#fff7ed', color: '#ea580c' };
+        return { ...base, background: '#fef3c7', color: '#b45309' };
 
-    // Red — unpaid, overdue, cancelled, declined, bounced, rejected
-    if (['UNPAID', 'PENDING', 'OVERDUE', 'BOUNCED', 'REJECTED', 'DECLINED'].includes(s))
+    // Red — overdue
+    if (['OVERDUE'].includes(s))
+        return { ...base, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' };
+
+    // Soft red / pink — unpaid, pending
+    if (['UNPAID', 'PENDING', 'BOUNCED', 'REJECTED', 'DECLINED'].includes(s))
         return { ...base, background: '#fee2e2', color: '#dc2626' };
 
-    // Red (same) for cancelled
+    // Slate / Gray — cancelled
     if (s === 'CANCELLED')
-        return { ...base, background: '#fef2f2', color: '#dc2626' };
+        return { ...base, background: '#f1f5f9', color: '#64748b' };
 
     // Blue — draft
     if (s === 'DRAFT')

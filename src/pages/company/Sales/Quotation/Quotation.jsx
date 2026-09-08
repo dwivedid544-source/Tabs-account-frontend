@@ -2786,7 +2786,7 @@ const Quotation = () => {
                                         </div>
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)*</label>
+                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
                                         <div className="Zirak-Inventory-input-with-action">
                                             <select
                                                 name="uomId" className="Zirak-Inventory-form-input"
@@ -2799,7 +2799,6 @@ const Quotation = () => {
                                                         salesUomId: val
                                                     }));
                                                 }}
-                                                required
                                             >
                                                 <option value="">Select Base UOM</option>
                                                 {allUoms.filter(u => u.uomType === 'Simple').map(uom => (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Plus, Play, Trash2, Repeat, Calendar, DollarSign, X, CheckCircle2, Pause, FileText, ArrowRight } from 'lucide-react';
+import { Plus, Play, Trash2, Repeat, Calendar, DollarSign, X, CheckCircle2, Pause, FileText, ArrowRight, Edit2 } from 'lucide-react';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import advancedAccountingService from '../../../../services/advancedAccountingService';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
@@ -16,10 +16,10 @@ const RecurringTransactions = () => {
     const [ledgers, setLedgers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [runningPending, setRunningPending] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState(null);
 
-    // Modal state
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [formData, setFormData] = useState({
+    const initialFormData = {
         templateName: '',
         transactionType: 'INVOICE', // 'INVOICE', 'PURCHASE_BILL', 'JOURNAL'
         frequency: 'MONTHLY', // 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY'
@@ -30,7 +30,11 @@ const RecurringTransactions = () => {
         creditLedgerId: '',
         totalAmount: '',
         notes: ''
-    });
+    };
+
+    // Modal state
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [formData, setFormData] = useState(initialFormData);
 
     const fetchData = async () => {
         try {
@@ -78,8 +82,55 @@ const RecurringTransactions = () => {
         fetchData();
     }, []);
 
-    const handleCreateTemplate = async (e) => {
+    const handleOpenCreateModal = () => {
+        setEditingTemplate(null);
+        setFormData(initialFormData);
+        setShowAddModal(true);
+    };
+
+    const handleOpenEditModal = (template) => {
+        setEditingTemplate(template);
+        let data = {};
+        try {
+            data = typeof template.templateData === 'string' 
+                ? JSON.parse(template.templateData) 
+                : (template.templateData || {});
+        } catch (e) {
+            data = {};
+        }
+
+        const partyId = template.transactionType === 'INVOICE' 
+            ? (data.customerId ? String(data.customerId) : '')
+            : template.transactionType === 'PURCHASE_BILL'
+            ? (data.vendorId ? String(data.vendorId) : '')
+            : '';
+
+        setFormData({
+            templateName: template.templateName || '',
+            transactionType: template.transactionType || 'INVOICE',
+            frequency: template.frequency || 'MONTHLY',
+            startDate: template.startDate ? new Date(template.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            endDate: template.endDate ? new Date(template.endDate).toISOString().split('T')[0] : '',
+            partyId,
+            debitLedgerId: data.debitLedgerId ? String(data.debitLedgerId) : '',
+            creditLedgerId: data.creditLedgerId ? String(data.creditLedgerId) : '',
+            totalAmount: template.totalAmount !== undefined && template.totalAmount !== null ? String(template.totalAmount) : '',
+            notes: data.notes || data.narration || ''
+        });
+        setShowAddModal(true);
+    };
+
+    const handleCloseModal = () => {
+        if (submitting) return;
+        setShowAddModal(false);
+        setEditingTemplate(null);
+        setFormData(initialFormData);
+    };
+
+    const handleSubmitTemplate = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+
         if (!formData.templateName || !formData.totalAmount) {
             toast.error('Template name and amount are required');
             return;
@@ -100,48 +151,48 @@ const RecurringTransactions = () => {
         }
 
         try {
+            setSubmitting(true);
             const templateData = {
                 customerId: formData.transactionType === 'INVOICE' ? formData.partyId : null,
                 vendorId: formData.transactionType === 'PURCHASE_BILL' ? formData.partyId : null,
                 debitLedgerId: formData.transactionType === 'JOURNAL' ? formData.debitLedgerId : null,
                 creditLedgerId: formData.transactionType === 'JOURNAL' ? formData.creditLedgerId : null,
-                currency: 'EUR',
+                currency: 'USD',
                 narration: formData.notes,
                 notes: formData.notes
             };
 
-            const res = await advancedAccountingService.createRecurringTemplate({
-                templateName: formData.templateName,
+            const payload = {
+                templateName: formData.templateName.trim(),
                 transactionType: formData.transactionType,
                 frequency: formData.frequency,
                 startDate: formData.startDate,
                 endDate: formData.endDate || null,
                 totalAmount: parseFloat(formData.totalAmount) || 0,
                 templateData
-            });
+            };
 
-            if (res.success) {
-                toast.success(res.message || 'Recurring template created!');
+            let res;
+            if (editingTemplate) {
+                res = await advancedAccountingService.updateRecurringTemplate(editingTemplate.id, payload);
+            } else {
+                res = await advancedAccountingService.createRecurringTemplate(payload);
+            }
+
+            if (res?.success) {
+                toast.success(res.message || (editingTemplate ? 'Recurring template updated!' : 'Recurring template created!'));
                 setShowAddModal(false);
-                setFormData({
-                    templateName: '',
-                    transactionType: 'INVOICE',
-                    frequency: 'MONTHLY',
-                    startDate: new Date().toISOString().split('T')[0],
-                    endDate: '',
-                    partyId: '',
-                    debitLedgerId: '',
-                    creditLedgerId: '',
-                    totalAmount: '',
-                    notes: ''
-                });
+                setEditingTemplate(null);
+                setFormData(initialFormData);
                 fetchData();
             } else {
-                toast.error(res.message || 'Failed to create template');
+                toast.error(res?.message || (editingTemplate ? 'Failed to update template' : 'Failed to create template'));
             }
         } catch (err) {
             console.error(err);
-            toast.error(err.message || 'Error creating recurring template');
+            toast.error(err.response?.data?.message || err.message || 'Error saving recurring template');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -206,8 +257,10 @@ const RecurringTransactions = () => {
     };
 
     const activeTemplates = templates.filter(t => t.status === 'ACTIVE');
-    const totalScheduled = activeTemplates.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
-    const totalExecutions = templates.reduce((sum, t) => sum + (t.executionCount || 0), 0);
+    const totalAllTemplates = templates.reduce((sum, t) => sum + (parseFloat(t.totalAmount) || 0), 0);
+    const totalActiveScheduled = activeTemplates.reduce((sum, t) => sum + (parseFloat(t.totalAmount) || 0), 0);
+    const totalExecutions = templates.reduce((sum, t) => sum + (parseInt(t.executionCount) || 0), 0);
+    const totalGeneratedAmount = templates.reduce((sum, t) => sum + ((parseFloat(t.totalAmount) || 0) * (parseInt(t.executionCount) || 0)), 0);
 
     return (
         <div className="REC-page-container">
@@ -220,7 +273,7 @@ const RecurringTransactions = () => {
                     <button className="REC-btn-secondary" onClick={handleRunPending} disabled={runningPending}>
                         <Play size={16} /> {runningPending ? 'Generating...' : 'Run Pending Now'}
                     </button>
-                    <button className="REC-btn-primary" onClick={() => setShowAddModal(true)}>
+                    <button className="REC-btn-primary" onClick={handleOpenCreateModal}>
                         <Plus size={16} /> Create Recurring Schedule
                     </button>
                 </div>
@@ -231,23 +284,37 @@ const RecurringTransactions = () => {
                 <div className="REC-stat-card">
                     <div className="REC-stat-label">Active Recurring Schedules</div>
                     <div className="REC-stat-value">{activeTemplates.length} / {templates.length}</div>
-                </div>
-                <div className="REC-stat-card">
-                    <div className="REC-stat-label">Total Scheduled Value / Cycle</div>
-                    <div className="REC-stat-value" style={{ color: '#0284c7' }}>
-                        {formatCurrency(totalScheduled)}
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                        {templates.length - activeTemplates.length > 0
+                            ? `${templates.length - activeTemplates.length} completed / paused`
+                            : 'All schedules active'}
                     </div>
                 </div>
                 <div className="REC-stat-card">
-                    <div className="REC-stat-label">Total Transactions Generated</div>
+                    <div className="REC-stat-label">Total Recurring Value</div>
+                    <div className="REC-stat-value" style={{ color: '#0284c7' }}>
+                        {formatCurrency(totalAllTemplates)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                        Active Cycle: <span style={{ fontWeight: 600, color: '#0369a1' }}>{formatCurrency(totalActiveScheduled)}</span>
+                    </div>
+                </div>
+                <div className="REC-stat-card">
+                    <div className="REC-stat-label">Total Generated Value</div>
                     <div className="REC-stat-value" style={{ color: '#10b981' }}>
-                        {totalExecutions}
+                        {formatCurrency(totalGeneratedAmount)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                        <span style={{ fontWeight: 600, color: '#059669' }}>{totalExecutions}</span> transactions executed
                     </div>
                 </div>
                 <div className="REC-stat-card">
                     <div className="REC-stat-label">Next Scheduled Run</div>
                     <div className="REC-stat-value" style={{ fontSize: '18px' }}>
                         {activeTemplates[0]?.nextRunDate ? new Date(activeTemplates[0].nextRunDate).toLocaleDateString() : 'None Pending'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                        {activeTemplates.length > 0 ? 'Upcoming recurring run' : 'No active schedules pending'}
                     </div>
                 </div>
             </div>
@@ -309,6 +376,13 @@ const RecurringTransactions = () => {
                                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                                             <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                                                 <button
+                                                    onClick={() => handleOpenEditModal(t)}
+                                                    style={{ border: 'none', background: '#f8fafc', color: '#0284c7', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}
+                                                    title="Edit Schedule"
+                                                >
+                                                    <Edit2 size={15} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleRunSingle(t.id, t.templateName)}
                                                     style={{ border: 'none', background: '#f0fdf4', color: '#16a34a', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}
                                                     title="Run Now Immediately"
@@ -335,11 +409,28 @@ const RecurringTransactions = () => {
                                 ))
                             )}
                         </tbody>
+                        {templates.length > 0 && (
+                            <tfoot>
+                                <tr style={{ backgroundColor: '#f8fafc', fontWeight: 700, borderTop: '2px solid #e2e8f0' }}>
+                                    <td colSpan="3" style={{ padding: '14px 16px', color: '#334155' }}>
+                                        Total ({templates.length} schedules)
+                                    </td>
+                                    <td style={{ padding: '14px 16px', color: '#0284c7', fontSize: '15px' }}>
+                                        {formatCurrency(totalAllTemplates)}
+                                    </td>
+                                    <td colSpan="2"></td>
+                                    <td style={{ padding: '14px 16px', color: '#10b981' }}>
+                                        {totalExecutions} generated ({formatCurrency(totalGeneratedAmount)})
+                                    </td>
+                                    <td colSpan="2"></td>
+                                </tr>
+                            </tfoot>
+                        )}
                     </table>
                 </div>
             </div>
 
-            {/* Create Schedule Modal */}
+            {/* Create / Edit Schedule Modal */}
             {showAddModal && (
                 <div style={{
                     position: 'fixed',
@@ -365,13 +456,15 @@ const RecurringTransactions = () => {
                         overflowY: 'auto'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', margin: 0 }}>Create Recurring Schedule</h2>
-                            <button onClick={() => setShowAddModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                                {editingTemplate ? 'Edit Recurring Schedule' : 'Create Recurring Schedule'}
+                            </h2>
+                            <button onClick={handleCloseModal} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateTemplate}>
+                        <form onSubmit={handleSubmitTemplate}>
                             <div style={{ marginBottom: '14px' }}>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Schedule Name*</label>
                                 <input
@@ -527,8 +620,17 @@ const RecurringTransactions = () => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                                <button type="button" className="REC-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                                <button type="submit" className="REC-btn-primary">Save Schedule</button>
+                                <button type="button" className="REC-btn-secondary" onClick={handleCloseModal} disabled={submitting}>
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="REC-btn-primary"
+                                    disabled={submitting}
+                                    style={{ opacity: submitting ? 0.7 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}
+                                >
+                                    {submitting ? (editingTemplate ? 'Updating...' : 'Saving...') : (editingTemplate ? 'Update Schedule' : 'Save Schedule')}
+                                </button>
                             </div>
                         </form>
                     </div>
