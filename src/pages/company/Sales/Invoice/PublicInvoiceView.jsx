@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import salesInvoiceService from '../../../../api/salesInvoiceService';
 import posService from '../../../../services/posService';
 import { CompanyContext } from '../../../../context/CompanyContext';
+import { BASE_URL } from '../../../../api/axiosInstance';
 import './Invoice.css';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
@@ -14,7 +15,8 @@ const getCompanyLogoSrc = (logoVal) => {
             return logoVal;
         }
         const cleanPath = logoVal.startsWith('/') ? logoVal : `/${logoVal}`;
-        return `http://localhost:8080${cleanPath}`;
+        const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
+        return `${serverUrl}${cleanPath}`;
     }
     return tabAccountsLogo;
 };

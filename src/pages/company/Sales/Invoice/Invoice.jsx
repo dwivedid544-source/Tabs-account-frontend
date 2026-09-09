@@ -52,7 +52,7 @@ const getCompanyLogoSrc = (logoVal) => {
             return logoVal;
         }
         const cleanPath = logoVal.startsWith('/') ? logoVal : `/${logoVal}`;
-        const serverUrl = BASE_URL || 'http://localhost:8080';
+        const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
         return `${serverUrl}${cleanPath}`;
     }
     return tabAccountsLogo;
