@@ -1941,9 +1941,9 @@ const Quotation = () => {
                                                                     >
                                                                         <option value="23">23% (Std)</option>
                                                                         <option value="13.5">13.5% (Red)</option>
-                                                                        <option value="0">0% (Zero)</option>
+                                                                        <option value="0">No VAT</option>
                                                                         {![23, 13.5, 0, '23', '13.5', '0'].includes(item.tax) && item.tax !== undefined && item.tax !== '' && (
-                                                                            <option value={item.tax}>{item.tax}%</option>
+                                                                            <option value={item.tax}>{parseFloat(item.tax) === 0 ? 'No VAT' : `${item.tax}%`}</option>
                                                                         )}
                                                                     </select>
                                                                 </td>

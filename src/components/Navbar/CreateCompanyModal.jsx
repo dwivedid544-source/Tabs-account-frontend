@@ -243,7 +243,7 @@ const CreateCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                                 <option value="23">Standard (23%)</option>
                                 <option value="13.5">Reduced (13.5%)</option>
                                 <option value="9">Second Reduced (9%)</option>
-                                <option value="0">Zero Rated (0%)</option>
+                                <option value="0">No VAT (0%)</option>
                             </select>
                         </div>
                     </div>

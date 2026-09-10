@@ -1187,7 +1187,7 @@ const CompanySettings = () => {
                                         >
                                             <option value="23">23% (Standard Rate)</option>
                                             <option value="13.5">13.5% (Reduced Rate)</option>
-                                            <option value="0">0% (Zero / Exempt Rate)</option>
+                                            <option value="0">No VAT (0%)</option>
                                         </select>
                                         <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
                                             Automatically selected by default on all new line items in Invoices, Bills, Orders &amp; Quotes.
