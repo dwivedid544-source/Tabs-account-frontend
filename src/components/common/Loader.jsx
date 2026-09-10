@@ -47,7 +47,7 @@ const Loader = ({ show }) => {
         <div className="loader-logo">
           <span className="text-zirak">{tabPart}</span>
           <span className="text-book">{accountsPart}</span>
-          <span className="cursor">|</span>
+          <span className="loader-typing-cursor">|</span>
         </div>
         <div className="loader-bar-container">
           <div className="loader-bar"></div>

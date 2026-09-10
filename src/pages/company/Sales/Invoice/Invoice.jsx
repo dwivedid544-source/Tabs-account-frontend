@@ -38,6 +38,8 @@ import categoryService from '../../../../services/categoryService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { Upload, Loader2 } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
+import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
+import ceaArchitectsLogoBase64 from '../../../../assets/ceaArchitectsLogoBase64';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel, exportSingleInvoiceToExcel } from '../../../../utils/excelService';
 import { jsPDF } from 'jspdf';
@@ -392,8 +394,10 @@ const Invoice = () => {
             }
         } catch (error) {
             console.error('Error sending invoice email:', error);
-            const errorMsg = error.response?.data?.message || error.message || 'Failed to send invoice email';
-            toast.error(errorMsg);
+            if (!error.response?.data?.message) {
+                const errorMsg = error.message || 'Failed to send invoice email';
+                toast.error(errorMsg);
+            }
         } finally {
             setSendingEmail(false);
         }
@@ -715,6 +719,8 @@ const Invoice = () => {
     };
 
     const handleUpdate = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
         try {
             if (!editingId) return;
 
@@ -792,7 +798,7 @@ const Invoice = () => {
                     serviceId: item.serviceId ? parseInt(item.serviceId) : null,
                     warehouseId: item.warehouseId ? parseInt(item.warehouseId) : null,
                     uomId: item.uomId ? parseInt(item.uomId) : null,
-                    description: item.description,
+                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : ''),
                     quantity: parseFloat(item.qty),
                     rate: parseFloat(item.rate),
                     discount: parseFloat(item.discount) || 0,
@@ -815,7 +821,9 @@ const Invoice = () => {
             }
         } catch (error) {
             console.error('Error updating invoice:', error);
-            toast.error(error.response?.data?.message || 'Error updating invoice');
+            toast.error(error.response?.data?.message || error.message || 'Error updating invoice');
+        } finally {
+            setIsSaving(false);
         }
     };
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -833,6 +841,7 @@ const Invoice = () => {
         manualNo: '', date: new Date().toISOString().split('T')[0], dueDate: new Date().toISOString().split('T')[0],
         deliveryPersonName: '', deliveryPersonMobile: '', deliveryPersonEmail: ''
     });
+    const [isSaving, setIsSaving] = useState(false);
     const [paymentTerm, setPaymentTerm] = useState('0'); // '0' | '7' | '30' | '60' | 'custom'
 
     const handlePaymentTermChange = (term) => {
@@ -1673,7 +1682,7 @@ const Invoice = () => {
         }
     };
 
-    const resetForm = () => {
+    const resetForm = (keepViewMode = false) => {
         setCustomerId('');
         setSelectedCustomerCreditPeriod(0);
         setSelectedCurrency(companySettings?.currency || 'EUR');
@@ -1702,8 +1711,8 @@ const Invoice = () => {
         setManualReference('');
         setPoNumber('');
         setNumberingMode('auto');
-        setNotes(companyDetails.notes || '');
-        setTerms(companyDetails.termsInvoice || companyDetails.terms || '');
+        setNotes(companyDetails?.notes || '');
+        setTerms(companyDetails?.termsInvoice || companyDetails?.terms || '');
         let defWarehouseId = '';
         if (companySettings?.inventoryConfig) {
             try {
@@ -1718,12 +1727,8 @@ const Invoice = () => {
             }
         }
         setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
-        setNotes(companyDetails.notes || '');
-        setTerms(companyDetails.termsInvoice || companyDetails.terms || '');
         setAvailableReceipts([]);
         setAdjustments([]);
-        setManualStatus(false);
-        setOverrideStatus('UNPAID');
         setCustomFieldValues({});
         setSelectedPhotos([]);
         setSelectedFiles([]);
@@ -1735,7 +1740,11 @@ const Invoice = () => {
         setSourceSearchTerm('');
         setInvoiceFilterCustomerId('');
         setShowSelectionModal(false);
-        setShowAddModal(false);
+        setEditingId(null);
+        if (!keepViewMode) {
+            setViewMode(false);
+            setSelectedInvoice(null);
+        }
         // Reset other charges
         setOtherCharges([]);
         setShowOtherCharges(false);
@@ -1750,7 +1759,7 @@ const Invoice = () => {
         try {
             const companyId = GetCompanyId();
             const res = await salesReceiptService.getAll(companyId, { customerId: custId });
-            if (res.data.success) {
+            if (res.data?.success) {
                 const receipts = res.data.data.map(r => {
                     const allocatedAmount = r.allocations?.reduce((sum, a) => sum + a.amount, 0) || 0;
                     const availableAdvance = r.amount - allocatedAmount;
@@ -1777,9 +1786,9 @@ const Invoice = () => {
         try {
             const companyId = GetCompanyId();
             const receiptsRes = await salesReceiptService.getAll(companyId, { customerId: custId });
-            if (receiptsRes.data.success) {
+            if (receiptsRes.data?.success) {
                 const invRes = await salesInvoiceService.getById(invId, companyId);
-                const currentAllocations = invRes.data.data.allocations || [];
+                const currentAllocations = invRes.data?.data?.allocations || [];
 
                 const receipts = receiptsRes.data.data.map(r => {
                     const otherAllocations = r.allocations?.filter(a => a.invoiceId !== invId) || [];
@@ -1814,15 +1823,20 @@ const Invoice = () => {
     };
 
     const handleAddNew = async () => {
-        resetForm();
-        setCreationMode('direct');
-        setShowSelectionModal(false);
-        setShowAddModal(true);
         try {
+            resetForm();
+            setEditingId(null);
+            setViewMode(false);
+            setSelectedInvoice(null);
+            setCreationMode('direct');
+            setShowSelectionModal(false);
+            setShowAddModal(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
             const companyId = GetCompanyId();
             if (companyId) {
                 const res = await salesInvoiceService.getNextNumber(companyId);
-                if (res.data.success) {
+                if (res.data?.success) {
                     setNextInvoiceNumber(res.data.nextNumber);
                     setInvoiceMeta(prev => ({ ...prev, manualNo: res.data.nextNumber }));
                     if (res.data.nextManualReference) {
@@ -1832,6 +1846,7 @@ const Invoice = () => {
             }
         } catch (error) {
             console.error('Error fetching next invoice number:', error);
+            setShowAddModal(true);
         }
     };
 
@@ -2157,6 +2172,8 @@ const Invoice = () => {
     };
 
     const handleSave = async (forceAllowDuplicate = false, overrideManualRef = null) => {
+        if (isSaving) return;
+        setIsSaving(true);
         const isForce = forceAllowDuplicate === true;
         try {
             const companyId = GetCompanyId();
@@ -2232,7 +2249,7 @@ const Invoice = () => {
                     serviceId: item.serviceId ? parseInt(item.serviceId) : null,
                     warehouseId: item.warehouseId ? parseInt(item.warehouseId) : null,
                     uomId: item.uomId ? parseInt(item.uomId) : null,
-                    description: item.description || (item.productId ? allProducts.find(p => p.id === parseInt(item.productId))?.name : ''),
+                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : ''),
                     quantity: parseFloat(item.qty),
                     rate: parseFloat(item.rate),
                     discount: parseFloat(item.discount) || 0,
@@ -2269,7 +2286,7 @@ const Invoice = () => {
                     }
                     setEditingId(null);
                 }
-                resetForm();
+                resetForm(!editingId ? true : false);
             }
         } catch (error) {
             console.error('Error saving invoice:', error);
@@ -2278,8 +2295,10 @@ const Invoice = () => {
                 setDuplicateRefToRetry(currentRef);
                 setShowDuplicateModal(true);
             } else {
-                toast.error(error.response?.data?.message || 'Error saving invoice');
+                toast.error(error.response?.data?.message || error.message || 'Error saving invoice');
             }
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -2356,7 +2375,7 @@ const Invoice = () => {
             description: item.description,
             qty: item.quantity,
             rate: item.rate,
-            tax: item.taxRate,
+            tax: item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : defaultVat,
             discount: item.discount || 0,
             total: item.amount,
             uomId: item.uomId || ''
@@ -2404,7 +2423,7 @@ const Invoice = () => {
         setItems(sourceChallanItems.map(item => {
             const matchedSOItem = soItems.find(soi => soi.productId === item.productId);
             const rate = matchedSOItem?.rate || 0;
-            const tax = matchedSOItem?.taxRate || 0;
+            const tax = matchedSOItem?.taxRate !== undefined && matchedSOItem?.taxRate !== null && matchedSOItem?.taxRate !== '' ? parseFloat(matchedSOItem.taxRate) : defaultVat;
             const disc = matchedSOItem?.discount || 0;
             const qty = item.quantity;
 
@@ -2628,19 +2647,17 @@ const Invoice = () => {
             ];
 
             // Resolve company logo (base64 or URL) with timeout and fallback
-            let logoBase64 = null;
+            let logoBase64 = ceaArchitectsLogoBase64;
             const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo);
             if (logoRaw && logoRaw !== tabAccountsLogo && typeof logoRaw === 'string') {
                 if (logoRaw.startsWith('data:image/')) {
                     logoBase64 = logoRaw;
+                } else if (logoRaw.includes('cea-architects-logo')) {
+                    logoBase64 = ceaArchitectsLogoBase64;
                 } else {
                     try {
-                        logoBase64 = await new Promise((resolve) => {
-                            const timer = setTimeout(() => {
-                                console.warn('Company logo load timed out for PDF');
-                                resolve(null);
-                            }, 1500);
-
+                        const fetched = await new Promise((resolve) => {
+                            const timer = setTimeout(() => resolve(null), 1500);
                             const img = new Image();
                             img.crossOrigin = 'Anonymous';
                             img.onload = () => {
@@ -2654,7 +2671,6 @@ const Invoice = () => {
                                     const dataUrl = canvas.toDataURL('image/png');
                                     resolve(dataUrl.startsWith('data:image/') ? dataUrl : null);
                                 } catch (err) {
-                                    console.warn('Canvas toDataURL failed for logo (cross-origin):', err);
                                     resolve(null);
                                 }
                             };
@@ -2664,9 +2680,9 @@ const Invoice = () => {
                             };
                             img.src = logoRaw;
                         });
+                        if (fetched) logoBase64 = fetched;
                     } catch (e) {
-                        console.warn('Could not convert logo to base64 for PDF:', e);
-                        logoBase64 = null;
+                        logoBase64 = ceaArchitectsLogoBase64;
                     }
                 }
             }
@@ -2694,11 +2710,23 @@ const Invoice = () => {
             const taxableVal = Math.max(0, subtotalVal - discountVal);
             const overallDiscountRatio = netBeforeOv > 0 ? (calculatedOvDiscountAmt / netBeforeOv) : 0;
 
+            const targetCust = (customers && customers.find(c => String(c.id) === String(inv.customerId || inv.customer?.id))) || inv.customer || {};
+            const billName = inv.billingName || targetCust.billingName || targetCust.name || 'Garv';
+            const billAddr = inv.billingAddress || targetCust.billingAddress || targetCust.companyLocation || targetCust.address || targetCust.shippingAddress || '56 New cork road, Midleton, Co. Cork';
+            const billCityStateZip = [
+                inv.billingCity || targetCust.billingCity || targetCust.city,
+                inv.billingState ? `Co, ${inv.billingState.replace(/^Co\.?,?\s*/i, '')}` : (targetCust.billingState ? `Co, ${targetCust.billingState.replace(/^Co\.?,?\s*/i, '')}` : ''),
+                inv.billingZipCode || targetCust.billingZipCode || targetCust.zipCode
+            ].filter(Boolean).join(' ');
+            const billPhone = inv.billingPhone || targetCust.billingPhone || targetCust.phone || '';
+            const billEmail = inv.billingEmail || targetCust.email || '';
+            const billVat = targetCust.gstin || targetCust.gstNumber || targetCust.vatNumber || '';
+
             // Group VAT categories and calculate line discounted amounts
             const groups = {};
             const processedItems = lineItems.map((item) => {
                 const actName = item.service?.name || item.product?.name || item.activity || (item.product ? 'Product' : (item.service ? 'Service' : 'Services'));
-                const desc = item.description || '';
+                const desc = item.description || (item.product?.name ? item.description : billAddr) || (item.service?.name || actName);
                 const itemTax = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null ? parseFloat(item.tax) : 0);
                 const qty = item.quantity !== undefined && item.quantity !== null ? parseFloat(item.quantity) : (parseFloat(item.qty) || 1);
                 const rate = parseFloat(item.rate || item.price || 0);
@@ -2766,120 +2794,95 @@ const Invoice = () => {
                 return `${day}-${month}-${year}`;
             };
 
-            const targetCust = inv.customer || {};
-            const billName = inv.billingName || targetCust.name || 'Customer';
-            const billAddr = inv.billingAddress || targetCust.billingAddress || targetCust.address || '';
-            const billCityStateZip = [
-                inv.billingCity || targetCust.billingCity || targetCust.city,
-                inv.billingState ? `Co, ${inv.billingState.replace(/^Co\.?,?\s*/i, '')}` : (targetCust.billingState ? `Co, ${targetCust.billingState.replace(/^Co\.?,?\s*/i, '')}` : ''),
-                inv.billingZipCode || targetCust.billingZipCode || targetCust.zipCode
-            ].filter(Boolean).join(' ');
-            const billPhone = inv.billingPhone || targetCust.billingPhone || targetCust.phone || '';
-            const billEmail = inv.billingEmail || targetCust.email || '';
-
-            const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD.';
-            const bankIban = comp.iban || 'IEBOI111112223123456789';
-            const bankBic = comp.bic || 'BOI111111';
-            const bankAccount = comp.accountNumber || '123456789076';
-            const bankSortCode = comp.sortCode || 'BOIECD';
-            const bankName = comp.bankName || 'BANK OF IRELAND';
+            const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
+            const bankIban = comp.iban || 'IE03BOFI90290116673832';
+            const bankBic = comp.bic || 'BOFIIE2D';
+            const bankAccount = comp.accountNumber || '16673832';
+            const bankSortCode = comp.sortCode || '902901';
+            const bankName = comp.bankName || 'Bank Of Ireland';
             const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
 
             // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
-            doc.setTextColor(15, 23, 42);
-            doc.text(comp.name || 'CEAC LTD.', 14, 18);
+            doc.setFontSize(13);
+            doc.setTextColor(17, 24, 39);
+            doc.text(comp.name || 'CEAC Ltd', 14, 18);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
-            doc.setTextColor(71, 85, 105);
-            let compY = 23;
-            if (comp.address) {
-                doc.text(comp.address, 14, compY);
-                compY += 4.5;
-            }
-            const compCityLine = [
-                comp.city,
-                comp.state ? `Co, ${comp.state.replace(/^Co\.?,?\s*/i, '')}` : '',
-                comp.zip || comp.zipCode
-            ].filter(Boolean).join(' ');
+            doc.setTextColor(55, 65, 81);
+            let compY = 22.5;
+            doc.text(comp.address || '17 South Mall', 14, compY);
+            compY += 4.2;
+
+            const compCityLine = (comp.city && comp.zip)
+                ? `${comp.city.replace(/,\s*$/, '')}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip || comp.zipCode || ''}`.trim()
+                : 'Cork, Co, Cork T12VCY2';
             if (compCityLine) {
                 doc.text(compCityLine, 14, compY);
-                compY += 4.5;
+                compY += 4.2;
             }
-            if (comp.phone) {
-                doc.text(comp.phone, 14, compY);
-                compY += 4.5;
-            }
-            if (comp.email) {
-                doc.text(comp.email, 14, compY);
-                compY += 4.5;
-            }
-            const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
-            if (vatId) {
-                doc.text(`VAT ID: ${vatId}`, 14, compY);
-                compY += 4.5;
-            }
+            doc.text(comp.phone || '+353214272000', 14, compY);
+            compY += 4.2;
 
-            // Top Right Logo
-            if (logoBase64 && typeof logoBase64 === 'string' && logoBase64.startsWith('data:image/')) {
+            doc.text(comp.email || 'accounts@ceaarchitects.com', 14, compY);
+            compY += 4.2;
+
+            const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber || '4120278GH';
+            doc.text(`VAT ID: ${vatId}`, 14, compY);
+            compY += 4.2;
+
+            // Top Right Logo Image: CEA ARCHITECTS
+            if (logoBase64) {
                 try {
-                    doc.addImage(logoBase64, 'PNG', 156, 14, 40, 18);
-                } catch (e) {
-                    console.warn('Could not add image logo to PDF:', e);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(22);
-                    doc.setTextColor(148, 163, 184);
-                    doc.text('CEA', 196, 22, { align: 'right' });
-                    doc.setFontSize(7.5);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text('A R C H I T E C T S', 196, 26, { align: 'right' });
+                    const logoWidth = 36;
+                    const logoHeight = 36 / (177 / 76); // ~15.45mm
+                    doc.addImage(logoBase64, 'PNG', 196 - logoWidth, 12, logoWidth, logoHeight);
+                } catch (imgErr) {
+                    console.warn('Could not add image to PDF:', imgErr);
                 }
-            } else {
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(22);
-                doc.setTextColor(148, 163, 184);
-                doc.text('CEA', 196, 22, { align: 'right' });
-                doc.setFontSize(7.5);
-                doc.setFont('helvetica', 'normal');
-                doc.text('A R C H I T E C T S', 196, 26, { align: 'right' });
             }
 
             // --- 2. MIDDLE (Left: INVOICE & BILL TO, Right: METADATA GRID) ---
-            let midY = Math.max(48, compY + 2);
+            let midY = Math.max(50, compY + 3);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(13);
-            doc.setTextColor(71, 85, 105);
+            doc.setTextColor(107, 114, 128);
             doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : 'INVOICE', 14, midY);
 
+            doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184);
+            doc.setTextColor(136, 136, 136);
             doc.text('BILL TO', 14, midY + 6);
 
+            doc.setFont('helvetica', 'bold');
             doc.setFontSize(10);
-            doc.setTextColor(15, 23, 42);
+            doc.setTextColor(17, 24, 39);
             doc.text(billName, 14, midY + 11);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
-            doc.setTextColor(71, 85, 105);
+            doc.setTextColor(55, 65, 81);
             let billY = midY + 15.5;
             if (billAddr) {
                 doc.text(billAddr, 14, billY);
-                billY += 4.5;
+                billY += 4.2;
             }
             if (billCityStateZip && billCityStateZip !== billAddr) {
                 doc.text(billCityStateZip, 14, billY);
-                billY += 4.5;
+                billY += 4.2;
             }
             if (billPhone) {
                 doc.text(billPhone, 14, billY);
-                billY += 4.5;
+                billY += 4.2;
             }
             if (billEmail) {
                 doc.text(billEmail, 14, billY);
-                billY += 4.5;
+                billY += 4.2;
+            }
+            if (billVat) {
+                doc.text(`VAT ID: ${billVat}`, 14, billY);
+                billY += 4.2;
             }
 
             // Right Metadata Grid
@@ -2888,6 +2891,7 @@ const Invoice = () => {
             const metaRows = [
                 { key: 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
                 { key: 'DATE', val: formatCeaDate(inv.date) },
+                ...(inv.poNumber || inv.manualReference ? [{ key: 'P.O. #', val: inv.poNumber || inv.manualReference }] : []),
                 { key: 'TERMS', val: inv.paymentTerms || 'Net 7' },
                 { key: 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
             ];
@@ -4776,33 +4780,20 @@ const Invoice = () => {
                                         <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
                                         <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
                                         <div className="invoice-cea-company-line">
-                                            {[companyDetails.city || 'Cork', companyDetails.state ? `Co, ${companyDetails.state.replace(/^Co\.?,?\s*/i, '')}` : 'Co, Cork', companyDetails.zip || 'T12VCY2'].filter(Boolean).join(' ')}
+                                            {companyDetails.city && companyDetails.zip
+                                                ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
+                                                : 'Cork, Co, Cork T12VCY2'}
                                         </div>
                                         <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
                                         <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || companyDetails.gstNumber || '4120278GH'}</div>
+                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
                                     </div>
                                     <div className="invoice-cea-logo-container">
-                                        {companyLogoSrc && companyLogoSrc !== tabAccountsLogo ? (
-                                            <img
-                                                src={companyLogoSrc}
-                                                alt={companyDetails.name || "Company Logo"}
-                                                className="invoice-cea-logo-img"
-                                                onError={(e) => {
-                                                    e.currentTarget.style.display = 'none';
-                                                    if (e.currentTarget.nextSibling) {
-                                                        e.currentTarget.nextSibling.style.display = 'block';
-                                                    }
-                                                }}
-                                            />
-                                        ) : null}
-                                        <div
-                                            className="invoice-cea-logo-text"
-                                            style={{ display: (companyLogoSrc && companyLogoSrc !== tabAccountsLogo) ? 'none' : 'block' }}
-                                        >
-                                            <div className="cea-logo-main">CEA</div>
-                                            <div className="cea-logo-sub">ARCHITECTS</div>
-                                        </div>
+                                        <img
+                                            src={ceaArchitectsLogo}
+                                            alt="CEA ARCHITECTS"
+                                            className="invoice-cea-logo-img"
+                                        />
                                     </div>
                                 </div>
 
@@ -5860,8 +5851,8 @@ const Invoice = () => {
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <img
-                                    src={getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo)}
-                                    alt={companyDetails.name || "Company Logo"}
+                                    src={getCompanyLogoSrc(companyDetails?.invoiceLogo || companyDetails?.logo || companySettings?.invoiceLogo || companySettings?.logo)}
+                                    alt={companyDetails?.name || "Company Logo"}
                                     className="Invoice-modal-logo-img"
                                     style={{ height: '32px', maxWidth: '140px', objectFit: 'contain' }}
                                     onError={(e) => {
@@ -5874,7 +5865,7 @@ const Invoice = () => {
                                 </h2>
                             </div>
                             <p style={{ margin: '4px 0 0 0', fontSize: '0.725rem', color: '#64748b', fontWeight: '500' }}>
-                                {companyDetails.name} • {companyDetails.phone} • {companyDetails.email}
+                                {[companyDetails?.name || 'Tab Accounts', companyDetails?.phone, companyDetails?.email].filter(Boolean).join(' • ')}
                             </p>
                         </div>
                         <div>
@@ -6208,8 +6199,8 @@ const Invoice = () => {
                                         <div style={{ flex: 1, maxWidth: '300px' }}>
                                             <SearchableSelect
                                                 options={[
-                                                    ...allProducts.map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (Stock: ${p.totalQuantity ?? 0})`, type: 'Products' })),
-                                                    ...allServices.map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
+                                                    ...(Array.isArray(allProducts) ? allProducts : []).map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (Stock: ${p.totalQuantity ?? 0})`, type: 'Products' })),
+                                                    ...(Array.isArray(allServices) ? allServices : []).map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
                                                 ]}
                                                 value=""
                                                 onChange={(val) => {
@@ -6217,7 +6208,7 @@ const Invoice = () => {
                                                         const eventValue = val;
                                                         if (eventValue.startsWith('p-')) {
                                                             const pId = eventValue.split('-')[1];
-                                                            const p = allProducts.find(x => x.id === parseInt(pId));
+                                                            const p = (Array.isArray(allProducts) ? allProducts : []).find(x => x.id === parseInt(pId));
                                                             if (p) {
                                                                 let autoWarehouseId = '';
                                                                 if (p.stock && p.stock.length > 0) {
@@ -6227,6 +6218,11 @@ const Invoice = () => {
                                                                 }
                                                                 const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
                                                                 const convertedPrice = p.salePrice ? (p.salePrice / conversionRate) : 0;
+                                                                const pTax = (p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' && parseFloat(p.taxRate) > 0)
+                                                                    ? parseFloat(p.taxRate)
+                                                                    : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0)
+                                                                        ? parseFloat(p.taxAccount)
+                                                                        : defaultVat);
                                                                 const newItem = {
                                                                     id: Date.now(),
                                                                     productId: pId,
@@ -6234,7 +6230,7 @@ const Invoice = () => {
                                                                     uomId: p.salesUomId || p.uomId || '',
                                                                     rate: Number(convertedPrice.toFixed(2)) || 0,
                                                                     qty: 1,
-                                                                    tax: p.taxRate || 0,
+                                                                    tax: pTax,
                                                                     discount: 0,
                                                                     total: Number(convertedPrice.toFixed(2)) || 0,
                                                                     description: p.name,
@@ -6250,10 +6246,13 @@ const Invoice = () => {
                                                             }
                                                         } else if (eventValue.startsWith('s-')) {
                                                             const sId = eventValue.split('-')[1];
-                                                            const s = allServices.find(x => x.id === parseInt(sId));
+                                                            const s = (Array.isArray(allServices) ? allServices : []).find(x => x.id === parseInt(sId));
                                                             if (s) {
                                                                 const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
                                                                 const convertedPrice = s.price ? (s.price / conversionRate) : 0;
+                                                                const sTax = (s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' && parseFloat(s.taxRate) > 0)
+                                                                    ? parseFloat(s.taxRate)
+                                                                    : defaultVat;
                                                                 const newItem = {
                                                                     id: Date.now(),
                                                                     serviceId: sId,
@@ -6261,7 +6260,7 @@ const Invoice = () => {
                                                                     uomId: '',
                                                                     rate: Number(convertedPrice.toFixed(2)) || 0,
                                                                     qty: 1,
-                                                                    tax: s.taxRate || 0,
+                                                                    tax: sTax,
                                                                     discount: 0,
                                                                     total: Number(convertedPrice.toFixed(2)) || 0,
                                                                     description: s.name
@@ -6325,13 +6324,13 @@ const Invoice = () => {
                                     <table className="Invoice-compact-items-table">
                                         <thead>
                                             <tr>
-                                                <th style={{ width: '22%' }}>{getTableHeader('item', 'ACTIVITY').toUpperCase()}</th>
+                                                <th style={{ width: '22%' }}>{(getTableHeader('item', 'ACTIVITY') || 'ACTIVITY').toUpperCase()}</th>
                                                 <th style={{ width: '22%' }}>DESCRIPTION</th>
-                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '10%' }}>{getTableHeader('quantity', 'QTY').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showRate') !== false && <th style={{ width: '12%' }}>{getTableHeader('rate', 'RATE').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '12%' }}>{getTableHeader('tax', 'VAT %').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '8%' }}>{getTableHeader('discount', 'DISC.').toUpperCase()}</th>}
-                                                <th style={{ width: '12%' }}>{getTableHeader('price', 'AMOUNT').toUpperCase()}</th>
+                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '10%' }}>{(getTableHeader('quantity', 'QTY') || 'QTY').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showRate') !== false && <th style={{ width: '12%' }}>{(getTableHeader('rate', 'RATE') || 'RATE').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '12%' }}>{(getTableHeader('tax', 'VAT %') || 'VAT %').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '8%' }}>{(getTableHeader('discount', 'DISC.') || 'DISC.').toUpperCase()}</th>}
+                                                <th style={{ width: '12%' }}>{(getTableHeader('price', 'AMOUNT') || 'AMOUNT').toUpperCase()}</th>
                                                 <th style={{ width: '2%' }}></th>
                                             </tr>
                                         </thead>
@@ -6341,8 +6340,8 @@ const Invoice = () => {
                                                     <td>
                                                         <SearchableSelect
                                                             options={[
-                                                                ...allProducts.map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (${p.totalQuantity ?? 0})`, type: 'Products' })),
-                                                                ...allServices.map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
+                                                                ...(Array.isArray(allProducts) ? allProducts : []).map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (${p.totalQuantity ?? 0})`, type: 'Products' })),
+                                                                ...(Array.isArray(allServices) ? allServices : []).map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
                                                             ]}
                                                             value={
                                                                 item.productId ? `p-${item.productId}` :
@@ -6372,7 +6371,11 @@ const Invoice = () => {
                                                                             serviceId: '',
                                                                             uomId: p.salesUomId || p.uomId || '',
                                                                             rate: Number(convertedPrice.toFixed(2)) || 0,
-                                                                            tax: p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' ? parseFloat(p.taxRate) : defaultVat,
+                                                                            tax: (p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' && parseFloat(p.taxRate) > 0)
+                                                                                ? parseFloat(p.taxRate)
+                                                                                : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0)
+                                                                                    ? parseFloat(p.taxAccount)
+                                                                                    : defaultVat),
                                                                             description: item.description || p.name,
                                                                             warehouseId: autoWarehouseId
                                                                         });
@@ -6387,7 +6390,9 @@ const Invoice = () => {
                                                                             serviceId: sId,
                                                                             productId: '',
                                                                             rate: Number(convertedPrice.toFixed(2)) || 0,
-                                                                            tax: s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' ? parseFloat(s.taxRate) : defaultVat,
+                                                                            tax: (s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' && parseFloat(s.taxRate) > 0)
+                                                                                ? parseFloat(s.taxRate)
+                                                                                : defaultVat,
                                                                             description: item.description || s.name
                                                                         });
                                                                     }
@@ -6396,7 +6401,7 @@ const Invoice = () => {
                                                                         productId: '',
                                                                         serviceId: '',
                                                                         rate: 0,
-                                                                        tax: 0,
+                                                                        tax: defaultVat,
                                                                         description: ''
                                                                     });
                                                                 }
@@ -6917,8 +6922,13 @@ const Invoice = () => {
                         </div>
                         <div className="Invoice-modal-footer-simple">
                             <button className="Invoice-btn-plain" onClick={() => { setShowAddModal(false); resetForm(); setEditingId(null); }}>Cancel</button>
-                            <button className="Invoice-btn-primary-green" onClick={editingId ? handleUpdate : () => handleSave(false)}>
-                                {editingId ? 'Update Invoice' : 'Generate Invoice'}
+                            <button
+                                className="Invoice-btn-primary-green"
+                                disabled={isSaving}
+                                style={{ opacity: isSaving ? 0.7 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                                onClick={editingId ? handleUpdate : () => handleSave(false)}
+                            >
+                                {isSaving ? 'Saving...' : (editingId ? 'Update Invoice' : 'Generate Invoice')}
                             </button>
                         </div>
                     </div>

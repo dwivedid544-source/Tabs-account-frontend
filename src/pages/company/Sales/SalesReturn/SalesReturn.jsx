@@ -21,6 +21,7 @@ import warehouseService from '../../../../api/warehouseService';
 import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
+import { getCompanyLogoSrc, tabAccountsLogo } from '../../../../utils/logoUrl';
 
 const SalesReturn = () => {
     // --- State Management ---
@@ -1942,9 +1943,15 @@ const SalesReturn = () => {
                                 {/* Company Header */}
                                 <div className="SalesReturn-receipt-header">
                                     <div className="SalesReturn-receipt-company-info">
-                                        {companyDetails.logo && (
-                                            <img src={companyDetails.logo} alt="Company Logo" className="SalesReturn-receipt-logo" />
-                                        )}
+                                        <img
+                                            src={getCompanyLogoSrc(companyDetails?.logo || companySettings?.logo || companySettings?.invoiceLogo)}
+                                            alt="Company Logo"
+                                            className="SalesReturn-receipt-logo"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = tabAccountsLogo;
+                                            }}
+                                        />
                                         <div>
                                             <div className="SalesReturn-receipt-company-name">{companyDetails.name}</div>
                                             <div className="SalesReturn-receipt-company-address">{companyDetails.address}</div>

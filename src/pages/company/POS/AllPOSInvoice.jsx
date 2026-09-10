@@ -12,8 +12,10 @@ import chartOfAccountsService from '../../../services/chartOfAccountsService';
 import { toast } from 'react-hot-toast';
 import './AllPOSInvoice.css';
 import '../Sales/Invoice/Invoice.css'; // Also need this for shared template styles
+import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../utils/logoUrl';
+
 const AllPOSInvoice = () => {
-    const { formatCurrency, getInvoiceLabel, getDocumentTitle } = useContext(CompanyContext);
+    const { companySettings, formatCurrency, getInvoiceLabel, getDocumentTitle } = useContext(CompanyContext);
     const { hasPermission } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
@@ -46,6 +48,16 @@ const AllPOSInvoice = () => {
         name: '', address: '', email: '', phone: '', logo: '',
         template: 'Invoice-newyork', color: '#004aad', showQr: false, notes: ''
     });
+
+    const getReceiptLogo = () => {
+        const candidate = companySettings?.receiptLogo ||
+            companyDetails?.receiptLogo ||
+            companySettings?.logo ||
+            companyDetails?.logo ||
+            companySettings?.invoiceLogo ||
+            companyDetails?.invoiceLogo;
+        return getCompanyLogoSrc(candidate);
+    };
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [invoiceToDelete, setInvoiceToDelete] = useState(null);
 
@@ -133,7 +145,9 @@ const AllPOSInvoice = () => {
                     address: data.address || '',
                     email: data.email || '',
                     phone: data.phone || '',
-                    logo: data.logo || null,
+                    logo: resolveLogoUrl(data.logo) || null,
+                    invoiceLogo: resolveLogoUrl(data.invoiceLogo) || null,
+                    receiptLogo: resolveLogoUrl(data.receiptLogo) || null,
                     notes: data.notes || '',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     template: data.invoiceTemplate || 'New York',
@@ -342,11 +356,15 @@ const AllPOSInvoice = () => {
                     <div className="invoice-header-wrapper">
                         <div className="invoice-preview-header">
                             <div className="invoice-header-left">
-                                {companyDetails.logo ? (
-                                    <img src={companyDetails.logo} alt="Company Logo" className="invoice-logo-large" />
-                                ) : (
-                                    <h2 style={{ color: companyDetails.color, margin: 0, textTransform: 'uppercase' }}>{companyDetails.name}</h2>
-                                )}
+                                <img
+                                    src={getReceiptLogo()}
+                                    alt="Company Logo"
+                                    className="invoice-logo-large"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
 
                                 <div className="invoice-company-details">
                                     <strong>{companyDetails.name}</strong><br />

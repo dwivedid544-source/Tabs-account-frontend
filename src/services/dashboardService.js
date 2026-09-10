@@ -5,8 +5,9 @@ const getDashboardStats = async () => {
     return response.data;
 };
 
-const getCompanyStats = async () => {
-    const response = await axiosInstance.get('/superadmin/dashboard/company-stats');
+const getCompanyStats = async (companyId) => {
+    const params = companyId ? { companyId } : {};
+    const response = await axiosInstance.get('/superadmin/dashboard/company-stats', { params });
     return response.data;
 };
 

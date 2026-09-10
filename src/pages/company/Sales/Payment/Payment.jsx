@@ -18,6 +18,7 @@ import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import posService from '../../../../services/posService';
+import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../../utils/logoUrl';
 
 const Payment = () => {
 
@@ -217,18 +218,30 @@ const Payment = () => {
         companyDetailsRef.current = companyDetails;
     }, [companyDetails]);
 
+    const getReceiptLogo = () => {
+        const candidate = companySettings?.receiptLogo ||
+            companyDetails?.receiptLogo ||
+            companySettings?.logo ||
+            companyDetails?.logo ||
+            companySettings?.invoiceLogo ||
+            companyDetails?.invoiceLogo;
+        return getCompanyLogoSrc(candidate);
+    };
+
     const fetchCompanyDetails = async () => {
         try {
             const companyId = GetCompanyId();
             if (companyId) {
                 const res = await companyService.getById(companyId);
-                const data = res.data;
+                const data = res.data || {};
                 const updatedDetails = {
                     name: data.name || 'Zirak Books',
                     address: data.address || '',
                     email: data.email || '',
                     phone: data.phone || '',
-                    logo: data.logo || null,
+                    logo: resolveLogoUrl(data.logo) || null,
+                    invoiceLogo: resolveLogoUrl(data.invoiceLogo) || null,
+                    receiptLogo: resolveLogoUrl(data.receiptLogo) || null,
                     notes: data.notes || '',
                     terms: data.terms || '',
                     termsReceipt: data.termsReceipt || '',
@@ -943,7 +956,7 @@ const Payment = () => {
         const companyAddress = companySettings?.address || companyDetails?.address || '';
         const companyPhone = companySettings?.phone || companyDetails?.phone || '';
         const companyEmail = companySettings?.email || companyDetails?.email || '';
-        const companyLogo = companySettings?.logo || companyDetails?.logo || '';
+        const companyLogo = getReceiptLogo();
         const companyWebsite = companySettings?.website || '';
         const companyTax = companySettings?.taxNumber || '';
 
@@ -970,7 +983,7 @@ const Payment = () => {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #1e293b;margin-bottom:20px;">
                     <div style="display:flex;align-items:center;gap:14px;">
                         ${companyLogo
-                ? `<img src="${companyLogo}" alt="Logo" style="max-height:72px;max-width:140px;object-fit:contain;" />`
+                ? `<img src="${companyLogo}" alt="Logo" style="max-height:72px;max-width:140px;object-fit:contain;" onerror="this.onerror=null;this.src='${tabAccountsLogo}';" />`
                 : `<div style="width:56px;height:56px;background:linear-gradient(135deg,#1e293b,#475569);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.5rem;font-weight:800;">${companyName.charAt(0).toUpperCase()}</div>`}
                         <div>
                             <div style="font-size:1.2rem;font-weight:700;color:#1e293b;">${companyName}</div>
@@ -1237,13 +1250,15 @@ const Payment = () => {
                     <div className="SalesPayment-view-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {(companySettings?.invoiceLogo || companyDetails.logo) ? (
-                                    <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" style={{ height: '26px', objectFit: 'contain' }} />
-                                ) : (
-                                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#1e293b', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
-                                        {companyDetails.name ? companyDetails.name.charAt(0).toUpperCase() : 'Z'}
-                                    </div>
-                                )}
+                                <img
+                                    src={getReceiptLogo()}
+                                    alt="Company Logo"
+                                    style={{ height: '28px', maxWidth: '120px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#1e293b' }}>
                                     {isViewMode ? `Payment Receipt #${receiptNumber}` : (isEditMode ? 'Edit Sales Payment' : 'New Sales Payment')}
                                 </h2>
@@ -1293,11 +1308,16 @@ const Payment = () => {
                                 {/* Header */}
                                 <div className="SalesPayment-invoice-header-section">
                                     <div className="SalesPayment-invoice-company-info">
-                                        {companyDetails.logo ? (
-                                            <img src={companyDetails.logo} alt="Company Logo" className="SalesPayment-invoice-logo" />
-                                        ) : (
-                                            <div className="SalesPayment-invoice-logo-placeholder">ZB</div>
-                                        )}
+                                        <img
+                                            src={getReceiptLogo()}
+                                            alt="Company Logo"
+                                            className="SalesPayment-invoice-logo"
+                                            style={{ width: 'auto', height: '60px', maxWidth: '180px', objectFit: 'contain', marginBottom: '1rem', display: 'block' }}
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = tabAccountsLogo;
+                                            }}
+                                        />
                                         <h2 className="SalesPayment-invoice-company-name">{companyDetails.name}</h2>
                                         <div className="SalesPayment-invoice-company-details">
                                             <p>{companyDetails.email}</p>
