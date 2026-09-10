@@ -2124,6 +2124,22 @@ const Invoice = () => {
         // Sort receipts by date ascending
         allReceipts.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+        const combinedTotal = parseFloat(group.totalInvoiceAmount || 0);
+        const combinedPaid = parseFloat(group.totalPaidAmount || 0);
+        const rawCombinedBalance = group.balanceAmount !== undefined && group.balanceAmount !== null
+            ? parseFloat(group.balanceAmount)
+            : Math.max(0, combinedTotal - combinedPaid);
+        const tol = 0.01;
+        const combinedBalance = rawCombinedBalance <= tol ? 0 : rawCombinedBalance;
+        const isCombinedDuePassed = Boolean(group.latestDueDate && new Date(group.latestDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const combinedStatus = (() => {
+            if (combinedBalance <= tol && (combinedTotal > 0 || combinedPaid > 0)) return 'Paid';
+            if (combinedBalance <= tol && combinedTotal === 0) return 'Paid';
+            if (combinedBalance > tol && isCombinedDuePassed) return 'Overdue';
+            if (combinedPaid > tol && combinedBalance > tol) return 'Partial';
+            return 'Unpaid';
+        })();
+
         const combinedInvoice = {
             id: `combined-${group.id}`,
             invoiceNumber: `COMBINED-${group.id}`,
@@ -2147,12 +2163,12 @@ const Invoice = () => {
             receipt: allReceipts,
             subtotal: group.totalInvoiceAmount - (group.invoices.reduce((acc, inv) => acc + (inv.taxAmount || 0), 0)),
             taxAmount: group.invoices.reduce((acc, inv) => acc + (inv.taxAmount || 0), 0),
-            totalAmount: group.totalInvoiceAmount,
-            paidAmount: group.totalPaidAmount,
-            balanceAmount: group.balanceAmount,
+            totalAmount: combinedTotal,
+            paidAmount: combinedPaid,
+            balanceAmount: combinedBalance,
             currencyTotals,
             notes: `Overall summary for ${group.customer?.name} - includes ${group.invoices.length} invoices.`,
-            status: 'Partial'
+            status: combinedStatus
         };
         setSelectedInvoice(combinedInvoice);
         setViewMode(true);
@@ -2768,19 +2784,46 @@ const Invoice = () => {
             const totalVal = inv.totalAmount !== undefined && inv.totalAmount !== null
                 ? parseFloat(inv.totalAmount)
                 : (taxableVal + taxVal);
-            const paidVal = parseFloat(inv.paidAmount || 0);
-            const balanceVal = inv.balanceAmount !== undefined && inv.balanceAmount !== null
-                ? parseFloat(inv.balanceAmount)
-                : Math.max(0, totalVal - paidVal);
 
-            const isFullyPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || inv.status === 'Paid';
-            const currentStatus = (() => {
-                if (inv.status) return String(inv.status).toUpperCase();
-                if (isFullyPaid) return 'PAID';
-                if (balanceVal > 0 && inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
-                    return 'OVERDUE';
+            let paidVal = inv.paidAmount !== undefined && inv.paidAmount !== null
+                ? parseFloat(inv.paidAmount)
+                : 0;
+            if (isNaN(paidVal)) paidVal = 0;
+
+            // Also inspect receipt payments if present
+            if (Array.isArray(inv.receipt) && inv.receipt.length > 0) {
+                const receiptSum = inv.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                if (receiptSum > paidVal) {
+                    paidVal = receiptSum;
                 }
-                if (paidVal > 0 && balanceVal > 0) return 'PARTIAL';
+            } else if (Array.isArray(inv.allocations) && inv.allocations.length > 0) {
+                const allocSum = inv.allocations.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
+                if (allocSum > paidVal) {
+                    paidVal = allocSum;
+                }
+            }
+
+            const rawBal = inv.balanceAmount !== undefined && inv.balanceAmount !== null
+                ? parseFloat(inv.balanceAmount)
+                : (totalVal - paidVal);
+            const calculatedBal = Math.max(0, isNaN(rawBal) ? Math.max(0, totalVal - paidVal) : rawBal);
+            const tol = 0.01;
+            const balanceVal = calculatedBal <= tol ? 0 : calculatedBal;
+
+            const isDuePassedDate = Boolean(inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+            const rawStatus = String(inv.status || '').toUpperCase();
+
+            const currentStatus = (() => {
+                if (rawStatus === 'CANCELLED') return 'CANCELLED';
+                // If balance is zero or paid amount meets or exceeds total, it is PAID!
+                if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+                if (balanceVal <= tol && totalVal === 0) return 'PAID';
+                if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+                if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
+                if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
+                if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+                if (rawStatus === 'PARTIAL' && balanceVal > tol && paidVal > tol) return 'PARTIAL';
+                if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
                 return 'UNPAID';
             })();
 
@@ -3011,17 +3054,21 @@ const Invoice = () => {
 
             // Status Badge Pill
             totY += 4.5;
-            const badgeBg = currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? [220, 252, 231]
+            const isStatusPaid = currentStatus === 'PAID' || currentStatus === 'COMPLETED' || currentStatus === 'FULLY PAID';
+            const badgeBg = isStatusPaid ? [220, 252, 231]
                 : currentStatus === 'OVERDUE' ? [254, 226, 226]
                 : currentStatus === 'PARTIAL' ? [255, 237, 213]
+                : currentStatus === 'CANCELLED' ? [241, 245, 249]
                 : [254, 226, 226];
-            const badgeBorder = currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? [134, 239, 172]
+            const badgeBorder = isStatusPaid ? [134, 239, 172]
                 : currentStatus === 'OVERDUE' ? [252, 165, 165]
                 : currentStatus === 'PARTIAL' ? [253, 186, 116]
+                : currentStatus === 'CANCELLED' ? [203, 213, 225]
                 : [252, 165, 165];
-            const badgeText = currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? [21, 128, 61]
+            const badgeText = isStatusPaid ? [21, 128, 61]
                 : currentStatus === 'OVERDUE' ? [220, 38, 38]
                 : currentStatus === 'PARTIAL' ? [194, 65, 12]
+                : currentStatus === 'CANCELLED' ? [71, 85, 105]
                 : [220, 38, 38];
 
             const badgeWidth = 24;
@@ -5595,7 +5642,7 @@ const Invoice = () => {
                                                             let statusVal = 'Combined';
                                                             if (group.isSingle) {
                                                                 statusVal = group.invoices[0].status;
-                                                            } else if (group.balanceAmount === 0) {
+                                                            } else if (group.balanceAmount <= 0.01) {
                                                                 if (group.totalReturnAmount > 0) {
                                                                     const allReturned = group.invoices.every(inv => inv.status.toLowerCase().includes('returned') && !inv.status.toLowerCase().includes('partial'));
                                                                     statusVal = allReturned ? 'Returned' : 'Partially Returned';

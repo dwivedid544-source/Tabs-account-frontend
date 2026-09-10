@@ -331,17 +331,31 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     ];
 
                     const totalVal = parseFloat(document?.totalAmount || 0);
-                    const paidVal = parseFloat(document?.paidAmount || 0);
-                    const balanceVal = parseFloat(document?.balanceAmount !== undefined ? document.balanceAmount : Math.max(0, totalVal - paidVal));
-                    const isPaid = balanceVal === 0 || (paidVal >= totalVal && totalVal > 0) || document?.status === 'Paid';
+                    let paidVal = parseFloat(document?.paidAmount || 0);
+                    if (isNaN(paidVal)) paidVal = 0;
+
+                    if (Array.isArray(document?.receipt) && document.receipt.length > 0) {
+                        const receiptSum = document.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                        if (receiptSum > paidVal) paidVal = receiptSum;
+                    }
+
+                    const rawBal = document?.balanceAmount !== undefined ? parseFloat(document.balanceAmount) : (totalVal - paidVal);
+                    const calculatedBal = Math.max(0, isNaN(rawBal) ? Math.max(0, totalVal - paidVal) : rawBal);
+                    const tol = 0.01;
+                    const balanceVal = calculatedBal <= tol ? 0 : calculatedBal;
+                    const isDuePassed = Boolean(document?.dueDate && new Date(document.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+                    const rawStatus = String(document?.status || '').toUpperCase();
 
                     const currentStatus = (() => {
-                        if (document?.status) return String(document.status).toUpperCase();
-                        if (isPaid) return 'PAID';
-                        if (balanceVal > 0 && document?.dueDate && new Date(document.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)) {
-                            return 'OVERDUE';
-                        }
-                        if (paidVal > 0 && balanceVal > 0) return 'PARTIAL';
+                        if (rawStatus === 'CANCELLED') return 'CANCELLED';
+                        if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+                        if (balanceVal <= tol && totalVal === 0) return 'PAID';
+                        if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+                        if (balanceVal > tol && isDuePassed) return 'OVERDUE';
+                        if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
+                        if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+                        if (rawStatus === 'PARTIAL' && balanceVal > tol && paidVal > tol) return 'PARTIAL';
+                        if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
                         return 'UNPAID';
                     })();
 

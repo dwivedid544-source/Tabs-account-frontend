@@ -459,8 +459,28 @@ export const exportSingleInvoiceToExcel = (invoice, customFileName) => {
         const discount = parseFloat(invoice.discountAmount || 0);
         const tax = parseFloat(invoice.taxAmount || 0);
         const total = parseFloat(invoice.totalAmount || 0);
-        const paid = parseFloat(invoice.paidAmount || 0);
-        const balance = invoice.balanceAmount !== undefined ? parseFloat(invoice.balanceAmount) : (total - paid);
+        let paid = parseFloat(invoice.paidAmount || 0);
+        if (isNaN(paid)) paid = 0;
+        if (Array.isArray(invoice.receipt) && invoice.receipt.length > 0) {
+            const receiptSum = invoice.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+            if (receiptSum > paid) paid = receiptSum;
+        }
+        const rawBal = invoice.balanceAmount !== undefined ? parseFloat(invoice.balanceAmount) : (total - paid);
+        const tol = 0.01;
+        const balance = Math.max(0, isNaN(rawBal) ? Math.max(0, total - paid) : rawBal);
+        const effectiveBal = balance <= tol ? 0 : balance;
+        const isDuePassed = Boolean(invoice.dueDate && new Date(invoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const rawStatus = String(invoice.status || '').toUpperCase();
+        const computedStatus = (() => {
+            if (rawStatus === 'CANCELLED') return 'CANCELLED';
+            if (effectiveBal <= tol && (total > 0 || paid > 0)) return 'PAID';
+            if (effectiveBal <= tol && total === 0) return 'PAID';
+            if (rawStatus === 'PAID' && effectiveBal <= tol) return 'PAID';
+            if (effectiveBal > tol && isDuePassed) return 'OVERDUE';
+            if (paid > tol && effectiveBal > tol) return 'PARTIAL';
+            if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
+            return 'UNPAID';
+        })();
 
         // Format items data
         const itemsData = items.map((item, idx) => ({
@@ -484,14 +504,14 @@ export const exportSingleInvoiceToExcel = (invoice, customFileName) => {
             { 'Invoice Field': 'Billing Address', 'Value': invoice.billingAddress || invoice.customer?.billingAddress || '' },
             { 'Invoice Field': 'Invoice Date', 'Value': invoice.date ? new Date(invoice.date).toLocaleDateString() : '' },
             { 'Invoice Field': 'Due Date', 'Value': invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A' },
-            { 'Invoice Field': 'Status', 'Value': invoice.status || 'UNPAID' },
+            { 'Invoice Field': 'Status', 'Value': computedStatus },
             { 'Invoice Field': 'Currency', 'Value': currency },
             { 'Invoice Field': 'Subtotal', 'Value': subtotal },
             { 'Invoice Field': 'Discount Amount', 'Value': discount },
             { 'Invoice Field': 'Tax Amount', 'Value': tax },
             { 'Invoice Field': 'Total Amount', 'Value': total },
             { 'Invoice Field': 'Paid Amount', 'Value': paid },
-            { 'Invoice Field': 'Balance Due', 'Value': balance }
+            { 'Invoice Field': 'Balance Due', 'Value': effectiveBal }
         ];
 
         const wb = XLSX.utils.book_new();
