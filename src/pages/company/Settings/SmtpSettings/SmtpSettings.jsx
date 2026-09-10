@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Server, Mail, Key, Shield, Send, CheckCircle2,
     XCircle, AlertCircle, RefreshCw, Eye, EyeOff, Save,
-    Globe, User, Sparkles, X, Check
+    Globe, User, Sparkles, X, Check, Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import smtpService from '../../../../api/smtpService';
@@ -62,9 +62,7 @@ const SmtpSettings = ({ isTab = false }) => {
                     lastTestedAt: data.lastTestedAt,
                     lastTestStatus: data.lastTestStatus
                 });
-                if (data.fromEmail) {
-                    setTestRecipient(data.fromEmail);
-                }
+                setTestRecipient('');
             }
         } catch (err) {
             console.error('Error fetching SMTP settings:', err);
@@ -96,6 +94,13 @@ const SmtpSettings = ({ isTab = false }) => {
                 const saved = res.data.data;
                 setFormData(prev => ({
                     ...prev,
+                    host: saved.host || '',
+                    ip: saved.ip || '',
+                    port: saved.port || 587,
+                    security: saved.security || 'TLS',
+                    username: saved.username || '',
+                    fromEmail: saved.fromEmail || '',
+                    fromName: saved.fromName || '',
                     hasPassword: Boolean(saved.hasPassword),
                     isConfigured: Boolean(saved.isConfigured),
                     lastTestedAt: saved.lastTestedAt,
@@ -107,6 +112,42 @@ const SmtpSettings = ({ isTab = false }) => {
             }
         } catch (err) {
             toast.error(err.response?.data?.message || err.message || 'Error saving SMTP settings');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleClear = async () => {
+        if (!window.confirm('Are you sure you want to remove and clear all saved SMTP credentials?')) {
+            return;
+        }
+        try {
+            setSaving(true);
+            const res = await smtpService.clearSettings(companyId);
+            if (res.data?.success) {
+                toast.success('SMTP credentials and settings removed successfully');
+                setFormData({
+                    host: '',
+                    ip: '',
+                    port: 587,
+                    security: 'TLS',
+                    username: '',
+                    password: '',
+                    fromEmail: '',
+                    fromName: '',
+                    invoiceSubjectTemplate: 'Invoice #{InvoiceNumber} from {CompanyName}',
+                    invoiceBodyTemplate: 'Dear {CustomerName},\n\nPlease find attached your invoice #{InvoiceNumber} for {InvoiceAmount}, due on {DueDate}.\n\nYou can also review and pay your invoice online through our secure portal.\n\nThank you for your business.\n\nKind regards,\n{CompanyName}',
+                    hasPassword: false,
+                    isConfigured: false,
+                    lastTestedAt: null,
+                    lastTestStatus: null
+                });
+                setTestRecipient('');
+            } else {
+                toast.error(res.data?.message || 'Failed to clear SMTP settings');
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || err.message || 'Error clearing SMTP settings');
         } finally {
             setSaving(false);
         }
@@ -137,7 +178,15 @@ const SmtpSettings = ({ isTab = false }) => {
                 }));
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || err.message || 'SMTP Connection test failed');
+            let errorText = err.response?.data?.message;
+            if (!errorText) {
+                if (err.message === 'Network Error' || err.response?.status === 502) {
+                    errorText = 'Network / Server timeout. Cloud hosting (Railway) blocks outbound SMTP ports (465/587) by default. Test via your local backend or request Railway to unblock SMTP.';
+                } else {
+                    errorText = err.message || 'SMTP Connection test failed';
+                }
+            }
+            toast.error(errorText, { duration: 6000 });
             setFormData(prev => ({
                 ...prev,
                 lastTestedAt: new Date().toISOString(),
@@ -165,6 +214,7 @@ const SmtpSettings = ({ isTab = false }) => {
             if (res.data?.success) {
                 toast.success(res.data.message || `Test email sent to ${testRecipient}`);
                 setShowTestModal(false);
+                setTestRecipient('');
                 setFormData(prev => ({
                     ...prev,
                     lastTestedAt: new Date().toISOString(),
@@ -174,7 +224,15 @@ const SmtpSettings = ({ isTab = false }) => {
                 toast.error(res.data?.message || 'Failed to send test email');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || err.message || 'Failed to send test email');
+            let errorText = err.response?.data?.message;
+            if (!errorText) {
+                if (err.message === 'Network Error' || err.response?.status === 502) {
+                    errorText = 'Network / Server timeout. Cloud hosting (Railway) blocks outbound SMTP ports (465/587) by default. Test via your local backend or request Railway to unblock SMTP.';
+                } else {
+                    errorText = err.message || 'Failed to send test email';
+                }
+            }
+            toast.error(errorText, { duration: 6000 });
         } finally {
             setSendingTest(false);
         }
@@ -240,7 +298,11 @@ const SmtpSettings = ({ isTab = false }) => {
                 </div>
             )}
 
-            <form onSubmit={handleSave}>
+            <form onSubmit={handleSave} autoComplete="off">
+                {/* Decoy fields to intercept aggressive browser password managers from auto-filling personal credentials */}
+                <input type="text" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
+                <input type="password" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
+
                 {/* Card 1: Server Configuration */}
                 <div className="smtp-card">
                     <div className="smtp-card-header">
@@ -258,17 +320,19 @@ const SmtpSettings = ({ isTab = false }) => {
                     <div className="smtp-form-grid">
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                SMTP Host <span className="smtp-required">*</span>
+                                SMTP Host
                             </label>
                             <div className="smtp-input-wrapper">
                                 <Server size={16} className="smtp-input-icon" />
                                 <input
                                     type="text"
+                                    name="custom_smtp_server_hostname"
+                                    id="custom_smtp_server_hostname"
                                     className="smtp-input"
                                     placeholder="e.g. smtp.gmail.com, mail.yourdomain.com"
                                     value={formData.host}
                                     onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                                    required
+                                    autoComplete="off"
                                 />
                             </div>
                             <span className="smtp-hint">Mail server domain or hostname</span>
@@ -282,10 +346,13 @@ const SmtpSettings = ({ isTab = false }) => {
                                 <Globe size={16} className="smtp-input-icon" />
                                 <input
                                     type="text"
+                                    name="custom_smtp_server_ip_binding"
+                                    id="custom_smtp_server_ip_binding"
                                     className="smtp-input"
                                     placeholder="e.g. 192.168.1.10"
                                     value={formData.ip}
                                     onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+                                    autoComplete="off"
                                 />
                             </div>
                             <span className="smtp-hint">Optional specific IP binding address</span>
@@ -293,15 +360,17 @@ const SmtpSettings = ({ isTab = false }) => {
 
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                Port <span className="smtp-required">*</span>
+                                Port
                             </label>
                             <input
                                 type="number"
+                                name="custom_smtp_server_port_num"
+                                id="custom_smtp_server_port_num"
                                 className="smtp-input no-icon"
                                 placeholder="587"
                                 value={formData.port}
                                 onChange={(e) => setFormData({ ...formData, port: e.target.value })}
-                                required
+                                autoComplete="off"
                             />
                             <div className="smtp-port-pills">
                                 <button
@@ -330,7 +399,7 @@ const SmtpSettings = ({ isTab = false }) => {
 
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                Security / Encryption <span className="smtp-required">*</span>
+                                Security / Encryption
                             </label>
                             <div className="smtp-input-wrapper">
                                 <Shield size={16} className="smtp-input-icon" />
@@ -366,17 +435,19 @@ const SmtpSettings = ({ isTab = false }) => {
                     <div className="smtp-form-grid">
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                Username <span className="smtp-required">*</span>
+                                Username
                             </label>
                             <div className="smtp-input-wrapper">
                                 <User size={16} className="smtp-input-icon" />
                                 <input
                                     type="text"
+                                    name="custom_smtp_acct_username"
+                                    id="custom_smtp_acct_username"
                                     className="smtp-input"
                                     placeholder="e.g. billing@yourcompany.com"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                    required
+                                    autoComplete="one-time-code"
                                 />
                             </div>
                             <span className="smtp-hint">Typically your email address or account username</span>
@@ -384,12 +455,14 @@ const SmtpSettings = ({ isTab = false }) => {
 
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                Password <span className="smtp-required">*</span>
+                                Password
                             </label>
                             <div className="smtp-input-wrapper">
                                 <Key size={16} className="smtp-input-icon" />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
+                                    name="custom_smtp_acct_password"
+                                    id="custom_smtp_acct_password"
                                     className="smtp-input"
                                     placeholder={formData.hasPassword ? '••••••••' : 'Enter SMTP password'}
                                     value={formData.password}
@@ -422,17 +495,19 @@ const SmtpSettings = ({ isTab = false }) => {
 
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                From Email <span className="smtp-required">*</span>
+                                From Email
                             </label>
                             <div className="smtp-input-wrapper">
                                 <Mail size={16} className="smtp-input-icon" />
                                 <input
                                     type="email"
+                                    name="custom_smtp_sender_email_addr"
+                                    id="custom_smtp_sender_email_addr"
                                     className="smtp-input"
                                     placeholder="e.g. invoices@yourcompany.com"
                                     value={formData.fromEmail}
                                     onChange={(e) => setFormData({ ...formData, fromEmail: e.target.value })}
-                                    required
+                                    autoComplete="one-time-code"
                                 />
                             </div>
                             <span className="smtp-hint">Sender email address displayed on invoice emails</span>
@@ -440,17 +515,19 @@ const SmtpSettings = ({ isTab = false }) => {
 
                         <div className="smtp-form-group">
                             <label className="smtp-label">
-                                From Name <span className="smtp-required">*</span>
+                                From Name
                             </label>
                             <div className="smtp-input-wrapper">
                                 <User size={16} className="smtp-input-icon" />
                                 <input
                                     type="text"
+                                    name="custom_smtp_sender_display_name"
+                                    id="custom_smtp_sender_display_name"
                                     className="smtp-input"
                                     placeholder="e.g. Acme Corp Billing"
                                     value={formData.fromName}
                                     onChange={(e) => setFormData({ ...formData, fromName: e.target.value })}
-                                    required
+                                    autoComplete="off"
                                 />
                             </div>
                             <span className="smtp-hint">Sender name displayed in customer's email inbox</span>
@@ -550,48 +627,74 @@ const SmtpSettings = ({ isTab = false }) => {
                 </div>
 
                 {/* Actions Footer Bar */}
-                <div className="smtp-actions-bar">
-                    <button
-                        type="button"
-                        onClick={handleTestConnection}
-                        disabled={testingConn || !formData.host || !formData.username}
-                        className="smtp-btn smtp-btn-secondary"
-                    >
-                        {testingConn ? (
-                            <>
-                                <RefreshCw size={16} className="animate-spin" /> Verifying Connection...
-                            </>
-                        ) : (
-                            <>
-                                <Server size={16} /> Test Connection
-                            </>
-                        )}
-                    </button>
+                <div className="smtp-actions-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                        <button
+                            type="button"
+                            onClick={handleClear}
+                            disabled={saving || testingConn}
+                            className="smtp-btn"
+                            style={{
+                                background: '#fff1f2',
+                                color: '#e11d48',
+                                border: '1px solid #fecdd3',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                            title="Remove all saved credentials and reset fields"
+                        >
+                            <Trash2 size={16} /> Clear / Remove Credentials
+                        </button>
+                    </div>
 
-                    <button
-                        type="button"
-                        onClick={() => setShowTestModal(true)}
-                        disabled={!formData.host || !formData.username}
-                        className="smtp-btn smtp-btn-secondary"
-                    >
-                        <Send size={16} /> Send Test Email
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            onClick={handleTestConnection}
+                            disabled={testingConn || !formData.host || !formData.username}
+                            className="smtp-btn smtp-btn-secondary"
+                        >
+                            {testingConn ? (
+                                <>
+                                    <RefreshCw size={16} className="animate-spin" /> Verifying Connection...
+                                </>
+                            ) : (
+                                <>
+                                    <Server size={16} /> Test Connection
+                                </>
+                            )}
+                        </button>
 
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="smtp-btn smtp-btn-primary"
-                    >
-                        {saving ? (
-                            <>
-                                <RefreshCw size={16} className="animate-spin" /> Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Save size={16} /> Save Configuration
-                            </>
-                        )}
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTestRecipient('');
+                                setShowTestModal(true);
+                            }}
+                            disabled={!formData.host || !formData.username}
+                            className="smtp-btn smtp-btn-secondary"
+                        >
+                            <Send size={16} /> Send Test Email
+                        </button>
+
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="smtp-btn smtp-btn-primary"
+                        >
+                            {saving ? (
+                                <>
+                                    <RefreshCw size={16} className="animate-spin" /> Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save size={16} /> Save Configuration
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -606,7 +709,10 @@ const SmtpSettings = ({ isTab = false }) => {
                             <button
                                 type="button"
                                 className="smtp-modal-close"
-                                onClick={() => setShowTestModal(false)}
+                                onClick={() => {
+                                    setTestRecipient('');
+                                    setShowTestModal(false);
+                                }}
                             >
                                 <X size={20} />
                             </button>
@@ -636,7 +742,10 @@ const SmtpSettings = ({ isTab = false }) => {
                                 <button
                                     type="button"
                                     className="smtp-btn smtp-btn-secondary"
-                                    onClick={() => setShowTestModal(false)}
+                                    onClick={() => {
+                                        setTestRecipient('');
+                                        setShowTestModal(false);
+                                    }}
                                 >
                                     Cancel
                                 </button>

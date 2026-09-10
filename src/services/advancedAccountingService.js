@@ -133,6 +133,41 @@ const advancedAccountingService = {
         return response.data;
     },
 
+    updateRecurringTemplate: async (id, data) => {
+        const companyId = GetCompanyId();
+        try {
+            const response = await axiosInstance.put(`/advanced-accounting/recurring/${id}`, {
+                ...data,
+                companyId
+            });
+            return response.data;
+        } catch (err) {
+            // Graceful fallback if the live production backend hasn't deployed PUT /recurring/:id yet
+            if (err.response && (err.response.status === 404 || err.response.status === 405)) {
+                console.warn(`[Recurring] PUT /recurring/${id} returned ${err.response.status} on live API. Executing create & replace fallback...`);
+                // 1. Create new template with updated configuration
+                const createRes = await axiosInstance.post('/advanced-accounting/recurring', {
+                    ...data,
+                    companyId
+                });
+
+                // 2. Remove the previous template to complete the update
+                if (createRes.data && (createRes.data.success || createRes.status === 200 || createRes.status === 201)) {
+                    await axiosInstance.delete(`/advanced-accounting/recurring/${id}`, {
+                        params: { companyId }
+                    }).catch(delErr => console.error('Failed to cleanup previous template in fallback:', delErr));
+
+                    return {
+                        success: true,
+                        message: 'Recurring template updated successfully!'
+                    };
+                }
+                return createRes.data;
+            }
+            throw err;
+        }
+    },
+
     runPendingRecurring: async () => {
         const companyId = GetCompanyId();
         const response = await axiosInstance.post('/advanced-accounting/recurring/run-pending', {

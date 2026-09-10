@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Download, Calendar, Search, Filter, Printer, FileText, ArrowRight, CheckCircle2, DollarSign, Layers, ShieldCheck, RefreshCw } from 'lucide-react';
 import axiosInstance from '../../../../api/axiosInstance';
 import GetCompanyId from '../../../../api/GetCompanyId';
@@ -11,6 +11,7 @@ import './VatReport.css';
 
 const VatReport = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formatCurrency, fetchCompanySettings, companySettings } = useContext(CompanyContext);
     const [year, setYear] = useState(new Date().getFullYear());
     const [period, setPeriod] = useState('P1'); // 'P1'..'P6', 'ALL', 'custom'
@@ -99,7 +100,10 @@ const VatReport = () => {
             navigate('/company/sales/invoice', {
                 state: {
                     targetInvoiceId: parseInt(t.invoiceId),
-                    type: t.isPos ? 'POS_INVOICE' : 'TAX_INVOICE'
+                    type: t.isPos ? 'POS_INVOICE' : 'TAX_INVOICE',
+                    from: location.pathname + location.search,
+                    sourceName: 'VAT Report',
+                    fromReport: true
                 }
             });
         }

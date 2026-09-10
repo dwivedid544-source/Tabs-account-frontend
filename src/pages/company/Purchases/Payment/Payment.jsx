@@ -20,6 +20,7 @@ import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../../utils/logoUrl';
 
 const Payment = () => {
     const { hasPermission } = useContext(AuthContext);
@@ -102,6 +103,18 @@ const Payment = () => {
     useEffect(() => {
         companyDetailsRef.current = companyDetails;
     }, [companyDetails]);
+
+    const getReceiptLogo = () => {
+        const candidate = companySettings?.receiptLogo ||
+            companyDetails?.receiptLogo ||
+            companySettings?.paymentLogo ||
+            companyDetails?.paymentLogo ||
+            companySettings?.logo ||
+            companyDetails?.logo ||
+            companySettings?.invoiceLogo ||
+            companyDetails?.invoiceLogo;
+        return getCompanyLogoSrc(candidate);
+    };
 
 
     // â”€â”€ Form state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -289,8 +302,15 @@ const Payment = () => {
             }
 
             if (companyRes?.data) {
-                setCompanyDetails(companyRes.data);
-                companyDetailsRef.current = companyRes.data;
+                const compData = {
+                    ...companyRes.data,
+                    logo: resolveLogoUrl(companyRes.data.logo) || null,
+                    invoiceLogo: resolveLogoUrl(companyRes.data.invoiceLogo) || null,
+                    receiptLogo: resolveLogoUrl(companyRes.data.receiptLogo) || null,
+                    paymentLogo: resolveLogoUrl(companyRes.data.paymentLogo) || null
+                };
+                setCompanyDetails(compData);
+                companyDetailsRef.current = compData;
                 if (!editingId) {
                     setNotes(companyRes.data.notes || '');
                     setTerms(companyRes.data.termsReceipt || companyRes.data.terms || '');
@@ -940,13 +960,15 @@ const Payment = () => {
                     <div className="PurchasePayment-view-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {(companySettings?.invoiceLogo || companyDetails.logo) ? (
-                                    <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" style={{ height: '26px', objectFit: 'contain' }} />
-                                ) : (
-                                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#1e293b', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
-                                        {companyDetails.name ? companyDetails.name.charAt(0).toUpperCase() : 'Z'}
-                                    </div>
-                                )}
+                                <img
+                                    src={getReceiptLogo()}
+                                    alt="Company Logo"
+                                    style={{ height: '28px', maxWidth: '120px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#1e293b' }}>
                                     {isViewMode ? `Payment Receipt #${viewPayment?.paymentNumber || ''}` : (editingId ? 'Edit Purchase Payment' : 'New Purchase Payment')}
                                 </h2>
@@ -1816,11 +1838,17 @@ const Payment = () => {
 
                                     <div className="pp-receipt-header">
                                         <div className="pp-receipt-company-section">
-                                            {companyDetails.logo && (
-                                                <div className="pp-receipt-logo">
-                                                    <img src={companyDetails.logo} alt="Company Logo" />
-                                                </div>
-                                            )}
+                                            <div className="pp-receipt-logo">
+                                                <img
+                                                    src={getReceiptLogo()}
+                                                    alt="Company Logo"
+                                                    style={{ maxHeight: '60px', maxWidth: '160px', objectFit: 'contain', display: 'block' }}
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = tabAccountsLogo;
+                                                    }}
+                                                />
+                                            </div>
                                             <div className="pp-receipt-company-details">
                                                 <h2 className="pp-receipt-company-name">{companyDetails.name || 'Your Company'}</h2>
                                                 {companyDetails.email && <p className="pp-receipt-company-text">{companyDetails.email}</p>}

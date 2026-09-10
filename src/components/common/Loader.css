@@ -65,7 +65,7 @@
   /* Visibility in dark mode */
 }
 
-.cursor {
+.loader-typing-cursor {
   font-weight: 300;
   color: #1e293b;
   animation: blink 0.8s infinite;

@@ -21,6 +21,7 @@ import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../../utils/logoUrl';
 import '../../Vendors/Vendors.css';
 import '../../Inventory/ProductInventory/Inventory.css';
 import '../../Inventory/UOM/UOM.css';
@@ -277,7 +278,9 @@ const GoodsReceipt = () => {
                         address: res.data.address || '',
                         email: res.data.email || '',
                         phone: res.data.phone || '',
-                        logo: res.data.logo || '',
+                        logo: resolveLogoUrl(res.data.logo) || '',
+                        invoiceLogo: resolveLogoUrl(res.data.invoiceLogo) || '',
+                        receiptLogo: resolveLogoUrl(res.data.receiptLogo) || '',
                         zip: res.data.zip || res.data.postalCode || ''
                     });
                     // Auto-fill dest address from company address parts if possible
@@ -1311,13 +1314,15 @@ const GoodsReceipt = () => {
                     <div className="GoodsReceipt-view-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {(companySettings?.invoiceLogo || companyInfo.logo) ? (
-                                    <img src={companySettings?.invoiceLogo || companyInfo.logo} alt="Company Logo" style={{ height: '26px', objectFit: 'contain' }} />
-                                ) : (
-                                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#1e293b', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
-                                        {companyInfo.name ? companyInfo.name.charAt(0).toUpperCase() : 'Z'}
-                                    </div>
-                                )}
+                                <img
+                                    src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyInfo.logo || companySettings?.logo)}
+                                    alt="Company Logo"
+                                    style={{ height: '26px', maxWidth: '120px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#1e293b' }}>
                                     {isViewMode ? `Goods Receipt #${grnMeta.grnNumber}` : (editingId ? 'Edit Goods Receipt' : 'New Goods Receipt')}
                                 </h2>
@@ -1385,14 +1390,16 @@ const GoodsReceipt = () => {
                                             <div className="invoice-header-wrapper" style={{ border: 'none', padding: '0', margin: '0' }}>
                                                 <div className="invoice-preview-header" style={{ marginBottom: '10px' }}>
                                                     <div className="invoice-header-left">
-                                                        {(companySettings?.invoiceLogo || companyInfo.logo) && (
-                                                            <img
-                                                                src={companySettings?.invoiceLogo || (companyInfo.logo.startsWith('http') ? companyInfo.logo : `${BASE_URL}/${companyInfo.logo.replace(/\\/g, '/')}`)}
-                                                                alt="Company Logo"
-                                                                className="invoice-logo-large"
-                                                                style={{ margin: '0' }}
-                                                            />
-                                                        )}
+                                                        <img
+                                                            src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyInfo.logo || companySettings?.logo)}
+                                                            alt="Company Logo"
+                                                            className="invoice-logo-large"
+                                                            style={{ margin: '0' }}
+                                                            onError={(e) => {
+                                                                e.target.onerror = null;
+                                                                e.target.src = tabAccountsLogo;
+                                                            }}
+                                                        />
                                                     </div>
                                                     <div className="invoice-header-right">
                                                         <div className="invoice-title-large" style={{ color: companySettings?.invoiceColor || '#004aad', margin: '0' }}>{getDocumentTitle('goodsreceipt')}</div>
@@ -2703,7 +2710,7 @@ const GoodsReceipt = () => {
                                         </div>
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)*</label>
+                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
                                         <div className="Zirak-Inventory-input-with-action">
                                             <select
                                                 name="uomId" className="Zirak-Inventory-form-input"
@@ -2716,7 +2723,6 @@ const GoodsReceipt = () => {
                                                         salesUomId: val
                                                     }));
                                                 }}
-                                                required
                                             >
                                                 <option value="">Select Base UOM</option>
                                                 {allUoms.filter(u => u.uomType === 'Simple').map(uom => (

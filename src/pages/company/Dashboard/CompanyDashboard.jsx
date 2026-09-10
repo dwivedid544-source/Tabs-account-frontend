@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { CompanyContext } from '../../../context/CompanyContext';
+import { AuthContext } from '../../../context/AuthContext';
 import { useTranslation } from '../../../context/LanguageContext';
 import {
     ShoppingBag,
@@ -80,10 +81,15 @@ const DashboardCustomerImage = ({ src, alt }) => {
 
 const CompanyDashboard = () => {
     const { formatCurrency } = useContext(CompanyContext);
+    const { currentUser } = useContext(AuthContext);
     const { t } = useTranslation();
     const companyId = GetCompanyId();
+    const activeCompanyId = currentUser?.companyId || companyId;
+
     const [stats, setStats] = useState({
         totalRevenue: 0,
+        totalInvoiced: 0,
+        totalPurchased: 0,
         totalExpenses: 0,
         netProfit: 0,
         customerCount: 0,
@@ -91,6 +97,7 @@ const CompanyDashboard = () => {
         productCount: 0,
         saleInvoiceCount: 0,
         purchaseBillCount: 0,
+        activityCount: 0,
         recentTransactions: [],
         chartData: [],
         topProducts: [],
@@ -101,9 +108,10 @@ const CompanyDashboard = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
+            if (!activeCompanyId) return;
             try {
                 setLoading(true);
-                const response = await dashboardService.getCompanyStats();
+                const response = await dashboardService.getCompanyStats(activeCompanyId);
                 if (response.success) {
                     setStats(response.data);
                 }
@@ -114,7 +122,7 @@ const CompanyDashboard = () => {
             }
         };
         fetchStats();
-    }, []);
+    }, [activeCompanyId]);
 
     // const formatCurrency = (val) => {
     //     return new Intl.NumberFormat('en-IN', {
@@ -135,9 +143,14 @@ const CompanyDashboard = () => {
                     <div className="metric-info">
                         <h3>{formatCurrency(stats.totalRevenue)}</h3>
                         <p>{t('Total Revenue')}</p>
+                        {stats.totalInvoiced > stats.totalRevenue && (
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                Invoiced: {formatCurrency(stats.totalInvoiced)}
+                            </span>
+                        )}
                     </div>
                     <div className="metric-icon" style={{ backgroundColor: "#d2fae1ff" }}>
-                        <TrendingUp size={24} color="#334155" />
+                        <TrendingUp size={24} color="#10b981" />
                     </div>
                 </div>
                 <div className="metric-card">
@@ -160,7 +173,7 @@ const CompanyDashboard = () => {
                 </div>
                 <div className="metric-card">
                     <div className="metric-info">
-                        <h3>{stats.recentTransactions.length}</h3>
+                        <h3>{stats.activityCount ?? stats.recentTransactions.length}</h3>
                         <p>{t('Recent Activities')}</p>
                     </div>
                     <div className="metric-icon icon-yellow">
@@ -224,12 +237,13 @@ const CompanyDashboard = () => {
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                 <YAxis axisLine={false} tickLine={false} />
                                 <Tooltip
+                                    cursor={false}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-                                    formatter={(value) => Number(value).toFixed(2)}
+                                    formatter={(value) => formatCurrency(value)}
                                 />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                <Bar dataKey="expense" fill="#1e293b" radius={[4, 4, 0, 0]} barSize={20} name={t('Purchase/Expense')} />
-                                <Bar dataKey="revenue" fill="#1e293b" radius={[4, 4, 0, 0]} barSize={20} name={t('Sales/Revenue')} />
+                                <Bar dataKey="sales" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} name={t('Sales')} />
+                                <Bar dataKey="purchases" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} name={t('Purchases')} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -312,10 +326,10 @@ const CompanyDashboard = () => {
                     </div>
                 </div>
 
-                {/* Sales Statistics */}
+                {/* Revenue & Expense Statistics */}
                 <div className="chart-card">
                     <div className="chart-header" style={{ borderLeftColor: '#ef4444' }}>
-                        <h3 className="chart-title">Sales Statistics</h3>
+                        <h3 className="chart-title">{t('Revenue & Expense')}</h3>
                     </div>
                     <div className="stats-summary">
                         <div className="stat-item">
@@ -333,9 +347,9 @@ const CompanyDashboard = () => {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                 <YAxis axisLine={false} tickLine={false} />
-                                <Tooltip formatter={(value) => Number(value).toFixed(2)} />
-                                <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} barSize={15} name="Revenue" />
-                                <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={15} name="Expense" />
+                                <Tooltip cursor={false} formatter={(value) => formatCurrency(value)} />
+                                <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} barSize={15} name={t('Revenue')} />
+                                <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={15} name={t('Expense')} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

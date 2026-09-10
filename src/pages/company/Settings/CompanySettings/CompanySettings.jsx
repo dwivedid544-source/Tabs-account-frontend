@@ -16,6 +16,7 @@ import { CompanyContext } from '../../../../context/CompanyContext';
 import { useTranslation } from '../../../../context/LanguageContext';
 import SmtpSettings from '../SmtpSettings/SmtpSettings';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
+import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
 const purchaseTypes = ['purchasequotation', 'purchaseorder', 'purchasebill', 'purchasereturn', 'payment'];
 const otherTypes = ['goodsreceiptnote', 'voucher', 'stocktransfer', 'adjustment'];
@@ -1489,21 +1490,20 @@ const CompanySettings = () => {
                                             <div className="invoice-cea-company-name">{formData.name || 'CEAC Ltd'}</div>
                                             <div className="invoice-cea-company-line">{formData.address || '17 South Mall'}</div>
                                             <div className="invoice-cea-company-line">
-                                                {[formData.city || 'Cork', formData.state ? `Co, ${formData.state.replace(/^Co\.?,?\s*/i, '')}` : 'Co, Cork', formData.zip || 'T12VCY2'].filter(Boolean).join(' ')}
+                                                {formData.city && formData.zip
+                                                    ? `${formData.city}, ${formData.state ? (formData.state.includes('Co') ? formData.state : `Co, ${formData.state}`) : 'Co, Cork'} ${formData.zip}`
+                                                    : 'Cork, Co, Cork T12VCY2'}
                                             </div>
                                             <div className="invoice-cea-company-line">{formData.phone || '+353214272000'}</div>
                                             <div className="invoice-cea-company-line">{formData.email || 'accounts@ceaarchitects.com'}</div>
-                                            <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || formData.gstNumber || '4120278GH'}</div>
+                                            <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || '4120278GH'}</div>
                                         </div>
                                         <div className="invoice-cea-logo-container">
-                                            {invoiceSettings.logoPreview || logoPreview ? (
-                                                <img src={invoiceSettings.logoPreview || logoPreview} alt="Logo" className="invoice-cea-logo-img" />
-                                            ) : (
-                                                <div className="invoice-cea-logo-text">
-                                                    <div className="cea-logo-main">CEA</div>
-                                                    <div className="cea-logo-sub">ARCHITECTS</div>
-                                                </div>
-                                            )}
+                                            <img
+                                                src={ceaArchitectsLogo}
+                                                alt="CEA ARCHITECTS"
+                                                className="invoice-cea-logo-img"
+                                            />
                                         </div>
                                     </div>
 

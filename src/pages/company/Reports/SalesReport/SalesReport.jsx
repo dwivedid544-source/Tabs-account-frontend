@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Download, Calendar,
     DollarSign, CheckCircle2, XCircle, AlertCircle,
@@ -15,9 +15,23 @@ import * as XLSX from 'xlsx';
 
 const SalesReport = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
-    const [reportType, setReportType] = useState('general'); // 'general', 'item', 'customer'
-    const [transactionFilter, setTransactionFilter] = useState('ALL'); // 'ALL', 'SALES', 'RETURNS'
+
+    const savedFilters = useMemo(() => {
+        if (location.state?.returnState) {
+            return location.state.returnState;
+        }
+        try {
+            const raw = sessionStorage.getItem('tab_sales_report_filters');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }, [location.state]);
+
+    const [reportType, setReportType] = useState(savedFilters?.reportType || 'general'); // 'general', 'item', 'customer'
+    const [transactionFilter, setTransactionFilter] = useState(savedFilters?.transactionFilter || 'ALL'); // 'ALL', 'SALES', 'RETURNS'
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [summaryStats, setSummaryStats] = useState({
@@ -30,10 +44,10 @@ const SalesReport = () => {
         overdue: 0
     });
 
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [tempStartDate, setTempStartDate] = useState('');
-    const [tempEndDate, setTempEndDate] = useState('');
+    const [startDate, setStartDate] = useState(savedFilters?.startDate || '');
+    const [endDate, setEndDate] = useState(savedFilters?.endDate || '');
+    const [tempStartDate, setTempStartDate] = useState(savedFilters?.startDate || '');
+    const [tempEndDate, setTempEndDate] = useState(savedFilters?.endDate || '');
 
     const handleApplyFilters = () => {
         setStartDate(tempStartDate);
@@ -46,9 +60,25 @@ const SalesReport = () => {
         setStartDate('');
         setEndDate('');
         setTransactionFilter('ALL');
+        try {
+            sessionStorage.removeItem('tab_sales_report_filters');
+        } catch (e) {}
     };
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(savedFilters?.searchTerm || '');
     const [showExportOptions, setShowExportOptions] = useState(false);
+
+    // Save filters to session storage when they change
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('tab_sales_report_filters', JSON.stringify({
+                reportType,
+                transactionFilter,
+                startDate,
+                endDate,
+                searchTerm
+            }));
+        } catch (e) {}
+    }, [reportType, transactionFilter, startDate, endDate, searchTerm]);
 
     useEffect(() => {
         fetchCompanySettings();
@@ -122,7 +152,17 @@ const SalesReport = () => {
             navigate('/company/sales/invoice', {
                 state: {
                     targetInvoiceId: parseInt(row.invoiceId),
-                    type: isPos ? 'POS_INVOICE' : 'TAX_INVOICE'
+                    type: isPos ? 'POS_INVOICE' : 'TAX_INVOICE',
+                    from: location.pathname + location.search,
+                    sourceName: 'Sales Report',
+                    fromReport: true,
+                    returnState: {
+                        reportType,
+                        transactionFilter,
+                        startDate,
+                        endDate,
+                        searchTerm
+                    }
                 }
             });
         }

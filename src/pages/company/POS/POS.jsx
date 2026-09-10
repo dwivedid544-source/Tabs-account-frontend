@@ -32,10 +32,11 @@ import uomService from '../../../services/uomService';
 import inventoryService from '../../../services/inventoryService';
 import axiosInstance from '../../../api/axiosInstance';
 import '../Customers/Customers.css';
+import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../utils/logoUrl';
 
 const POS = () => {
     const { id } = useParams();
-    const { formatCurrency, getInvoiceLabel, getDocumentTitle } = useContext(CompanyContext);
+    const { companySettings, formatCurrency, getInvoiceLabel, getDocumentTitle } = useContext(CompanyContext);
     const { hasPermission } = useContext(AuthContext);
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
@@ -115,6 +116,17 @@ const POS = () => {
     const [products, setProducts] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [companyDetails, setCompanyDetails] = useState(null);
+
+    const getReceiptLogo = () => {
+        const candidate = companySettings?.receiptLogo ||
+            companyDetails?.receiptLogo ||
+            companySettings?.logo ||
+            companyDetails?.logo ||
+            companySettings?.invoiceLogo ||
+            companyDetails?.invoiceLogo;
+        return getCompanyLogoSrc(candidate);
+    };
+
     const isNegativeStockAllowed = () => {
         if (!companyDetails?.inventoryConfig) return true;
         try {
@@ -248,7 +260,13 @@ const POS = () => {
             }
 
             if (compRes && compRes.data) {
-                setCompanyDetails(compRes.data);
+                const compData = {
+                    ...compRes.data,
+                    logo: resolveLogoUrl(compRes.data.logo) || null,
+                    invoiceLogo: resolveLogoUrl(compRes.data.invoiceLogo) || null,
+                    receiptLogo: resolveLogoUrl(compRes.data.receiptLogo) || null
+                };
+                setCompanyDetails(compData);
             }
 
             if (warehouseRes && warehouseRes.success) {
@@ -1563,11 +1581,15 @@ const POS = () => {
                                     <div className="POS-invoice-header-wrapper">
                                         <div className="POS-invoice-preview-header">
                                             <div className="POS-invoice-header-left">
-                                                {companyDetails?.logo ? (
-                                                    <img src={companyDetails.logo} alt="Logo" className="POS-invoice-logo-large" />
-                                                ) : (
-                                                    <h2 style={{ color: companyDetails?.color || '#004aad', margin: 0, fontSize: '24px', fontWeight: 'bold' }}>{companyDetails?.name || 'Company Name'}</h2>
-                                                )}
+                                                <img
+                                                    src={getReceiptLogo()}
+                                                    alt="Logo"
+                                                    className="POS-invoice-logo-large"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = tabAccountsLogo;
+                                                    }}
+                                                />
                                                 <div className="POS-invoice-company-details mt-2">
                                                     <strong>{companyDetails?.name}</strong><br />
                                                     {companyDetails?.email}<br />

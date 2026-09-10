@@ -20,6 +20,7 @@ const InvoiceActionDropdown = ({
     handlePrint,
     navigate,
     setShowExportModal,
+    handleOpenExportModal,
     setViewMode
 }) => {
     const containerRef = useRef(null);
@@ -83,8 +84,19 @@ const InvoiceActionDropdown = ({
 
     const handleAuditTrail = () => {
         onClose?.();
-        if (navigate) {
-            navigate(`/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(invoice.invoiceNumber || '')}`);
+        if (navigate && invoice) {
+            navigate(
+                `/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(invoice.invoiceNumber || '')}&fromInvoiceId=${invoice.id || ''}&invoiceType=${invoice.type || 'TAX_INVOICE'}&invoiceNumber=${encodeURIComponent(invoice.invoiceNumber || '')}`,
+                {
+                    state: {
+                        fromInvoice: {
+                            id: invoice.id,
+                            invoiceNumber: invoice.invoiceNumber,
+                            type: invoice.type || 'TAX_INVOICE'
+                        }
+                    }
+                }
+            );
         }
     };
 
@@ -211,13 +223,17 @@ const InvoiceActionDropdown = ({
                     )}
 
                     {/* Export */}
-                    {setShowExportModal && (
+                    {(handleOpenExportModal || setShowExportModal) && (
                         <button
                             type="button"
                             className="Invoice-actions-item"
                             onClick={() => {
                                 onClose?.();
-                                setShowExportModal(true);
+                                if (handleOpenExportModal) {
+                                    handleOpenExportModal(invoice);
+                                } else if (setShowExportModal) {
+                                    setShowExportModal(true);
+                                }
                             }}
                         >
                             <FileSpreadsheet size={14} color="#0891b2" />

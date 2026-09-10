@@ -148,6 +148,7 @@ function App() {
                 <Route path="plan-requests" element={<PlanRequests />} />
                 <Route path="payments" element={<Payments />} />
                 <Route path="passwords" element={<ManagePasswords />} />
+                <Route path="audit-logs" element={<AuditLogs />} />
               </Route>
 
               <Route path="/user/*" element={<SuperAdminLayout />}>

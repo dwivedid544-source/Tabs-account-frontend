@@ -3,9 +3,11 @@ import { useParams } from 'react-router-dom';
 import salesInvoiceService from '../../../../api/salesInvoiceService';
 import posService from '../../../../services/posService';
 import { CompanyContext } from '../../../../context/CompanyContext';
+import { BASE_URL } from '../../../../api/axiosInstance';
 import './Invoice.css';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
+import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 
 const getCompanyLogoSrc = (logoVal) => {
     if (!logoVal) return tabAccountsLogo;
@@ -14,7 +16,8 @@ const getCompanyLogoSrc = (logoVal) => {
             return logoVal;
         }
         const cleanPath = logoVal.startsWith('/') ? logoVal : `/${logoVal}`;
-        return `http://localhost:8080${cleanPath}`;
+        const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
+        return `${serverUrl}${cleanPath}`;
     }
     return tabAccountsLogo;
 };
@@ -376,33 +379,20 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
                                     <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
                                     <div className="invoice-cea-company-line">
-                                        {[companyDetails.city || 'Cork', companyDetails.state ? `Co, ${companyDetails.state.replace(/^Co\.?,?\s*/i, '')}` : 'Co, Cork', companyDetails.zip || 'T12VCY2'].filter(Boolean).join(' ')}
+                                        {companyDetails.city && companyDetails.zip
+                                            ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
+                                            : 'Cork, Co, Cork T12VCY2'}
                                     </div>
                                     <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
                                     <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                    <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || companyDetails.gstNumber || '4120278GH'}</div>
+                                    <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
                                 </div>
                                 <div className="invoice-cea-logo-container">
-                                    {companyLogoSrc && companyLogoSrc !== tabAccountsLogo ? (
-                                        <img
-                                            src={companyLogoSrc}
-                                            alt={companyDetails.name || "Company Logo"}
-                                            className="invoice-cea-logo-img"
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none';
-                                                if (e.currentTarget.nextSibling) {
-                                                    e.currentTarget.nextSibling.style.display = 'block';
-                                                }
-                                            }}
-                                        />
-                                    ) : null}
-                                    <div
-                                        className="invoice-cea-logo-text"
-                                        style={{ display: (companyLogoSrc && companyLogoSrc !== tabAccountsLogo) ? 'none' : 'block' }}
-                                    >
-                                        <div className="cea-logo-main">CEA</div>
-                                        <div className="cea-logo-sub">ARCHITECTS</div>
-                                    </div>
+                                    <img
+                                        src={ceaArchitectsLogo}
+                                        alt="CEA ARCHITECTS"
+                                        className="invoice-cea-logo-img"
+                                    />
                                 </div>
                             </div>
 
@@ -573,7 +563,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         {vatSummaryList.map((vat, i) => (
                                             <tr key={i}>
                                                 <td></td>
-                                                <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(vat.rate || 23).toFixed(0)}%`}</td>
+                                                <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(vat.rate !== undefined ? vat.rate : 23).toFixed(2))}%`}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
                                             </tr>

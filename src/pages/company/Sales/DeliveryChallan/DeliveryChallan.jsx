@@ -22,6 +22,7 @@ import warehouseService from '../../../../api/warehouseService';
 import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
+import { getCompanyLogoSrc, tabAccountsLogo } from '../../../../utils/logoUrl';
 import '../../Customers/Customers.css';
 import '../../Inventory/ProductInventory/Inventory.css';
 import '../../Inventory/UOM/UOM.css';
@@ -1481,9 +1482,16 @@ const DeliveryChallan = () => {
                     <div className="Zirak-DC-view-page-header Zirak-DC-no-print" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {(companySettings?.invoiceLogo || companyDetails.logo) && (
-                                    <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" className="Zirak-DC-modal-logo-img" style={{ height: '26px', objectFit: 'contain' }} />
-                                )}
+                                <img
+                                    src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyDetails.logo || companySettings?.logo)}
+                                    alt="Company Logo"
+                                    className="Zirak-DC-modal-logo-img"
+                                    style={{ height: '26px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0 }}>
                                     {isViewMode ? 'View Delivery Challan' : isEditMode ? 'Edit Delivery Challan' : 'New Delivery Challan'}
                                 </h2>
@@ -1632,9 +1640,16 @@ const DeliveryChallan = () => {
                                                     <div className="invoice-header-wrapper" style={{ border: 'none', padding: '0', margin: '0' }}>
                                                         <div className="invoice-preview-header" style={{ marginBottom: '10px' }}>
                                                             <div className="invoice-header-left">
-                                                                {(companySettings?.invoiceLogo || companyDetails.logo) && (
-                                                                    <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" className="invoice-logo-large" style={{ margin: '0' }} />
-                                                                )}
+                                                                <img
+                                                                    src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyDetails.logo || companySettings?.logo)}
+                                                                    alt="Company Logo"
+                                                                    className="invoice-logo-large"
+                                                                    style={{ margin: '0' }}
+                                                                    onError={(e) => {
+                                                                        e.target.onerror = null;
+                                                                        e.target.src = tabAccountsLogo;
+                                                                    }}
+                                                                />
                                                             </div>
                                                             <div className="invoice-header-right">
                                                                 <div className="invoice-title-large" style={{ color: companySettings?.invoiceColor || '#004aad', margin: '0' }}>{getDocumentTitle('deliverychallan')}</div>
@@ -2966,7 +2981,7 @@ const DeliveryChallan = () => {
                                         </div>
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)*</label>
+                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
                                         <div className="Zirak-Inventory-input-with-action">
                                             <select
                                                 name="uomId" className="Zirak-Inventory-form-input"
@@ -2979,7 +2994,6 @@ const DeliveryChallan = () => {
                                                         salesUomId: val
                                                     }));
                                                 }}
-                                                required
                                             >
                                                 <option value="">Select Base UOM</option>
                                                 {allUoms.filter(u => u.uomType === 'Simple').map(uom => (

@@ -900,7 +900,16 @@ const LedgerReport = () => {
         const stateArgs = { type: upperType };
 
         if ((upperType === 'INVOICE' || upperType === 'SALES_INVOICE' || upperType === 'SALES INVOICE') && item.invoice) {
-            navigate('/company/sales/invoice', { state: { ...stateArgs, targetInvoiceId: item.invoice.id, type: 'TAX_INVOICE' } });
+            navigate('/company/sales/invoice', {
+                state: {
+                    ...stateArgs,
+                    targetInvoiceId: item.invoice.id,
+                    type: 'TAX_INVOICE',
+                    from: location.pathname + location.search,
+                    sourceName: 'Ledger Report',
+                    fromReport: true
+                }
+            });
         } else if ((upperType === 'BILL' || upperType === 'PURCHASE_BILL' || upperType === 'PURCHASE BILL') && item.purchaseBill) {
             navigate('/company/purchases/bill', { state: { ...stateArgs, targetBillId: item.purchaseBill.id } });
         } else if (upperType === 'RECEIPT') {
@@ -922,7 +931,16 @@ const LedgerReport = () => {
         } else if (upperType === 'JOURNAL' && item.posInvoice) {
             navigate('/company/pos/all-invoices', { state: { ...stateArgs, targetInvoiceId: item.posInvoice.id } });
         } else if (upperType === 'JOURNAL' && item.invoice) {
-            navigate('/company/sales/invoice', { state: { ...stateArgs, targetInvoiceId: item.invoice.id, type: 'TAX_INVOICE' } });
+            navigate('/company/sales/invoice', {
+                state: {
+                    ...stateArgs,
+                    targetInvoiceId: item.invoice.id,
+                    type: 'TAX_INVOICE',
+                    from: location.pathname + location.search,
+                    sourceName: 'Ledger Report',
+                    fromReport: true
+                }
+            });
         }
     };
 

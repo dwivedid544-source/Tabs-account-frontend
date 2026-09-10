@@ -38,6 +38,15 @@ const smtpService = {
     sendTestEmail: (data, companyId) => {
         const query = companyId ? `?companyId=${companyId}` : '';
         return axiosInstance.post(`/companies/smtp-send-test-email${query}`, { ...data, companyId });
+    },
+
+    /**
+     * Clear / reset SMTP settings and credentials
+     * @param {number|string} [companyId]
+     */
+    clearSettings: (companyId) => {
+        const url = companyId ? `/companies/${companyId}/smtp-settings` : `/companies/smtp-settings`;
+        return axiosInstance.delete(url);
     }
 };
 

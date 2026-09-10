@@ -28,6 +28,7 @@ import '../../Customers/Customers.css';
 import '../../Inventory/ProductInventory/Inventory.css';
 import '../../Inventory/UOM/UOM.css';
 import customerServiceFromServices from '../../../../services/customerService';
+import { getCompanyLogoSrc, tabAccountsLogo } from '../../../../utils/logoUrl';
 import productServiceFromServices from '../../../../services/productService';
 import categoryService from '../../../../services/categoryService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
@@ -37,6 +38,7 @@ import axiosInstance from '../../../../api/axiosInstance';
 const SalesOrder = () => {
     // --- State Management ---
     const { formatCurrency, getTableHeader, getInvoiceLabel, companySettings, getDocumentTitle } = useContext(CompanyContext);
+    const defaultVat = companySettings?.defaultVatRate !== undefined ? parseFloat(companySettings.defaultVatRate) : 23;
     const { hasPermission } = useContext(AuthContext);
     const [salesOrders, setSalesOrders] = useState([]);
     const [activeQuotations, setActiveQuotations] = useState([]);
@@ -152,7 +154,7 @@ const SalesOrder = () => {
         shippingName: '', shippingAddress: '', shippingCity: '', shippingState: '', shippingZipCode: '', shippingCountry: ''
     });
     const [items, setItems] = useState([
-        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
+        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }
     ]);
     const [notes, setNotes] = useState('');
     const [terms, setTerms] = useState('');
@@ -671,7 +673,7 @@ const SalesOrder = () => {
                 console.error(e);
             }
         }
-        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }]);
+        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
         setOrderMeta({ manualNo: '', date: new Date().toISOString().split('T')[0], deliveryDate: '' });
         setNotes(companyDetails.notes || '');
         setTerms(companyDetails.termsSalesOrder || companyDetails.terms || '');
@@ -1026,7 +1028,7 @@ const SalesOrder = () => {
                 console.error(e);
             }
         }
-        setItems([...items, { id: Date.now(), productId: '', serviceId: '', description: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0 }]);
+        setItems([...items, { id: Date.now(), productId: '', serviceId: '', description: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0 }]);
     };
 
     const removeItem = (id) => {
@@ -1083,7 +1085,11 @@ const SalesOrder = () => {
             qty: 1,
             uomId: selectedProduct ? (selectedProduct.salesUomId || selectedProduct.uomId || '') : '',
             rate: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0),
-            tax: selectedProduct ? (selectedProduct.taxRate || 0) : (selectedService?.taxRate || 0),
+            tax: selectedProduct
+                ? ((selectedProduct.taxRate !== undefined && selectedProduct.taxRate !== null && selectedProduct.taxRate !== '' && parseFloat(selectedProduct.taxRate) > 0)
+                    ? parseFloat(selectedProduct.taxRate)
+                    : ((selectedProduct.taxAccount && !isNaN(parseFloat(selectedProduct.taxAccount)) && parseFloat(selectedProduct.taxAccount) > 0) ? parseFloat(selectedProduct.taxAccount) : defaultVat))
+                : ((selectedService && selectedService.taxRate !== undefined && selectedService.taxRate !== null && selectedService.taxRate !== '' && parseFloat(selectedService.taxRate) > 0) ? parseFloat(selectedService.taxRate) : defaultVat),
             discount: 0,
             description: selectedProduct ? selectedProduct.name : selectedService?.name || '',
             total: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0)
@@ -1318,9 +1324,16 @@ const SalesOrder = () => {
                     <div className="SalesOrder-view-page-header SalesOrder-no-print" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {(companySettings?.invoiceLogo || companyDetails.logo) && (
-                                    <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" className="SalesOrder-modal-logo-img" style={{ height: '26px', objectFit: 'contain' }} />
-                                )}
+                                <img
+                                    src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyDetails.logo || companySettings?.logo)}
+                                    alt="Company Logo"
+                                    className="SalesOrder-modal-logo-img"
+                                    style={{ height: '26px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = tabAccountsLogo;
+                                    }}
+                                />
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0 }}>
                                     {isViewMode ? 'View Sales Order' : editingId ? 'Edit Sales Order' : 'New Sales Order'}
                                 </h2>
@@ -1363,9 +1376,16 @@ const SalesOrder = () => {
                                                 <div className="invoice-header-wrapper" style={{ border: 'none', padding: '0', margin: '0' }}>
                                                     <div className="invoice-preview-header" style={{ marginBottom: '10px' }}>
                                                         <div className="invoice-header-left">
-                                                            {(companySettings?.invoiceLogo || companyDetails.logo) && (
-                                                                <img src={companySettings?.invoiceLogo || companyDetails.logo} alt="Company Logo" className="invoice-logo-large" style={{ margin: '0' }} />
-                                                            )}
+                                                            <img
+                                                                src={getCompanyLogoSrc(companySettings?.invoiceLogo || companyDetails.logo || companySettings?.logo)}
+                                                                alt="Company Logo"
+                                                                className="invoice-logo-large"
+                                                                style={{ margin: '0' }}
+                                                                onError={(e) => {
+                                                                    e.target.onerror = null;
+                                                                    e.target.src = tabAccountsLogo;
+                                                                }}
+                                                            />
                                                         </div>
                                                         <div className="invoice-header-right">
                                                             <div className="invoice-title-large" style={{ color: companySettings?.invoiceColor || '#004aad', margin: '0' }}>{getDocumentTitle('salesorder')}</div>
@@ -2001,11 +2021,14 @@ const SalesOrder = () => {
                                                                             const pId = eventValue.split('-')[1];
                                                                             const p = allProducts.find(x => x.id === parseInt(pId));
                                                                             if (p) {
+                                                                                const pTax = (p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' && parseFloat(p.taxRate) > 0)
+                                                                                    ? parseFloat(p.taxRate)
+                                                                                    : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0) ? parseFloat(p.taxAccount) : defaultVat);
                                                                                 updateItem(item.id, {
                                                                                     productId: pId,
                                                                                     serviceId: '',
                                                                                     rate: p.salePrice || 0,
-                                                                                    tax: p.taxRate || 0,
+                                                                                    tax: pTax,
                                                                                     description: item.description || p.name,
                                                                                     uomId: p.salesUomId || p.uomId || ''
                                                                                 });
@@ -2014,11 +2037,14 @@ const SalesOrder = () => {
                                                                             const sId = eventValue.split('-')[1];
                                                                             const s = allServices.find(x => x.id === parseInt(sId));
                                                                             if (s) {
+                                                                                const sTax = (s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' && parseFloat(s.taxRate) > 0)
+                                                                                    ? parseFloat(s.taxRate)
+                                                                                    : defaultVat;
                                                                                 updateItem(item.id, {
                                                                                     serviceId: sId,
                                                                                     productId: '',
                                                                                     rate: s.price || 0,
-                                                                                    tax: s.taxRate || 0,
+                                                                                    tax: sTax,
                                                                                     description: item.description || s.name,
                                                                                     uomId: s.uomId || ''
                                                                                 });
@@ -2028,7 +2054,7 @@ const SalesOrder = () => {
                                                                                 productId: '',
                                                                                 serviceId: '',
                                                                                 rate: 0,
-                                                                                tax: 0,
+                                                                                tax: defaultVat,
                                                                                 description: '',
                                                                                 uomId: ''
                                                                             });
@@ -2902,7 +2928,7 @@ const SalesOrder = () => {
                                         </div>
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)*</label>
+                                        <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
                                         <div className="Zirak-Inventory-input-with-action">
                                             <select
                                                 name="uomId" className="Zirak-Inventory-form-input"
@@ -2915,7 +2941,6 @@ const SalesOrder = () => {
                                                         salesUomId: val
                                                     }));
                                                 }}
-                                                required
                                             >
                                                 <option value="">Select Base UOM</option>
                                                 {allUoms.filter(u => u.uomType === 'Simple').map(uom => (

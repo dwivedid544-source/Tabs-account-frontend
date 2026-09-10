@@ -1,4 +1,5 @@
 import { BASE_URL } from '../api/axiosInstance';
+import tabAccountsLogo from '../assets/tab-accounts-logo.png';
 
 /**
  * Resolves a company logo URL, ensuring relative backend upload paths
@@ -15,3 +16,14 @@ export const resolveLogoUrl = (logoVal) => {
     const serverUrl = (BASE_URL || 'https://tabaccounting-production.up.railway.app').replace(/\/+$/, '');
     return `${serverUrl}${cleanPath}`;
 };
+
+/**
+ * Returns a guaranteed valid logo image source, with fallback to default tabAccountsLogo.
+ */
+export const getCompanyLogoSrc = (logoVal, fallback = tabAccountsLogo) => {
+    if (!logoVal) return fallback;
+    const resolved = resolveLogoUrl(logoVal);
+    return resolved || fallback;
+};
+
+export { tabAccountsLogo };
