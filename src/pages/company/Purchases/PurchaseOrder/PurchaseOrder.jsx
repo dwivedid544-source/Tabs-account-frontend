@@ -1780,7 +1780,19 @@ const PurchaseOrder = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                     <select
                                                         className="PurchaseOrder-form-select-compact"
-                                                        style={{ flex: 1, height: '38px' }}
+                                                        style={{
+                                                            flex: 1,
+                                                            height: '38px',
+                                                            padding: '0 12px',
+                                                            fontSize: '0.875rem',
+                                                            borderRadius: '8px',
+                                                            border: '1px solid #cbd5e1',
+                                                            backgroundColor: '#ffffff',
+                                                            color: '#1e293b',
+                                                            boxSizing: 'border-box',
+                                                            outline: 'none',
+                                                            cursor: 'pointer'
+                                                        }}
                                                         value={vendorId}
                                                         onChange={(e) => setVendorId(e.target.value)}
                                                         disabled={!!sourceData}
@@ -1816,11 +1828,10 @@ const PurchaseOrder = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Vendor Details Card */}
-                                            <div className="">
-                                                
-                                                <div className="PurchaseOrder-card-field">
-                                                    <label className="PurchaseOrder-card-label">Billing Address</label>
+                                            {/* Vendor Details */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div className="PurchaseOrder-meta-item">
+                                                    <label className="PurchaseOrder-meta-label">Billing Address</label>
                                                     <input
                                                         type="text"
                                                         disabled
@@ -1829,27 +1840,25 @@ const PurchaseOrder = () => {
                                                         value={vendors.find(v => String(v.id) === String(vendorId))?.billingAddress || vendors.find(v => String(v.id) === String(vendorId))?.address || ''}
                                                     />
                                                 </div>
-                                                <div className="PurchaseOrder-card-row-2col">
-                                                    <div className="PurchaseOrder-card-field">
-                                                        <label className="PurchaseOrder-card-label">Email Address</label>
-                                                        <input
-                                                            type="text"
-                                                            disabled
-                                                            className="PurchaseOrder-card-input PurchaseOrder-disabled"
-                                                            placeholder="Email Address"
-                                                            value={vendors.find(v => String(v.id) === String(vendorId))?.email || ''}
-                                                        />
-                                                    </div>
-                                                    <div className="PurchaseOrder-card-field">
-                                                        <label className="PurchaseOrder-card-label">Phone Number</label>
-                                                        <input
-                                                            type="text"
-                                                            disabled
-                                                            className="PurchaseOrder-card-input PurchaseOrder-disabled"
-                                                            placeholder="Phone Number"
-                                                            value={vendors.find(v => String(v.id) === String(vendorId))?.phone || ''}
-                                                        />
-                                                    </div>
+                                                <div className="PurchaseOrder-meta-item">
+                                                    <label className="PurchaseOrder-meta-label">Email Address</label>
+                                                    <input
+                                                        type="text"
+                                                        disabled
+                                                        className="PurchaseOrder-card-input PurchaseOrder-disabled"
+                                                        placeholder="Email Address"
+                                                        value={vendors.find(v => String(v.id) === String(vendorId))?.email || ''}
+                                                    />
+                                                </div>
+                                                <div className="PurchaseOrder-meta-item">
+                                                    <label className="PurchaseOrder-meta-label">Phone Number</label>
+                                                    <input
+                                                        type="text"
+                                                        disabled
+                                                        className="PurchaseOrder-card-input PurchaseOrder-disabled"
+                                                        placeholder="Phone Number"
+                                                        value={vendors.find(v => String(v.id) === String(vendorId))?.phone || ''}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
