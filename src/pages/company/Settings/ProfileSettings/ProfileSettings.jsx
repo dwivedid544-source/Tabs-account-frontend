@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Upload, User, Save, Lock, Loader2 } from 'lucide-react';
 import profileService from '../../../../services/profileService';
+import passwordRequestService from '../../../../api/passwordRequestService';
 import { AuthContext } from '../../../../context/AuthContext';
 import toast from 'react-hot-toast';
 import './ProfileSettings.css';
@@ -18,6 +19,7 @@ const ProfileSettings = () => {
         newPassword: '',
         confirmPassword: ''
     });
+    const [requestingReset, setRequestingReset] = useState(false);
     const [logoPreview, setLogoPreview] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -89,6 +91,19 @@ const ProfileSettings = () => {
             setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error changing password');
+        }
+    };
+
+    const handleRequestAdminReset = async () => {
+        try {
+            setRequestingReset(true);
+            const res = await passwordRequestService.create();
+            toast.success(res.message || 'Password reset request submitted to your administrator!');
+        } catch (error) {
+            console.error('Error submitting password reset request:', error);
+            toast.error(error.response?.data?.message || 'Failed to submit reset request');
+        } finally {
+            setRequestingReset(false);
         }
     };
 
@@ -210,6 +225,48 @@ const ProfileSettings = () => {
 
                     <div className="form-actions right">
                         <button type="submit" className="btn-save green">Change Password</button>
+                    </div>
+
+                    <div style={{
+                        marginTop: '20px',
+                        paddingTop: '16px',
+                        borderTop: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                    }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                                Forgot your current password?
+                            </p>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                                Submit a reset request to your company administrator.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleRequestAdminReset}
+                            disabled={requestingReset}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: '#f1f5f9',
+                                border: '1px solid #cbd5e1',
+                                color: '#1e293b',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <Lock size={13} />
+                            {requestingReset ? 'Submitting...' : 'Request Admin Reset'}
+                        </button>
                     </div>
                 </form>
             </div>
