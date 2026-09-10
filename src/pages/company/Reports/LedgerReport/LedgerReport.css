@@ -119,6 +119,23 @@
     padding-right: 2.5rem;
 }
 
+.Ledger-form-select optgroup {
+    font-weight: 700;
+    color: #0f172a;
+    background-color: #f1f5f9;
+    padding: 6px 4px;
+    font-size: 0.85rem;
+}
+
+.Ledger-form-select option {
+    font-weight: 500;
+    color: #334155;
+    background-color: #ffffff;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+}
+
+
 .Ledger-filter-actions {
     display: flex;
     gap: 0.75rem;

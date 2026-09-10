@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, RotateCcw, Download, FileText, Printer } from 'lucide-react';
 
@@ -125,6 +125,7 @@ const LedgerReport = () => {
 
     // Filters
     const [selectedAccount, setSelectedAccount] = useState('');
+    const [accountSearch, setAccountSearch] = useState('');
     const [dateRange, setDateRange] = useState({
         startDate: '',
         endDate: ''
@@ -292,18 +293,116 @@ const LedgerReport = () => {
 
 
 
-    // Helper to flatten COA for dropdown
+    // Helper to categorize and group ledgers
+    const categorizeLedger = (ledger) => {
+        const gName = (ledger.groupName || '').toLowerCase().trim();
+        const lName = (ledger.name || '').toLowerCase().trim();
+        const gType = (ledger.groupType || '').toUpperCase().trim();
+
+        if (
+            gName.includes('cash') || 
+            gName.includes('bank') || 
+            lName.includes('bank') || 
+            lName.includes('cash') ||
+            lName.includes('petty cash')
+        ) {
+            return '🏦 Cash & Bank Accounts';
+        }
+
+        if (
+            gName.includes('receivable') || 
+            gName === 'accounts receivable' ||
+            gName.includes('debtor')
+        ) {
+            return '👥 Customers (Accounts Receivable)';
+        }
+
+        if (
+            gName.includes('payable') || 
+            gName === 'accounts payable' ||
+            gName.includes('creditor')
+        ) {
+            return '🏢 Suppliers (Accounts Payable)';
+        }
+
+        if (
+            gName.includes('tax') || 
+            gName.includes('duty') || 
+            gName.includes('duties') ||
+            lName.includes('gst') || 
+            lName.includes('vat') || 
+            lName.includes('tax') ||
+            lName.includes('cgst') ||
+            lName.includes('sgst') ||
+            lName.includes('igst')
+        ) {
+            return '🧾 Taxes & Duties (VAT / GST)';
+        }
+
+        if (
+            gType === 'INCOME' || 
+            gName.includes('income') || 
+            gName.includes('revenue') ||
+            lName.includes('sales revenue') ||
+            lName.includes('exchange gain')
+        ) {
+            return '📈 Income & Revenue';
+        }
+
+        if (
+            gType === 'EXPENSES' || 
+            gName.includes('expense') || 
+            gName.includes('cogs') || 
+            gName.includes('cost of goods') ||
+            lName.includes('expense') || 
+            lName.includes('cost of goods') ||
+            lName.includes('purchase') ||
+            lName.includes('salary') ||
+            lName.includes('rent') ||
+            lName.includes('depreciation')
+        ) {
+            return '📉 Operating & Direct Expenses';
+        }
+
+        if (
+            gType === 'EQUITY' || 
+            gName.includes('equity') || 
+            gName.includes('capital') ||
+            lName.includes('equity') ||
+            lName.includes('capital') ||
+            lName.includes('retained earnings')
+        ) {
+            return '🏛️ Equity & Capital';
+        }
+
+        if (
+            lName.includes('inventory') || 
+            lName.includes('stock') || 
+            lName.includes('asset') || 
+            gType === 'ASSETS'
+        ) {
+            return '📦 Fixed & Current Assets';
+        }
+
+        return '📁 General Accounts';
+    };
+
+    // Helper to flatten COA for dropdown with deduplication
     const flattenLedgers = (coaData) => {
-        let flattened = [];
+        let ledgerMap = new Map();
         const traverse = (groups, parentType = null) => {
             groups.forEach(group => {
                 const currentType = group.type || parentType;
                 if (group.ledger) {
-                    group.ledger.forEach(ledger => flattened.push({
-                        ...ledger,
-                        groupName: group.name,
-                        groupType: currentType
-                    }));
+                    group.ledger.forEach(ledger => {
+                        if (!ledgerMap.has(ledger.id) || group.accountgroupId) {
+                            ledgerMap.set(ledger.id, {
+                                ...ledger,
+                                groupName: group.name,
+                                groupType: currentType
+                            });
+                        }
+                    });
                 }
                 if (group.accountsubgroup) {
                     traverse(group.accountsubgroup, currentType);
@@ -311,8 +410,50 @@ const LedgerReport = () => {
             });
         };
         traverse(coaData);
-        return flattened;
+        return Array.from(ledgerMap.values());
     };
+
+    const { groupedLedgers, filteredLedgerCount } = useMemo(() => {
+        const query = (accountSearch || '').toLowerCase().trim();
+        const filtered = ledgers.filter(l => {
+            if (!query) return true;
+            return (l.name || '').toLowerCase().includes(query) || (l.groupName || '').toLowerCase().includes(query);
+        });
+
+        const groupsOrder = [
+            '🏦 Cash & Bank Accounts',
+            '👥 Customers (Accounts Receivable)',
+            '🏢 Suppliers (Accounts Payable)',
+            '🧾 Taxes & Duties (VAT / GST)',
+            '📦 Fixed & Current Assets',
+            '📈 Income & Revenue',
+            '📉 Operating & Direct Expenses',
+            '🏛️ Equity & Capital',
+            '📁 General Accounts'
+        ];
+
+        const grouped = {};
+        filtered.forEach(l => {
+            const cat = categorizeLedger(l);
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(l);
+        });
+
+        const sortedGroups = {};
+        groupsOrder.forEach(cat => {
+            if (grouped[cat] && grouped[cat].length > 0) {
+                sortedGroups[cat] = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
+            }
+        });
+
+        Object.keys(grouped).forEach(cat => {
+            if (!sortedGroups[cat] && grouped[cat].length > 0) {
+                sortedGroups[cat] = grouped[cat].sort((a, b) => a.name.localeCompare(b.name));
+            }
+        });
+
+        return { groupedLedgers: sortedGroups, filteredLedgerCount: filtered.length };
+    }, [ledgers, accountSearch]);
 
     // Fetch initial data (Ledger List)
     useEffect(() => {
@@ -416,6 +557,7 @@ const LedgerReport = () => {
         setDisplayCreatedBy(false);
         setDisplayAmountForAllAccounts(false);
         setDisplayDiscount(false);
+        setAccountSearch('');
         // Optionally reset account or keep it
         fetchTransactions();
     };
@@ -1236,19 +1378,52 @@ const LedgerReport = () => {
                         onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                     />
                 </div>
-                <div className="Ledger-filter-group" style={{ flexGrow: 1 }}>
-                    <label>Account</label>
-                    <div className="Ledger-select-wrapper">
-                        <select
-                            className="Ledger-form-select"
-                            value={selectedAccount}
-                            onChange={(e) => setSelectedAccount(e.target.value)}
-                        >
-                            <option value="">Select Account</option>
-                            {ledgers.map(ledger => (
-                                <option key={ledger.id} value={ledger.id}>{ledger.name} - {ledger.groupName}</option>
-                            ))}
-                        </select>
+                <div className="Ledger-filter-group" style={{ flexGrow: 1, minWidth: '320px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label>Account</label>
+                        {accountSearch && (
+                            <button
+                                type="button"
+                                onClick={() => setAccountSearch('')}
+                                style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '11px', fontWeight: '600', cursor: 'pointer', padding: 0 }}
+                            >
+                                Clear filter
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ position: 'relative', width: '130px', flexShrink: 0 }}>
+                            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                            <input
+                                type="text"
+                                className="Ledger-form-input"
+                                placeholder="Filter accounts..."
+                                value={accountSearch}
+                                onChange={(e) => setAccountSearch(e.target.value)}
+                                style={{ width: '100%', paddingLeft: '28px', paddingRight: '8px', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                            />
+                        </div>
+                        <div className="Ledger-select-wrapper" style={{ flexGrow: 1 }}>
+                            <select
+                                className="Ledger-form-select"
+                                value={selectedAccount}
+                                onChange={(e) => setSelectedAccount(e.target.value)}
+                                style={{ width: '100%' }}
+                            >
+                                <option value="">
+                                    {accountSearch ? `Select Account (${filteredLedgerCount} matching)` : 'Select Account'}
+                                </option>
+                                {Object.entries(groupedLedgers).map(([groupTitle, groupItems]) => (
+                                    <optgroup key={groupTitle} label={groupTitle}>
+                                        {groupItems.map(ledger => (
+                                            <option key={ledger.id} value={ledger.id}>
+                                                {ledger.name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div className="Ledger-filter-group" style={{ flexGrow: 1 }}>
