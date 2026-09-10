@@ -2321,14 +2321,18 @@ const PurchaseBill = () => {
                                                 <td style={{ fontWeight: 500 }}>{item.product?.name || 'N/A'}</td>
                                                 {getInvoiceLabel('showWarehouse') !== false && <td>{item.warehouse?.name || 'N/A'}</td>}
                                                 {getInvoiceLabel('showQty') !== false && <td style={{ textAlign: 'center' }}>{item.quantity}</td>}
-                                                <td style={{ textAlign: 'right' }}>
+                                                 <td style={{ textAlign: 'right' }}>
                                                     {iIdx === 0 ? (
                                                         <>
-                                                            {formatDocCurrency(bill.totalAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency(bill.totalAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
-                                                                </div>
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                <>
+                                                                    {formatDocCurrency(bill.totalAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                        ({formatDocCurrency(bill.totalAmount, bill.currency)})
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                formatDocCurrency(bill.totalAmount, companySettings?.currency || 'EUR')
                                                             )}
                                                         </>
                                                     ) : ''}
@@ -2336,11 +2340,15 @@ const PurchaseBill = () => {
                                                 <td style={{ textAlign: 'right' }}>
                                                     {iIdx === 0 ? (
                                                         <>
-                                                            {formatDocCurrency(bill.totalAmount - bill.balanceAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency((bill.totalAmount - bill.balanceAmount) * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
-                                                                </div>
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                <>
+                                                                    {formatDocCurrency((bill.totalAmount - bill.balanceAmount) * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                        ({formatDocCurrency(bill.totalAmount - bill.balanceAmount, bill.currency)})
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                formatDocCurrency(bill.totalAmount - bill.balanceAmount, companySettings?.currency || 'EUR')
                                                             )}
                                                         </>
                                                     ) : ''}
@@ -2348,11 +2356,15 @@ const PurchaseBill = () => {
                                                 <td style={{ textAlign: 'right', fontWeight: iIdx === 0 ? 600 : 400 }}>
                                                     {iIdx === 0 ? (
                                                         <>
-                                                            {formatDocCurrency(bill.balanceAmount, bill.currency)}
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                    ({formatDocCurrency(bill.balanceAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')})
-                                                                </div>
+                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                <>
+                                                                    {formatDocCurrency(bill.balanceAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                        ({formatDocCurrency(bill.balanceAmount, bill.currency)})
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                formatDocCurrency(bill.balanceAmount, companySettings?.currency || 'EUR')
                                                             )}
                                                         </>
                                                     ) : ''}
@@ -2389,21 +2401,29 @@ const PurchaseBill = () => {
                                             {getInvoiceLabel('showUom') !== false && <td style={{ textAlign: 'center' }}>{item.uom?.unitName || allUoms.find(u => u.id === item.uomId)?.unitName || ''}</td>}
                                             {getInvoiceLabel('showRate') !== false && (
                                                 <td style={{ textAlign: 'right' }}>
-                                                    {formatDocCurrency(item.rate, viewBill.currency)}
-                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                        <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                            ({formatDocCurrency(item.rate * viewRate, companySettings?.currency || 'EUR')})
-                                                        </div>
+                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                        <>
+                                                            {formatDocCurrency(item.rate * viewRate, companySettings?.currency || 'EUR')}
+                                                            <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                ({formatDocCurrency(item.rate, viewBill.currency)})
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        formatDocCurrency(item.rate, companySettings?.currency || 'EUR')
                                                     )}
                                                 </td>
                                             )}
                                             {getInvoiceLabel('showTax') !== false && <td style={{ textAlign: 'right' }}>{item.taxRate}%</td>}
                                             <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                                {formatDocCurrency(item.amount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                        ({formatDocCurrency(item.amount * viewRate, companySettings?.currency || 'EUR')})
-                                                    </div>
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                    <>
+                                                        {formatDocCurrency(item.amount * viewRate, companySettings?.currency || 'EUR')}
+                                                        <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                            ({formatDocCurrency(item.amount, viewBill.currency)})
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    formatDocCurrency(item.amount, companySettings?.currency || 'EUR')
                                                 )}
                                             </td>
                                         </tr>
@@ -2509,11 +2529,15 @@ const PurchaseBill = () => {
                                                     <div className="invoice-total-row">
                                                         <span className="invoice-label">{getInvoiceLabel('subTotal')}:</span>
                                                         <span>
-                                                            {formatDocCurrency(subtotalVal, viewBill.currency)}
-                                                            {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                    ({formatDocCurrency(subtotalVal * viewRate, companySettings?.currency || 'EUR')})
-                                                                </span>
+                                                            {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                <>
+                                                                    {formatDocCurrency(subtotalVal * viewRate, companySettings?.currency || 'EUR')}
+                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                                        ({formatDocCurrency(subtotalVal, viewBill.currency)})
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                formatDocCurrency(subtotalVal, companySettings?.currency || 'EUR')
                                                             )}
                                                         </span>
                                                     </div>
@@ -2521,11 +2545,15 @@ const PurchaseBill = () => {
                                                         <div className="invoice-total-row">
                                                             <span className="invoice-label">Item Discount:</span>
                                                             <span>
-                                                                <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (- {formatDocCurrency(itemDiscountAmt * viewRate, companySettings?.currency || 'EUR')})
-                                                                    </span>
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                    <>
+                                                                        <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt * viewRate, companySettings?.currency || 'EUR')}</span>
+                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                                            (- {formatDocCurrency(itemDiscountAmt, viewBill.currency)})
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt, companySettings?.currency || 'EUR')}</span>
                                                                 )}
                                                             </span>
                                                         </div>
@@ -2534,11 +2562,15 @@ const PurchaseBill = () => {
                                                         <div className="invoice-total-row">
                                                             <span className="invoice-label">{getInvoiceLabel('tax')}:</span>
                                                             <span>
-                                                                <span>+ {formatDocCurrency(viewBill.taxAmount, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (+ {formatDocCurrency(viewBill.taxAmount * viewRate, companySettings?.currency || 'EUR')})
-                                                                    </span>
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                    <>
+                                                                        <span>+ {formatDocCurrency(viewBill.taxAmount * viewRate, companySettings?.currency || 'EUR')}</span>
+                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                                            (+ {formatDocCurrency(viewBill.taxAmount, viewBill.currency)})
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span>+ {formatDocCurrency(viewBill.taxAmount, companySettings?.currency || 'EUR')}</span>
                                                                 )}
                                                             </span>
                                                         </div>
@@ -2547,61 +2579,84 @@ const PurchaseBill = () => {
                                                         <div className="invoice-total-row">
                                                             <span className="invoice-label">Overall Discount ({viewBill.overallDiscountType === 'percentage' ? `${viewBill.overallDiscount}%` : 'Flat'}):</span>
                                                             <span>
-                                                                <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt, viewBill.currency)}</span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (- {formatDocCurrency(overallDiscountAmt * viewRate, companySettings?.currency || 'EUR')})
-                                                                    </span>
+                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                    <>
+                                                                        <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt * viewRate, companySettings?.currency || 'EUR')}</span>
+                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                                            (- {formatDocCurrency(overallDiscountAmt, viewBill.currency)})
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt, companySettings?.currency || 'EUR')}</span>
                                                                 )}
                                                             </span>
                                                         </div>
                                                     )}
-                                                    {parsedOtherCharges.filter(c => c.accountId && parseFloat(c.amount) > 0).map((charge) => (
-                                                        <div className="invoice-total-row" key={charge.id} style={{ color: '#1e293b' }}>
-                                                            <span className="invoice-label">Other Charges{charge.accountName ? ` (${charge.accountName})` : ''}:</span>
-                                                            <span>
-                                                                + {formatDocCurrency(parseFloat(charge.amount) || 0, viewBill.currency)}
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        (+ {formatDocCurrency((parseFloat(charge.amount) || 0) * viewRate, companySettings?.currency || 'EUR')})
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                    {parsedOtherCharges.filter(c => c.accountId && parseFloat(c.amount) > 0).map((charge) => {
+                                                        const chgAmt = parseFloat(charge.amount) || 0;
+                                                        return (
+                                                            <div className="invoice-total-row" key={charge.id} style={{ color: '#1e293b' }}>
+                                                                <span className="invoice-label">Other Charges{charge.accountName ? ` (${charge.accountName})` : ''}:</span>
+                                                                <span>
+                                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                        <>
+                                                                            + {formatDocCurrency(chgAmt * viewRate, companySettings?.currency || 'EUR')}
+                                                                            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                                                (+ {formatDocCurrency(chgAmt, viewBill.currency)})
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>+ {formatDocCurrency(chgAmt, companySettings?.currency || 'EUR')}</>
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </>
                                             );
                                         })()}
                                         <div className="invoice-final-total">
                                             <span>{getInvoiceLabel('total')}:</span>
                                             <span>
-                                                {formatDocCurrency(viewBill.totalAmount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.totalAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
-                                                    </span>
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                    <>
+                                                        {formatDocCurrency((viewBill.totalAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
+                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                            ({formatDocCurrency(viewBill.totalAmount, viewBill.currency)})
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    formatDocCurrency(viewBill.totalAmount, companySettings?.currency || 'EUR')
                                                 )}
                                             </span>
                                         </div>
                                         <div className="invoice-total-row" style={{ marginTop: '5px', fontWeight: '600', color: '#334155' }}>
                                             <span className="invoice-label">Amount Paid:</span>
                                             <span>
-                                                {formatDocCurrency(viewBill.paidAmount || 0, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.paidAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
-                                                    </span>
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                    <>
+                                                        {formatDocCurrency((viewBill.paidAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
+                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                            ({formatDocCurrency(viewBill.paidAmount || 0, viewBill.currency)})
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    formatDocCurrency(viewBill.paidAmount || 0, companySettings?.currency || 'EUR')
                                                 )}
                                             </span>
                                         </div>
                                         <div className="invoice-total-row" style={{ borderTop: '1px solid #e2e8f0', marginTop: '5px', paddingTop: '5px', fontWeight: '700', color: '#ef4444' }}>
                                             <span className="invoice-label">Balance Due:</span>
                                             <span>
-                                                {formatDocCurrency(viewBill.balanceAmount, viewBill.currency)}
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                        ({formatDocCurrency((viewBill.balanceAmount || 0) * viewRate, companySettings?.currency || 'EUR')})
-                                                    </span>
+                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
+                                                    <>
+                                                        {formatDocCurrency((viewBill.balanceAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
+                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
+                                                            ({formatDocCurrency(viewBill.balanceAmount, viewBill.currency)})
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    formatDocCurrency(viewBill.balanceAmount, companySettings?.currency || 'EUR')
                                                 )}
                                             </span>
                                         </div>
@@ -2655,14 +2710,14 @@ const PurchaseBill = () => {
                                                         if (payCurrency && payCurrency !== (companySettings?.currency || 'EUR')) {
                                                             return (
                                                                 <>
-                                                                    <div>{formatDocCurrency(pay.amount, payCurrency)}</div>
+                                                                    <div>{formatDocCurrency(pay.baseAmount || (pay.amount * viewRate), companySettings?.currency || 'EUR')}</div>
                                                                     <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>
-                                                                        ({formatDocCurrency(pay.baseAmount || pay.amount, companySettings?.currency || 'EUR')})
+                                                                        ({formatDocCurrency(pay.amount, payCurrency)})
                                                                     </div>
                                                                 </>
                                                             );
                                                         }
-                                                        return formatDocCurrency(pay.amount, payCurrency);
+                                                        return formatDocCurrency(pay.amount, companySettings?.currency || 'EUR');
                                                     })()}
                                                 </td>
                                             </tr>
@@ -2975,9 +3030,9 @@ const PurchaseBill = () => {
                                                                     if (curr !== baseCurr) {
                                                                         return (
                                                                             <span>
-                                                                                {formatDocCurrency(originalAmount, curr)}
+                                                                                {formatDocCurrency(group.balanceAmount, baseCurr)}
                                                                                 <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#64748b', marginLeft: '6px' }}>
-                                                                                    ({formatDocCurrency(group.balanceAmount, baseCurr)})
+                                                                                    ({formatDocCurrency(originalAmount, curr)})
                                                                                 </span>
                                                                             </span>
                                                                         );
@@ -2985,14 +3040,16 @@ const PurchaseBill = () => {
                                                                 } else if (currs.length > 1) {
                                                                     return (
                                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                            {currs.map(curr => (
-                                                                                <span key={curr} style={{ fontSize: '0.85rem', color: '#475569' }}>
-                                                                                    {formatDocCurrency(group.currencyTotals[curr], curr)}
-                                                                                </span>
-                                                                            ))}
-                                                                            <span style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '2px', marginTop: '2px' }}>
+                                                                            <span style={{ fontWeight: '700' }}>
                                                                                 Total: {formatDocCurrency(group.balanceAmount, baseCurr)}
                                                                             </span>
+                                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                                {currs.map(curr => (
+                                                                                    <span key={curr} style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                                                                        ({formatDocCurrency(group.currencyTotals[curr], curr)})
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
                                                                         </div>
                                                                     );
                                                                 }
@@ -3075,19 +3132,27 @@ const PurchaseBill = () => {
                                                                                         <td style={{ padding: '10px', fontWeight: 'bold' }}>{pb.billNumber}</td>
                                                                                         <td style={{ padding: '10px' }}>{new Date(pb.date).toLocaleDateString()}</td>
                                                                                         <td style={{ padding: '10px' }}>
-                                                                                            {formatDocCurrency(pb.totalAmount, pb.currency)}
-                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') && (
-                                                                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(pb.totalAmount * subRate, companySettings?.currency || 'EUR')})
-                                                                                                </div>
+                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                                                <>
+                                                                                                    {formatDocCurrency(pb.totalAmount * subRate, companySettings?.currency || 'EUR')}
+                                                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                                                        ({formatDocCurrency(pb.totalAmount, pb.currency)})
+                                                                                                    </div>
+                                                                                                </>
+                                                                                            ) : (
+                                                                                                formatDocCurrency(pb.totalAmount, companySettings?.currency || 'EUR')
                                                                                             )}
                                                                                         </td>
                                                                                         <td style={{ padding: '10px', fontWeight: 'bold' }}>
-                                                                                            {formatDocCurrency(pb.balanceAmount, pb.currency)}
-                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') && (
-                                                                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(pb.balanceAmount * subRate, companySettings?.currency || 'EUR')})
-                                                                                                </div>
+                                                                                            {pb.currency && pb.currency !== (companySettings?.currency || 'EUR') ? (
+                                                                                                <>
+                                                                                                    {formatDocCurrency(pb.balanceAmount * subRate, companySettings?.currency || 'EUR')}
+                                                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                                                        ({formatDocCurrency(pb.balanceAmount, pb.currency)})
+                                                                                                    </div>
+                                                                                                </>
+                                                                                            ) : (
+                                                                                                formatDocCurrency(pb.balanceAmount, companySettings?.currency || 'EUR')
                                                                                             )}
                                                                                         </td>
                                                                                         <td style={{ padding: '10px' }}>

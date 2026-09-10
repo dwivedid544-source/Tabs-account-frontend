@@ -863,17 +863,25 @@ const InventorySummary = () => {
             {showViewModal && selectedItem && (
                 <div className="inventory-view-modal-overlay" onClick={() => setShowViewModal(false)}>
                     <div className="inventory-view-modal-container" onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
                         <div className="inventory-view-modal-header">
                             <div className="inventory-view-modal-title">
-                                <Package size={20} />
-                                <h2>Inventory Details</h2>
+                                <div className="inventory-view-modal-title-icon">
+                                    <Package size={22} />
+                                </div>
+                                <div>
+                                    <h2>Inventory Item Details</h2>
+                                    <p className="inventory-view-modal-subtitle">Comprehensive stock valuation & movement breakdown</p>
+                                </div>
                             </div>
-                            <button className="inventory-view-modal-close-icon" onClick={() => setShowViewModal(false)}>
+                            <button className="inventory-view-modal-close-icon" onClick={() => setShowViewModal(false)} title="Close">
                                 <X size={20} />
                             </button>
                         </div>
 
+                        {/* Scrollable Body */}
                         <div className="inventory-view-modal-body">
+                            {/* Hero Card */}
                             <div className="inventory-view-modal-hero">
                                 <div className="inventory-view-modal-hero-left">
                                     <div className="inventory-view-modal-icon-box">
@@ -881,11 +889,11 @@ const InventorySummary = () => {
                                     </div>
                                     <div className="inventory-view-modal-hero-text">
                                         <h3>{selectedItem.productName}</h3>
-                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
-                                            <span className="inventory-view-modal-sku">SKU: {selectedItem.sku}</span>
-                                            <span style={{ fontSize: '0.75rem', background: '#e2e8f0', color: '#475569', padding: '2px 8px', borderRadius: '4px' }}>HSN: {selectedItem.hsn || 'N/A'}</span>
-                                            <span style={{ fontSize: '0.75rem', background: '#e2e8f0', color: '#475569', padding: '2px 8px', borderRadius: '4px' }}>Barcode: {selectedItem.barcode || 'N/A'}</span>
-                                            <span style={{ fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>Unit: {selectedItem.unit || 'Pcs'}</span>
+                                        <div className="inventory-view-modal-meta-chips">
+                                            <span className="inv-chip inv-chip-sku">SKU: {selectedItem.sku || 'N/A'}</span>
+                                            <span className="inv-chip">HSN: {selectedItem.hsn || 'N/A'}</span>
+                                            <span className="inv-chip">Barcode: {selectedItem.barcode || 'N/A'}</span>
+                                            <span className="inv-chip inv-chip-unit">Unit: {selectedItem.unit || 'Pcs'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -897,41 +905,44 @@ const InventorySummary = () => {
                             </div>
 
                             {/* Pricing & Costing Grid */}
-                            <div className="inventory-view-modal-info-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginTop: '16px' }}>
-                                <div className="inventory-view-modal-info-card">
-                                    <label>Sale Price</label>
-                                    <div className="inventory-view-modal-val" style={{ color: '#2563eb' }}>
-                                        {formatCurrency(selectedItem.salePrice || selectedItem.price || 0)}
+                            <div className="inventory-view-modal-section">
+                                <h4 className="inventory-view-modal-section-title">Pricing & Valuation</h4>
+                                <div className="inventory-view-modal-info-grid">
+                                    <div className="inventory-view-modal-info-card card-sale">
+                                        <label>Sale Price</label>
+                                        <div className="inventory-view-modal-val val-blue">
+                                            {formatCurrency(selectedItem.salePrice || selectedItem.price || 0)}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="inventory-view-modal-info-card">
-                                    <label>Purchase Price</label>
-                                    <div className="inventory-view-modal-val">
-                                        {formatCurrency(selectedItem.purchasePrice || 0)}
+                                    <div className="inventory-view-modal-info-card card-purchase">
+                                        <label>Purchase Price</label>
+                                        <div className="inventory-view-modal-val val-slate">
+                                            {formatCurrency(selectedItem.purchasePrice || 0)}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="inventory-view-modal-info-card">
-                                    <label>Avg / Cost Price</label>
-                                    <div className="inventory-view-modal-val">
-                                        {formatCurrency(selectedItem.averageCost || selectedItem.costPrice || 0)}
+                                    <div className="inventory-view-modal-info-card card-cost">
+                                        <label>Avg / Cost Price</label>
+                                        <div className="inventory-view-modal-val val-cyan">
+                                            {formatCurrency(selectedItem.averageCost || selectedItem.costPrice || 0)}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="inventory-view-modal-info-card">
-                                    <label>Cost Valuation</label>
-                                    <div className="inventory-view-modal-val inventory-view-modal-highlight">
-                                        {formatCurrency(selectedItem.totalValue || 0)}
+                                    <div className="inventory-view-modal-info-card card-valuation">
+                                        <label>Cost Valuation</label>
+                                        <div className="inventory-view-modal-val val-emerald">
+                                            {formatCurrency(selectedItem.totalValue || 0)}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="inventory-view-modal-info-card">
-                                    <label>Retail Valuation</label>
-                                    <div className="inventory-view-modal-val" style={{ color: '#7c3aed' }}>
-                                        {formatCurrency(selectedItem.salesValue || 0)}
+                                    <div className="inventory-view-modal-info-card card-retail">
+                                        <label>Retail Valuation</label>
+                                        <div className="inventory-view-modal-val val-purple">
+                                            {formatCurrency(selectedItem.salesValue || 0)}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Stock Movement Summary */}
-                            <div className="inventory-view-modal-movement-box" style={{ marginTop: '16px' }}>
+                            <div className="inventory-view-modal-section">
                                 <h4 className="inventory-view-modal-section-title">Stock Movement Analysis</h4>
                                 <div className="inventory-view-modal-stats-row">
                                     <div className="inventory-view-modal-stat-item">
@@ -954,57 +965,57 @@ const InventorySummary = () => {
                             </div>
 
                             {/* Channel Breakdown Grid */}
-                            <div className="inventory-view-modal-movement-box" style={{ marginTop: '16px', background: '#faf5ff', borderColor: '#e9d5ff' }}>
-                                <h4 className="inventory-view-modal-section-title" style={{ color: '#6b21a8' }}>Sales & Purchase Channel Breakdown</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #f3e8ff' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#6b21a8', fontWeight: '600' }}>Sales Invoices Qty</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#9333ea', marginTop: '2px' }}>{selectedItem.salesInvoiceQty || 0}</div>
+                            <div className="inventory-view-modal-section channel-section">
+                                <h4 className="inventory-view-modal-section-title channel-title">Sales & Purchase Channel Breakdown</h4>
+                                <div className="inventory-view-modal-channel-grid">
+                                    <div className="inventory-view-modal-channel-card">
+                                        <div className="channel-card-label">Sales Invoices Qty</div>
+                                        <div className="channel-card-val val-invoices">{selectedItem.salesInvoiceQty || 0}</div>
                                     </div>
-                                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #f3e8ff' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#6b21a8', fontWeight: '600' }}>POS Counter Qty</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#d97706', marginTop: '2px' }}>{selectedItem.posQty || 0}</div>
+                                    <div className="inventory-view-modal-channel-card">
+                                        <div className="channel-card-label">POS Counter Qty</div>
+                                        <div className="channel-card-val val-pos">{selectedItem.posQty || 0}</div>
                                     </div>
-                                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #f3e8ff' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#6b21a8', fontWeight: '600' }}>Purchase Bills Qty</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#334155', marginTop: '2px' }}>{selectedItem.purchaseBillQty || 0}</div>
+                                    <div className="inventory-view-modal-channel-card">
+                                        <div className="channel-card-label">Purchase Bills Qty</div>
+                                        <div className="channel-card-val val-purchases">{selectedItem.purchaseBillQty || 0}</div>
                                     </div>
-                                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #f3e8ff' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#6b21a8', fontWeight: '600' }}>Sales Returns Qty</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#dc2626', marginTop: '2px' }}>{selectedItem.salesReturnQty || 0}</div>
+                                    <div className="inventory-view-modal-channel-card">
+                                        <div className="channel-card-label">Sales Returns Qty</div>
+                                        <div className="channel-card-val val-sales-return">{selectedItem.salesReturnQty || 0}</div>
                                     </div>
-                                    <div style={{ background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #f3e8ff' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#6b21a8', fontWeight: '600' }}>Purchase Returns Qty</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#2563eb', marginTop: '2px' }}>{selectedItem.purchaseReturnQty || 0}</div>
+                                    <div className="inventory-view-modal-channel-card">
+                                        <div className="channel-card-label">Purchase Returns Qty</div>
+                                        <div className="channel-card-val val-purchase-return">{selectedItem.purchaseReturnQty || 0}</div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Warehouse Breakdown Table */}
                             {((selectedItem.warehouses && selectedItem.warehouses.length > 0) || (selectedItem.breakdown && selectedItem.breakdown.length > 0)) && (
-                                <div className="inventory-view-modal-movement-box" style={{ marginTop: '16px' }}>
+                                <div className="inventory-view-modal-section">
                                     <h4 className="inventory-view-modal-section-title">Warehouse Distribution Matrix</h4>
-                                    <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px', marginTop: '10px' }}>
-                                        <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-                                            <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, borderBottom: '1px solid #e2e8f0' }}>
+                                    <div className="inventory-view-modal-table-wrap">
+                                        <table className="inventory-view-modal-table">
+                                            <thead>
                                                 <tr>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: '#64748b' }}>Warehouse</th>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#64748b' }}>Opening</th>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#64748b' }}>Inward</th>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#64748b' }}>Outward</th>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '600', color: '#64748b' }}>Closing</th>
-                                                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: '#64748b' }}>Valuation</th>
+                                                    <th style={{ textAlign: 'left' }}>Warehouse</th>
+                                                    <th style={{ textAlign: 'center' }}>Opening</th>
+                                                    <th style={{ textAlign: 'center' }}>Inward</th>
+                                                    <th style={{ textAlign: 'center' }}>Outward</th>
+                                                    <th style={{ textAlign: 'center' }}>Closing</th>
+                                                    <th style={{ textAlign: 'right' }}>Valuation</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {(selectedItem.warehouses || selectedItem.breakdown || []).map((w, idx) => (
-                                                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                        <td style={{ padding: '8px 12px', fontWeight: '500', color: '#1e293b' }}>{w.warehouseName || w.warehouse}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748b' }}>{w.opening || 0}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center', color: '#334155' }}>+{w.inward || 0}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ef4444' }}>-{w.outward || 0}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 'bold', color: '#0f172a' }}>{w.closing || 0}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', color: '#334155' }}>{formatCurrency(w.totalValue || 0)}</td>
+                                                    <tr key={idx}>
+                                                        <td className="w-name">{w.warehouseName || w.warehouse}</td>
+                                                        <td style={{ textAlign: 'center', color: '#64748b' }}>{w.opening || 0}</td>
+                                                        <td style={{ textAlign: 'center', color: '#10b981', fontWeight: 600 }}>+{w.inward || 0}</td>
+                                                        <td style={{ textAlign: 'center', color: '#ef4444', fontWeight: 600 }}>-{w.outward || 0}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#0f172a' }}>{w.closing || 0}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#334155' }}>{formatCurrency(w.totalValue || 0)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1012,6 +1023,13 @@ const InventorySummary = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="inventory-view-modal-footer">
+                            <button className="inventory-view-modal-btn-close" onClick={() => setShowViewModal(false)}>
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
