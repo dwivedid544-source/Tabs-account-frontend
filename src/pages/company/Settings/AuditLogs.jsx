@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Clock, User, Shield, Loader2,
@@ -70,6 +70,26 @@ const AuditLogs = () => {
     const [showRawJson, setShowRawJson] = useState(false);
     const [copiedJson, setCopiedJson] = useState(false);
 
+    // Export options state
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const exportDropdownRef = useRef(null);
+
+    // Close export dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+                setShowExportMenu(false);
+            }
+        };
+        if (showExportMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showExportMenu]);
+
     const companyId = GetCompanyId();
 
     const toggleExpand = (logId, e) => {
@@ -93,8 +113,8 @@ const AuditLogs = () => {
         }
     };
 
-    const exportToExcel = () => {
-        if (!logs || logs.length === 0) {
+    const generateExcelFromLogs = (logsToExport, scopeType) => {
+        if (!logsToExport || logsToExport.length === 0) {
             toast.error('No audit logs to export');
             return;
         }
@@ -103,14 +123,19 @@ const AuditLogs = () => {
         if (isSuperAdmin) headers.push('Company');
         headers.push('Details / Description');
 
+        const scopeLabel = scopeType === 'all'
+            ? `Export Scope: All Filtered Records (${logsToExport.length} entries)`
+            : `Export Scope: Current Page (Page ${page} of ${totalPages} - ${logsToExport.length} entries)`;
+
         const rows = [
             ['TAB ACCOUNTS - Audit Trail Activity Log'],
             [`Exported On: ${new Date().toLocaleString()}`],
+            [scopeLabel],
             [],
             headers
         ];
 
-        logs.forEach(log => {
+        logsToExport.forEach(log => {
             let detailText = log.details || '-';
             try {
                 if (typeof log.details === 'string' && (log.details.startsWith('{') || log.details.startsWith('['))) {
@@ -137,10 +162,120 @@ const AuditLogs = () => {
         });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Auto column widths
+        ws['!cols'] = [
+            { wch: 22 }, // Timestamp
+            { wch: 22 }, // User Name
+            { wch: 28 }, // User Email
+            { wch: 16 }, // Action
+            { wch: 18 }, // Entity Type
+            { wch: 12 }, // Entity ID
+            ...(isSuperAdmin ? [{ wch: 20 }] : []), // Company
+            { wch: 65 }  // Details / Description
+        ];
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Audit Log');
-        XLSX.writeFile(wb, `Audit_Trail_${new Date().toISOString().split('T')[0]}.xlsx`);
-        toast.success('Audit log exported to Excel');
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = scopeType === 'all'
+            ? `Audit_Trail_All_${logsToExport.length}_Records_${dateStr}.xlsx`
+            : `Audit_Trail_Page_${page}_${dateStr}.xlsx`;
+
+        XLSX.writeFile(wb, fileName);
+    };
+
+    const handleExport = async (type) => {
+        setShowExportMenu(false);
+
+        if (type === 'current') {
+            if (!logs || logs.length === 0) {
+                toast.error('No logs available on this page to export');
+                return;
+            }
+            generateExcelFromLogs(logs, 'current');
+            toast.success(`Exported current page (${logs.length} logs) to Excel`);
+            return;
+        }
+
+        // Export All
+        if (totalLogs === 0) {
+            toast.error('No audit logs available matching the current filters');
+            return;
+        }
+
+        const toastId = toast.loading(`Fetching all ${totalLogs} audit records for export...`);
+        setExporting(true);
+
+        try {
+            const baseParams = {
+                search: search.trim() || undefined,
+                action: action || undefined,
+                entity: entity || undefined,
+                entityId: entityId.trim() || undefined,
+                userId: userId || undefined,
+                companyId: selectedCompanyId || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined
+            };
+
+            // Fetch with all=true and large limit
+            const firstResponse = await axiosInstance.get('/audit-logs', {
+                params: {
+                    ...baseParams,
+                    all: 'true',
+                    limit: 1000,
+                    page: 1
+                },
+                headers: { 'X-No-Loader': 'true' }
+            });
+
+            let allFetchedLogs = firstResponse.data?.logs || [];
+            const expectedTotal = firstResponse.data?.pagination?.total || totalLogs;
+
+            // Fallback pagination if backend capped the result set
+            if (allFetchedLogs.length < expectedTotal) {
+                const perPageLimit = allFetchedLogs.length > 0 ? allFetchedLogs.length : 100;
+                const totalPagesNeeded = Math.ceil(expectedTotal / perPageLimit);
+
+                toast.loading(`Fetching records (page 1 of ${totalPagesNeeded})...`, { id: toastId });
+
+                const remainingPagePromises = [];
+                for (let p = 2; p <= totalPagesNeeded; p++) {
+                    remainingPagePromises.push(
+                        axiosInstance.get('/audit-logs', {
+                            params: {
+                                ...baseParams,
+                                page: p,
+                                limit: perPageLimit
+                            },
+                            headers: { 'X-No-Loader': 'true' }
+                        }).then(res => res.data?.logs || []).catch(err => {
+                            console.error(`Failed to fetch audit log page ${p}:`, err);
+                            return [];
+                        })
+                    );
+                }
+
+                const remainingResults = await Promise.all(remainingPagePromises);
+                remainingResults.forEach(pageLogs => {
+                    allFetchedLogs = allFetchedLogs.concat(pageLogs);
+                });
+            }
+
+            if (allFetchedLogs.length === 0) {
+                toast.error('No records retrieved for export', { id: toastId });
+                return;
+            }
+
+            generateExcelFromLogs(allFetchedLogs, 'all');
+            toast.success(`Successfully exported all ${allFetchedLogs.length} audit logs to Excel!`, { id: toastId });
+        } catch (error) {
+            console.error('Error during full audit logs export:', error);
+            toast.error('Failed to export all audit logs. Please try again.', { id: toastId });
+        } finally {
+            setExporting(false);
+        }
     };
 
     useEffect(() => {
@@ -700,11 +835,73 @@ const AuditLogs = () => {
                         {isSuperAdmin && <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: '4px', background: '#1e293b', color: '#ffffff', fontSize: '0.75rem', fontWeight: 600 }}>Super Admin Access</span>}
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={exportToExcel} className="audit-btn-refresh" title="Export to Excel" style={{ background: '#1e293b', color: '#ffffff', borderColor: '#1e293b' }}>
-                        <Download size={16} />
-                        <span>Export Excel</span>
-                    </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div className="audit-export-dropdown-wrapper" ref={exportDropdownRef}>
+                        <button
+                            type="button"
+                            onClick={() => setShowExportMenu(prev => !prev)}
+                            className="audit-btn-refresh audit-btn-export"
+                            title="Export to Excel Options"
+                            disabled={exporting}
+                            style={{ background: '#1e293b', color: '#ffffff', borderColor: '#1e293b' }}
+                        >
+                            {exporting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Download size={16} />
+                            )}
+                            <span>{exporting ? 'Exporting...' : 'Export Excel'}</span>
+                            <ChevronDown
+                                size={14}
+                                style={{
+                                    marginLeft: '2px',
+                                    transform: showExportMenu ? 'rotate(180deg)' : 'none',
+                                    transition: 'transform 0.2s ease'
+                                }}
+                            />
+                        </button>
+
+                        {showExportMenu && (
+                            <div className="audit-export-menu" role="menu">
+                                <div className="audit-export-menu-header">
+                                    <span className="audit-export-menu-label">Export Format: Excel (.xlsx)</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="audit-export-menu-item"
+                                    onClick={() => handleExport('current')}
+                                    disabled={exporting || logs.length === 0}
+                                >
+                                    <div className="audit-export-item-icon">
+                                        <FileText size={18} />
+                                    </div>
+                                    <div className="audit-export-item-info">
+                                        <div className="audit-export-item-title">Current Page Only</div>
+                                        <div className="audit-export-item-desc">
+                                            Export {logs.length} entries (Page {page} of {totalPages})
+                                        </div>
+                                    </div>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="audit-export-menu-item highlight"
+                                    onClick={() => handleExport('all')}
+                                    disabled={exporting || totalLogs === 0}
+                                >
+                                    <div className="audit-export-item-icon highlight-icon">
+                                        <Download size={18} />
+                                    </div>
+                                    <div className="audit-export-item-info">
+                                        <div className="audit-export-item-title">All Records (Full Audit Trail)</div>
+                                        <div className="audit-export-item-desc">
+                                            Export all {totalLogs} entries across {totalPages} pages
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     <button onClick={fetchAuditLogs} className="audit-btn-refresh" title="Refresh logs">
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                         <span>Refresh</span>
@@ -750,15 +947,45 @@ const AuditLogs = () => {
                         <label className="audit-filter-label">Entity Type</label>
                         <select className="audit-filter-select" value={entity} onChange={(e) => { setEntity(e.target.value); setPage(1); }}>
                             <option value="">All Entities</option>
-                            <option value="Invoice">Sales Invoice</option>
-                            <option value="PurchaseBill">Purchase Bill</option>
-                            <option value="Receipt">Sales Receipt</option>
-                            <option value="Payment">Vendor Payment</option>
-                            <option value="Voucher">Journal Voucher</option>
-                            <option value="Customer">Customer</option>
-                            <option value="Vendor">Vendor</option>
-                            <option value="Product">Product</option>
-                            <option value="POS">POS Invoice</option>
+                            <optgroup label="Sales & Receivables">
+                                <option value="Invoice">Sales Invoice</option>
+                                <option value="POS">POS Invoice</option>
+                                <option value="Receipt">Sales Receipt</option>
+                                <option value="SalesOrder">Sales Order</option>
+                                <option value="SalesQuotation">Sales Quotation</option>
+                                <option value="SalesReturn">Sales Return</option>
+                                <option value="DeliveryChallan">Delivery Challan</option>
+                            </optgroup>
+                            <optgroup label="Purchases & Payables">
+                                <option value="PurchaseBill">Purchase Bill</option>
+                                <option value="Payment">Vendor Payment</option>
+                                <option value="PurchaseOrder">Purchase Order</option>
+                                <option value="PurchaseQuotation">Purchase Quotation</option>
+                                <option value="PurchaseReturn">Purchase Return</option>
+                                <option value="GoodsReceiptNote">Goods Receipt Note (GRN)</option>
+                                <option value="Expense">Expense</option>
+                            </optgroup>
+                            <optgroup label="Accounts & Banking">
+                                <option value="Voucher">Journal Voucher</option>
+                                <option value="Account">Account / Ledger</option>
+                                <option value="AccountGroup">Account Group</option>
+                                <option value="AccountSubGroup">Account Sub-Group</option>
+                                <option value="Income">Direct Income</option>
+                                <option value="Contra">Contra Voucher</option>
+                                <option value="BankAccount">Bank Account</option>
+                                <option value="BankTransfer">Bank Transfer</option>
+                            </optgroup>
+                            <optgroup label="Inventory & Products">
+                                <option value="Product">Product</option>
+                                <option value="InventoryAdjustment">Stock Adjustment</option>
+                                <option value="StockTransfer">Stock Transfer</option>
+                            </optgroup>
+                            <optgroup label="People & Access">
+                                <option value="Customer">Customer</option>
+                                <option value="Vendor">Vendor</option>
+                                <option value="User">User / Staff</option>
+                                <option value="Role">Role & Permissions</option>
+                            </optgroup>
                         </select>
                     </div>
 

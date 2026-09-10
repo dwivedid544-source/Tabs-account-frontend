@@ -981,3 +981,127 @@
     background: #334155;
 }
 
+/* Export Dropdown Menu */
+.audit-export-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.audit-btn-export {
+    position: relative;
+    user-select: none;
+    cursor: pointer;
+}
+
+.audit-btn-export:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.audit-export-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 320px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+    z-index: 100;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    animation: auditExportFadeIn 0.15s ease-out;
+}
+
+@keyframes auditExportFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.audit-export-menu-header {
+    padding: 0.5rem 0.75rem 0.35rem 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 0.25rem;
+}
+
+.audit-export-menu-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+.audit-export-menu-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    width: 100%;
+}
+
+.audit-export-menu-item:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.audit-export-menu-item.highlight:hover:not(:disabled) {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.audit-export-menu-item:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.audit-export-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.audit-export-item-icon.highlight-icon {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.audit-export-item-info {
+    flex: 1;
+}
+
+.audit-export-item-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 0.2rem;
+}
+
+.audit-export-item-desc {
+    font-size: 0.775rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+
