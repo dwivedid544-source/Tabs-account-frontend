@@ -515,6 +515,7 @@ const Invoice = () => {
     const [deletePassword, setDeletePassword] = useState('');
     const [showDeletePassword, setShowDeletePassword] = useState(false);
     const [deletePasswordError, setDeletePasswordError] = useState('');
+    const [hasDeletionPassword, setHasDeletionPassword] = useState(false);
     const [showUnpayModal, setShowUnpayModal] = useState(false);
     const [invoiceToUnpay, setInvoiceToUnpay] = useState(null);
 
@@ -2626,11 +2627,27 @@ const Invoice = () => {
         }
     };
 
-    const handleDelete = (invoice) => {
+    const handleDelete = async (invoice) => {
         setInvoiceToDelete(invoice);
         setDeletePassword('');
         setShowDeletePassword(false);
         setDeletePasswordError('');
+
+        // Fetch fresh deletion password status for the active company
+        try {
+            const companyId = GetCompanyId();
+            if (companyId) {
+                const res = await companyService.getInvoiceDeletionPasswordStatus(companyId);
+                const hasPwd = Boolean(res?.data?.hasPassword ?? res?.hasPassword ?? companyDetails?.hasInvoiceDeletionPassword);
+                setHasDeletionPassword(hasPwd);
+            } else {
+                setHasDeletionPassword(Boolean(companyDetails?.hasInvoiceDeletionPassword));
+            }
+        } catch (e) {
+            console.warn('Could not check deletion password status:', e);
+            setHasDeletionPassword(Boolean(companyDetails?.hasInvoiceDeletionPassword));
+        }
+
         setShowDeleteModal(true);
     };
 
@@ -2638,7 +2655,7 @@ const Invoice = () => {
         if (!invoiceToDelete) return;
 
         const trimmedPassword = (deletePassword || '').trim();
-        if (!trimmedPassword) {
+        if (hasDeletionPassword && !trimmedPassword) {
             setDeletePasswordError('Please enter the invoice deletion password to confirm.');
             return;
         }
@@ -3916,49 +3933,51 @@ const Invoice = () => {
                             </div>
                         </div>
 
-                        {/* Security Password Protection Input */}
-                        <div className="InvModal-password-container">
-                            <label className="InvModal-password-label">
-                                <Lock size={13} />
-                                <span>Invoice Deletion Password</span>
-                            </label>
-                            <div className="InvModal-password-input-wrap">
-                                <input
-                                    type={showDeletePassword ? 'text' : 'password'}
-                                    value={deletePassword}
-                                    onChange={(e) => {
-                                        setDeletePassword(e.target.value);
-                                        if (deletePasswordError) setDeletePasswordError('');
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !isDeleting) {
-                                            confirmDelete();
-                                        }
-                                    }}
-                                    placeholder="Enter deletion password to confirm"
-                                    className={`InvModal-password-input ${deletePasswordError ? 'has-error' : ''}`}
-                                    autoFocus
-                                    disabled={isDeleting}
-                                />
-                                <button
-                                    type="button"
-                                    className="InvModal-password-eye-btn"
-                                    onClick={() => setShowDeletePassword(!showDeletePassword)}
-                                    tabIndex={-1}
-                                    disabled={isDeleting}
-                                    title={showDeletePassword ? 'Hide password' : 'Show password'}
-                                >
-                                    {showDeletePassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                                </button>
-                            </div>
-
-                            {deletePasswordError && (
-                                <div className="InvModal-error-callout">
-                                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
-                                    <span>{deletePasswordError}</span>
+                        {/* Security Password Protection Input - Only displayed if company has deletion password configured */}
+                        {hasDeletionPassword && (
+                            <div className="InvModal-password-container">
+                                <label className="InvModal-password-label">
+                                    <Lock size={13} />
+                                    <span>Invoice Deletion Password</span>
+                                </label>
+                                <div className="InvModal-password-input-wrap">
+                                    <input
+                                        type={showDeletePassword ? 'text' : 'password'}
+                                        value={deletePassword}
+                                        onChange={(e) => {
+                                            setDeletePassword(e.target.value);
+                                            if (deletePasswordError) setDeletePasswordError('');
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !isDeleting) {
+                                                confirmDelete();
+                                            }
+                                        }}
+                                        placeholder="Enter deletion password to confirm"
+                                        className={`InvModal-password-input ${deletePasswordError ? 'has-error' : ''}`}
+                                        autoFocus
+                                        disabled={isDeleting}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="InvModal-password-eye-btn"
+                                        onClick={() => setShowDeletePassword(!showDeletePassword)}
+                                        tabIndex={-1}
+                                        disabled={isDeleting}
+                                        title={showDeletePassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showDeletePassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                                    </button>
                                 </div>
-                            )}
-                        </div>
+
+                                {deletePasswordError && (
+                                    <div className="InvModal-error-callout">
+                                        <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                                        <span>{deletePasswordError}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <p className="InvModal-irreversible-note">
                             This action is permanent and cannot be undone.
