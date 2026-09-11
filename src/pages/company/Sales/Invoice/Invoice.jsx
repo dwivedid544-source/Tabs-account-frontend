@@ -1720,11 +1720,19 @@ const Invoice = () => {
                     ? JSON.parse(companySettings.inventoryConfig)
                     : companySettings.inventoryConfig;
                 if (parsed.defaultSalesWarehouseId) {
-                    defWarehouseId = parseInt(parsed.defaultSalesWarehouseId);
+                    const parsedId = parseInt(parsed.defaultSalesWarehouseId);
+                    if (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parsedId)) {
+                        defWarehouseId = parsedId;
+                    } else if (allWarehouses.length > 0) {
+                        defWarehouseId = allWarehouses[0].id;
+                    }
                 }
             } catch (e) {
                 console.error(e);
             }
+        }
+        if (!defWarehouseId && allWarehouses.length > 0) {
+            defWarehouseId = allWarehouses[0].id;
         }
         setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
         setAvailableReceipts([]);
@@ -1866,11 +1874,19 @@ const Invoice = () => {
                     ? JSON.parse(companySettings.inventoryConfig)
                     : companySettings.inventoryConfig;
                 if (parsed.defaultSalesWarehouseId) {
-                    defWarehouseId = parseInt(parsed.defaultSalesWarehouseId);
+                    const parsedId = parseInt(parsed.defaultSalesWarehouseId);
+                    if (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parsedId)) {
+                        defWarehouseId = parsedId;
+                    } else if (allWarehouses.length > 0) {
+                        defWarehouseId = allWarehouses[0].id;
+                    }
                 }
             } catch (e) {
                 console.error(e);
             }
+        }
+        if (!defWarehouseId && allWarehouses.length > 0) {
+            defWarehouseId = allWarehouses[0].id;
         }
         setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
     };
@@ -1887,11 +1903,19 @@ const Invoice = () => {
                                 ? JSON.parse(companySettings.inventoryConfig)
                                 : companySettings.inventoryConfig;
                             if (parsed.defaultSalesWarehouseId) {
-                                defWarehouseId = parseInt(parsed.defaultSalesWarehouseId);
+                                const parsedId = parseInt(parsed.defaultSalesWarehouseId);
+                                if (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parsedId)) {
+                                    defWarehouseId = parsedId;
+                                } else if (allWarehouses.length > 0) {
+                                    defWarehouseId = allWarehouses[0].id;
+                                }
                             }
                         } catch (e) {
                             console.error(e);
                         }
+                    }
+                    if (!defWarehouseId && allWarehouses.length > 0) {
+                        defWarehouseId = allWarehouses[0].id;
                     }
                     return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }];
                 }
@@ -2263,7 +2287,9 @@ const Invoice = () => {
                 items: items.map(item => ({
                     productId: item.productId ? parseInt(item.productId) : null,
                     serviceId: item.serviceId ? parseInt(item.serviceId) : null,
-                    warehouseId: item.warehouseId ? parseInt(item.warehouseId) : null,
+                    warehouseId: (item.warehouseId && (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parseInt(item.warehouseId))))
+                        ? parseInt(item.warehouseId)
+                        : (allWarehouses.length > 0 ? allWarehouses[0].id : null),
                     uomId: item.uomId ? parseInt(item.uomId) : null,
                     description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : ''),
                     quantity: parseFloat(item.qty),
