@@ -124,12 +124,13 @@ const CompanyDashboard = () => {
         fetchStats();
     }, [activeCompanyId]);
 
-    // const formatCurrency = (val) => {
-    //     return new Intl.NumberFormat('en-IN', {
-    //         style: 'currency',
-    //         currency: 'INR'
-    //     }).format(val);
-    // };
+    const formatYAxisTick = (val) => {
+        if (!val || val === 0) return '0';
+        if (Math.abs(val) >= 1000000) {
+            return `${(val / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`;
+        }
+        return val.toLocaleString();
+    };
 
     return (
         <div className="company-dashboard">
@@ -231,11 +232,17 @@ const CompanyDashboard = () => {
 
                     </div>
                     <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={stats.chartData}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats.chartData} margin={{ top: 10, right: 10, left: 15, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    width={75}
+                                    tick={{ fill: '#64748b', fontSize: 12 }}
+                                    tickFormatter={formatYAxisTick}
+                                />
                                 <Tooltip
                                     cursor={false}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
@@ -342,11 +349,17 @@ const CompanyDashboard = () => {
                         </div>
                     </div>
                     <div style={{ width: '100%', height: 200 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={stats.chartData}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats.chartData} margin={{ top: 10, right: 10, left: 15, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    width={75}
+                                    tick={{ fill: '#64748b', fontSize: 12 }}
+                                    tickFormatter={formatYAxisTick}
+                                />
                                 <Tooltip cursor={false} formatter={(value) => formatCurrency(value)} />
                                 <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} barSize={15} name={t('Revenue')} />
                                 <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={15} name={t('Expense')} />
