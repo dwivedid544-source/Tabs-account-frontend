@@ -6468,6 +6468,7 @@ const Invoice = () => {
                                                             className="Invoice-compact-input"
                                                             placeholder="Description..."
                                                             value={item.description || ''}
+                                                            title={item.description || ''}
                                                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
