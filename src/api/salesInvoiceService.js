@@ -15,9 +15,17 @@ const salesInvoiceService = {
         const query = companyId ? `?companyId=${companyId}` : '';
         return axios.put(`/sales-invoices/${id}${query}`, data);
     },
-    delete: (id, companyId, data = null) => {
+    delete: (id, companyId, data = null, deletionPassword = null) => {
         const query = companyId ? `?companyId=${companyId}` : '';
-        return axios.delete(`/sales-invoices/${id}${query}`, { data });
+        const body = { ...(data || {}) };
+        if (deletionPassword) {
+            body.deletionPassword = deletionPassword;
+        }
+        const headers = {};
+        if (deletionPassword) {
+            headers['x-deletion-password'] = encodeURIComponent(deletionPassword);
+        }
+        return axios.delete(`/sales-invoices/${id}${query}`, { data: body, headers });
     },
     getNextNumber: (companyId) => {
         const query = companyId ? `?companyId=${companyId}` : '';

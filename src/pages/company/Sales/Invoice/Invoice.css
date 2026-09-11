@@ -1679,6 +1679,91 @@
     color: #b91c1c;
 }
 
+.InvModal-password-container {
+    width: 100%;
+    margin-bottom: 12px;
+    text-align: left;
+    z-index: 1;
+}
+
+.InvModal-password-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.InvModal-password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.InvModal-password-input {
+    width: 100%;
+    padding: 10px 38px 10px 12px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.15s ease;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.InvModal-password-input:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.InvModal-password-input.has-error {
+    border-color: #ef4444;
+    background: #fffafa;
+    animation: invPwdShake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes invPwdShake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+    40%, 60% { transform: translate3d(3px, 0, 0); }
+}
+
+.InvModal-password-eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    transition: color 0.15s ease;
+}
+
+.InvModal-password-eye-btn:hover {
+    color: #1e293b;
+}
+
+.InvModal-error-callout {
+    margin-top: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 6px 10px;
+    border-radius: 6px;
+    line-height: 1.35;
+}
+
 .InvModal-irreversible-note {
     font-size: 0.775rem;
     color: #94a3b8;

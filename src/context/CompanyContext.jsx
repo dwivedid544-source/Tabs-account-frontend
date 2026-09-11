@@ -148,25 +148,20 @@ export const CompanyProvider = ({ children }) => {
     };
 
     const getInvoiceLabel = (key) => {
-        if (key === 'showWarehouse' || key === 'showUom') {
-            return false;
-        }
-        if (key === 'tax') {
-            return 'VAT';
-        }
         if (companySettings?.invoiceLabels) {
             try {
                 const labels = typeof companySettings.invoiceLabels === 'string'
                     ? JSON.parse(companySettings.invoiceLabels)
                     : companySettings.invoiceLabels;
-                if (labels[key] !== undefined) {
-                    return sanitizeEnglishOnly(labels[key]);
+                if (labels && labels[key] !== undefined) {
+                    return typeof labels[key] === 'string' ? sanitizeEnglishOnly(labels[key]) : labels[key];
                 }
             } catch (e) {
                 // fall through to default
             }
         }
-        return sanitizeEnglishOnly(DEFAULT_LABELS[key] !== undefined ? DEFAULT_LABELS[key] : key);
+        const val = DEFAULT_LABELS[key] !== undefined ? DEFAULT_LABELS[key] : key;
+        return typeof val === 'string' ? sanitizeEnglishOnly(val) : val;
     };
 
     const DEFAULT_HEADERS = {
@@ -181,22 +176,20 @@ export const CompanyProvider = ({ children }) => {
     };
 
     const getTableHeader = (key, defaultVal) => {
-        if (key === 'tax') {
-            return 'VAT (%)';
-        }
         if (companySettings?.invoiceTableHeaders) {
             try {
                 const headers = typeof companySettings.invoiceTableHeaders === 'string'
                     ? JSON.parse(companySettings.invoiceTableHeaders)
                     : companySettings.invoiceTableHeaders;
-                if (headers[key] !== undefined) {
-                    return sanitizeEnglishOnly(headers[key]);
+                if (headers && headers[key] !== undefined) {
+                    return typeof headers[key] === 'string' ? sanitizeEnglishOnly(headers[key]) : headers[key];
                 }
             } catch (e) {
                 // fall through to default
             }
         }
-        return sanitizeEnglishOnly(defaultVal || DEFAULT_HEADERS[key] || key);
+        const val = defaultVal || DEFAULT_HEADERS[key] || key;
+        return typeof val === 'string' ? sanitizeEnglishOnly(val) : val;
     };
 
     const getReceiptPaymentLabel = (key, defaultVal = '') => {

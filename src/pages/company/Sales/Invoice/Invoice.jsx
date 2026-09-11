@@ -7,7 +7,8 @@ import {
     Search, Plus, Pencil, Trash2, X, ChevronDown,
     FileText, ShoppingCart, Truck, Receipt, CreditCard,
     CheckCircle2, Clock, ArrowRight, Download, Send, Printer,
-    Eye, Copy, ArrowLeft, AlertTriangle, RotateCcw, Mail, FileSpreadsheet, Shield
+    Eye, Copy, ArrowLeft, AlertTriangle, RotateCcw, Mail, FileSpreadsheet, Shield,
+    Lock, EyeOff, AlertCircle
 } from 'lucide-react';
 import './Invoice.css';
 import salesInvoiceService from '../../../../api/salesInvoiceService';
@@ -45,11 +46,46 @@ import { exportToExcel, exportSingleInvoiceToExcel } from '../../../../utils/exc
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import InvoiceActionDropdown from './InvoiceActionDropdown';
 
-const getCompanyLogoSrc = (logoVal) => {
-    if (!logoVal) return tabAccountsLogo;
+const getContrastTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#ffffff';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 170) ? '#1e293b' : '#ffffff';
+};
+
+const getTintBg = (hexColor, alpha = 0.08) => {
+    if (!hexColor) return '#f8fafc';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#f8fafc';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const hexToRgb = (hex) => {
+    if (!hex) return [0, 74, 173];
+    const cleanHex = hex.replace('#', '');
+    if (cleanHex.length !== 6) return [0, 74, 173];
+    return [
+        parseInt(cleanHex.substr(0, 2), 16),
+        parseInt(cleanHex.substr(2, 2), 16),
+        parseInt(cleanHex.substr(4, 2), 16)
+    ];
+};
+
+const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
+    if (!logoVal) return fallback;
     if (typeof logoVal === 'string') {
+        const resolved = resolveLogoUrl(logoVal);
+        if (resolved) return resolved;
         if (logoVal.startsWith('data:') || logoVal.startsWith('http://') || logoVal.startsWith('https://')) {
             return logoVal;
         }
@@ -57,7 +93,7 @@ const getCompanyLogoSrc = (logoVal) => {
         const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
         return `${serverUrl}${cleanPath}`;
     }
-    return tabAccountsLogo;
+    return fallback;
 };
 
 const safeAutoTable = (doc, options) => {
@@ -476,6 +512,9 @@ const Invoice = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [showDeletePassword, setShowDeletePassword] = useState(false);
+    const [deletePasswordError, setDeletePasswordError] = useState('');
     const [showUnpayModal, setShowUnpayModal] = useState(false);
     const [invoiceToUnpay, setInvoiceToUnpay] = useState(null);
 
@@ -2589,72 +2628,87 @@ const Invoice = () => {
 
     const handleDelete = (invoice) => {
         setInvoiceToDelete(invoice);
+        setDeletePassword('');
+        setShowDeletePassword(false);
+        setDeletePasswordError('');
         setShowDeleteModal(true);
     };
 
     const confirmDelete = async () => {
-        if (invoiceToDelete) {
-            setIsDeleting(true);
-            try {
-                const companyId = GetCompanyId();
-                const isCombined = invoiceToDelete.type === 'COMBINED' ||
-                                   invoiceToDelete.isCombined ||
-                                   String(invoiceToDelete.id).toLowerCase().startsWith('combined-') ||
-                                   String(invoiceToDelete.invoiceNumber || '').toUpperCase().startsWith('COMBINED-');
+        if (!invoiceToDelete) return;
 
-                if (isCombined) {
-                    const subInvoices = invoiceToDelete.invoices || [];
-                    const taxInvoiceIds = subInvoices.filter(i => i.type !== 'POS_INVOICE').map(i => i.id);
-                    const posInvoices = subInvoices.filter(i => i.type === 'POS_INVOICE');
+        const trimmedPassword = (deletePassword || '').trim();
+        if (!trimmedPassword) {
+            setDeletePasswordError('Please enter the invoice deletion password to confirm.');
+            return;
+        }
 
-                    for (const posInv of posInvoices) {
-                        try {
-                            await posService.deletePOSInvoice(posInv.id);
-                        } catch (posErr) {
-                            console.warn('Error deleting sub POS invoice:', posErr);
-                        }
+        setIsDeleting(true);
+        setDeletePasswordError('');
+        try {
+            const companyId = GetCompanyId();
+            const isCombined = invoiceToDelete.type === 'COMBINED' ||
+                               invoiceToDelete.isCombined ||
+                               String(invoiceToDelete.id).toLowerCase().startsWith('combined-') ||
+                               String(invoiceToDelete.invoiceNumber || '').toUpperCase().startsWith('COMBINED-');
+
+            if (isCombined) {
+                const subInvoices = invoiceToDelete.invoices || [];
+                const taxInvoiceIds = subInvoices.filter(i => i.type !== 'POS_INVOICE').map(i => i.id);
+                const posInvoices = subInvoices.filter(i => i.type === 'POS_INVOICE');
+
+                for (const posInv of posInvoices) {
+                    try {
+                        await posService.deletePOSInvoice(posInv.id, { deletionPassword: trimmedPassword });
+                    } catch (posErr) {
+                        console.warn('Error deleting sub POS invoice:', posErr);
                     }
-
-                    const custId = invoiceToDelete.customerId || invoiceToDelete.customer?.id;
-                    await salesInvoiceService.delete(invoiceToDelete.id, companyId, {
-                        invoiceIds: taxInvoiceIds.length > 0 ? taxInvoiceIds : undefined,
-                        customerId: custId
-                    });
-
-                    setInvoices(prev => prev.filter(inv => {
-                        if (inv.id === invoiceToDelete.id) return false;
-                        if (subInvoices.some(si => String(si.id) === String(inv.id) && (si.type || 'TAX_INVOICE') === (inv.type || 'TAX_INVOICE'))) return false;
-                        return true;
-                    }));
-
-                    setShowDeleteModal(false);
-                    setInvoiceToDelete(null);
-                    toast.success('Combined invoice and associated invoices deleted successfully');
-                    fetchData();
-                    if (viewMode) setViewMode(false);
-                } else if (invoiceToDelete.type === 'POS_INVOICE') {
-                    await posService.deletePOSInvoice(invoiceToDelete.id);
-                    setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
-                    setShowDeleteModal(false);
-                    setInvoiceToDelete(null);
-                    toast.success('Invoice deleted successfully');
-                    fetchData();
-                    if (viewMode) setViewMode(false);
-                } else {
-                    await salesInvoiceService.delete(invoiceToDelete.id, companyId);
-                    setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
-                    setShowDeleteModal(false);
-                    setInvoiceToDelete(null);
-                    toast.success('Invoice deleted successfully');
-                    fetchData();
-                    if (viewMode) setViewMode(false);
                 }
-            } catch (error) {
-                console.error('Error deleting invoice:', error);
-                toast.error(error.response?.data?.message || 'Error deleting invoice');
-            } finally {
-                setIsDeleting(false);
+
+                const custId = invoiceToDelete.customerId || invoiceToDelete.customer?.id;
+                await salesInvoiceService.delete(invoiceToDelete.id, companyId, {
+                    invoiceIds: taxInvoiceIds.length > 0 ? taxInvoiceIds : undefined,
+                    customerId: custId
+                }, trimmedPassword);
+
+                setInvoices(prev => prev.filter(inv => {
+                    if (inv.id === invoiceToDelete.id) return false;
+                    if (subInvoices.some(si => String(si.id) === String(inv.id) && (si.type || 'TAX_INVOICE') === (inv.type || 'TAX_INVOICE'))) return false;
+                    return true;
+                }));
+
+                setShowDeleteModal(false);
+                setInvoiceToDelete(null);
+                setDeletePassword('');
+                toast.success('Combined invoice and associated invoices deleted successfully');
+                fetchData();
+                if (viewMode) setViewMode(false);
+            } else if (invoiceToDelete.type === 'POS_INVOICE') {
+                await posService.deletePOSInvoice(invoiceToDelete.id, { deletionPassword: trimmedPassword });
+                setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
+                setShowDeleteModal(false);
+                setInvoiceToDelete(null);
+                setDeletePassword('');
+                toast.success('Invoice deleted successfully');
+                fetchData();
+                if (viewMode) setViewMode(false);
+            } else {
+                await salesInvoiceService.delete(invoiceToDelete.id, companyId, null, trimmedPassword);
+                setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
+                setShowDeleteModal(false);
+                setInvoiceToDelete(null);
+                setDeletePassword('');
+                toast.success('Invoice deleted successfully');
+                fetchData();
+                if (viewMode) setViewMode(false);
             }
+        } catch (error) {
+            console.error('Error deleting invoice:', error);
+            const msg = error.response?.data?.message || error.message || 'Error deleting invoice';
+            setDeletePasswordError(msg);
+            toast.error(msg);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -2961,16 +3015,20 @@ const Invoice = () => {
             }
 
             // --- 2. MIDDLE (Left: INVOICE & BILL TO, Right: METADATA GRID) ---
+            const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#004aad';
+            const themeRgb = hexToRgb(themeColorHex);
+            const contrastRgb = getContrastTextColor(themeColorHex) === '#ffffff' ? [255, 255, 255] : [30, 41, 59];
+
             let midY = Math.max(50, compY + 3);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(13);
-            doc.setTextColor(107, 114, 128);
-            doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : 'INVOICE', 14, midY);
+            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (companySettings?.invoiceTemplate || getDocumentTitle('invoice') || 'INVOICE'), 14, midY);
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
             doc.setTextColor(136, 136, 136);
-            doc.text('BILL TO', 14, midY + 6);
+            doc.text(getInvoiceLabel('billTo') || 'BILL TO', 14, midY + 6);
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(10);
@@ -3006,11 +3064,11 @@ const Invoice = () => {
             const metaKeyX = 142;
             const metaValX = 196;
             const metaRows = [
-                { key: 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
-                { key: 'DATE', val: formatCeaDate(inv.date) },
+                { key: getInvoiceLabel('number') || 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
+                { key: getInvoiceLabel('issue') || 'DATE', val: formatCeaDate(inv.date) },
                 ...(inv.poNumber || inv.manualReference ? [{ key: 'P.O. #', val: inv.poNumber || inv.manualReference }] : []),
                 { key: 'TERMS', val: inv.paymentTerms || 'Net 7' },
-                { key: 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
+                { key: getInvoiceLabel('dueDate') || 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
             ];
 
             let metaY = midY + 6;
@@ -3029,7 +3087,14 @@ const Invoice = () => {
 
             // --- 3. ITEMS TABLE ---
             const tableStartY = Math.max(billY + 4, metaY + 4);
-            const tableHead = [['ACTIVITY', 'DESCRIPTION', 'TAX', 'QTY', 'RATE', 'AMOUNT']];
+            const tableHead = [[
+                getTableHeader('item', 'ACTIVITY'),
+                getTableHeader('warehouse', 'DESCRIPTION'),
+                getTableHeader('tax', 'TAX'),
+                getTableHeader('quantity', 'QTY'),
+                getTableHeader('rate', 'RATE'),
+                getTableHeader('price', 'AMOUNT')
+            ]];
             const tableBody = processedItems.map(it => [
                 it.actName,
                 it.desc,
@@ -3045,8 +3110,8 @@ const Invoice = () => {
                 body: tableBody,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: [241, 245, 249],
-                    textColor: [71, 85, 105],
+                    fillColor: themeRgb,
+                    textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 8,
                     cellPadding: 2.5
@@ -3093,7 +3158,7 @@ const Invoice = () => {
                 totY += 4.5;
             };
 
-            printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
+            printTotalLine(getInvoiceLabel('subTotal') || 'SUBTOTAL', Number(subtotalVal).toFixed(2));
             if (lineDiscountsTotal > 0 && calculatedOvDiscountAmt > 0) {
                 printTotalLine('LINE DISCOUNT', `-${Number(lineDiscountsTotal).toFixed(2)}`);
                 printTotalLine(`OVERALL DISCOUNT (${ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})`, `-${Number(calculatedOvDiscountAmt).toFixed(2)}`);
@@ -3106,8 +3171,8 @@ const Invoice = () => {
                 printTotalLine('TOTAL DISCOUNT', `-${Number(discountVal).toFixed(2)}`);
                 printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
             }
-            printTotalLine('TAX', Number(taxVal).toFixed(2));
-            printTotalLine('TOTAL', Number(totalVal).toFixed(2), true);
+            printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
+            printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
             printTotalLine('PAYMENT', Number(paidVal).toFixed(2));
 
             // Dotted divider before Balance Due
@@ -3123,7 +3188,7 @@ const Invoice = () => {
             doc.text('BALANCE DUE', 142, totY);
 
             doc.setFontSize(10.5);
-            doc.setTextColor(15, 23, 42);
+            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
             doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
 
             // Status Badge Pill
@@ -3166,7 +3231,7 @@ const Invoice = () => {
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.setTextColor(51, 65, 85);
+            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
             doc.text('VAT SUMMARY', 14, vatSectionY);
 
             const vatTableHead = [['', 'RATE', 'VAT', 'NET']];
@@ -3183,8 +3248,8 @@ const Invoice = () => {
                 body: vatTableBody,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: [226, 232, 240],
-                    textColor: [71, 85, 105],
+                    fillColor: themeRgb,
+                    textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 7.5,
                     cellPadding: 1.8
@@ -3849,6 +3914,50 @@ const Invoice = () => {
                                     </>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Security Password Protection Input */}
+                        <div className="InvModal-password-container">
+                            <label className="InvModal-password-label">
+                                <Lock size={13} />
+                                <span>Invoice Deletion Password</span>
+                            </label>
+                            <div className="InvModal-password-input-wrap">
+                                <input
+                                    type={showDeletePassword ? 'text' : 'password'}
+                                    value={deletePassword}
+                                    onChange={(e) => {
+                                        setDeletePassword(e.target.value);
+                                        if (deletePasswordError) setDeletePasswordError('');
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !isDeleting) {
+                                            confirmDelete();
+                                        }
+                                    }}
+                                    placeholder="Enter deletion password to confirm"
+                                    className={`InvModal-password-input ${deletePasswordError ? 'has-error' : ''}`}
+                                    autoFocus
+                                    disabled={isDeleting}
+                                />
+                                <button
+                                    type="button"
+                                    className="InvModal-password-eye-btn"
+                                    onClick={() => setShowDeletePassword(!showDeletePassword)}
+                                    tabIndex={-1}
+                                    disabled={isDeleting}
+                                    title={showDeletePassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showDeletePassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
+
+                            {deletePasswordError && (
+                                <div className="InvModal-error-callout">
+                                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                                    <span>{deletePasswordError}</span>
+                                </div>
+                            )}
                         </div>
 
                         <p className="InvModal-irreversible-note">
@@ -4826,6 +4935,15 @@ const Invoice = () => {
                 {(() => {
                     const companyDetails = selectedInvoice?.company || companySettings || {};
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
+                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#004aad';
+                    const showHeader = getInvoiceLabel('showHeader') !== false;
+                    const showFooter = getInvoiceLabel('showFooter') !== false;
+                    const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
+                    const showTax = getInvoiceLabel('showTax') !== false;
+                    const showUom = getInvoiceLabel('showUom') === true;
+                    const showQty = getInvoiceLabel('showQty') !== false;
+                    const showRate = getInvoiceLabel('showRate') !== false;
+                    const showDiscount = getInvoiceLabel('showDiscount') === true;
 
                     const formatCeaDate = (dateVal) => {
                         if (!dateVal) return '';
@@ -4975,33 +5093,41 @@ const Invoice = () => {
                                 id="invoice-print-content"
                             >
                                 {/* 1. HEADER: Company Info (Left), CEA Logo (Right) */}
-                                <div className="invoice-cea-header">
-                                    <div className="invoice-cea-company">
-                                        <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
-                                        <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
-                                        <div className="invoice-cea-company-line">
-                                            {companyDetails.city && companyDetails.zip
-                                                ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
-                                                : 'Cork, Co, Cork T12VCY2'}
+                                {showHeader && (
+                                    <div className="invoice-cea-header">
+                                        <div className="invoice-cea-company">
+                                            <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
+                                            <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
+                                            <div className="invoice-cea-company-line">
+                                                {companyDetails.city && companyDetails.zip
+                                                    ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
+                                                    : 'Cork, Co, Cork T12VCY2'}
+                                            </div>
+                                            <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
+                                            <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
+                                            <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
                                         </div>
-                                        <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
-                                        <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
+                                        <div className="invoice-cea-logo-container">
+                                            <img
+                                                src={companyLogoSrc}
+                                                alt={companyDetails.name || "Company Logo"}
+                                                className="invoice-cea-logo-img"
+                                                onError={(e) => {
+                                                    e.currentTarget.onerror = null;
+                                                    e.currentTarget.src = ceaArchitectsLogo;
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="invoice-cea-logo-container">
-                                        <img
-                                            src={ceaArchitectsLogo}
-                                            alt="CEA ARCHITECTS"
-                                            className="invoice-cea-logo-img"
-                                        />
-                                    </div>
-                                </div>
+                                )}
 
                                 {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
                                 <div className="invoice-cea-middle">
                                     <div className="invoice-cea-middle-left">
-                                        <div className="invoice-cea-doc-heading">INVOICE</div>
-                                        <div className="invoice-cea-bill-label">BILL TO</div>
+                                        <div className="invoice-cea-doc-heading" style={{ color: themeColor || '#1e293b' }}>
+                                            {selectedInvoice?.type === 'POS_INVOICE' ? 'POS RECEIPT' : (companySettings?.invoiceTemplate || getDocumentTitle('invoice') || 'INVOICE')}
+                                        </div>
+                                        <div className="invoice-cea-bill-label">{getInvoiceLabel('billTo') || 'BILL TO'}</div>
                                         <div className="invoice-cea-client-name">{billName}</div>
                                         <div className="invoice-cea-client-line">{billAddr}</div>
                                         {billCityStateZip && billCityStateZip !== billAddr && (
@@ -5013,10 +5139,10 @@ const Invoice = () => {
                                     </div>
                                     <div className="invoice-cea-middle-right">
                                         <div className="invoice-cea-meta-grid">
-                                            <span className="invoice-cea-kv-key">INVOICE</span>
+                                            <span className="invoice-cea-kv-key">{getInvoiceLabel('number') || 'INVOICE'}</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.invoiceNumber ? String(selectedInvoice.invoiceNumber).replace(/^#/, '') : '1550'}</span>
 
-                                            <span className="invoice-cea-kv-key">DATE</span>
+                                            <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '06-05-2026'}</span>
 
                                             {(selectedInvoice?.poNumber || selectedInvoice?.manualReference) && (
@@ -5029,7 +5155,7 @@ const Invoice = () => {
                                             <span className="invoice-cea-kv-key">TERMS</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.paymentTerms || 'Net 7'}</span>
 
-                                            <span className="invoice-cea-kv-key">DUE DATE</span>
+                                            <span className="invoice-cea-kv-key">{getInvoiceLabel('dueDate') || 'DUE DATE'}</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.dueDate ? formatCeaDate(selectedInvoice.dueDate) : (selectedInvoice?.date ? formatCeaDate(calculateDueDate(selectedInvoice.date, 7)) : '13-05-2026')}</span>
                                         </div>
                                     </div>
@@ -5038,13 +5164,43 @@ const Invoice = () => {
                                 {/* 3. ITEMS TABLE */}
                                 <table className="invoice-cea-table">
                                     <thead>
-                                        <tr>
-                                            <th style={{ width: '22%', textAlign: 'left' }}>ACTIVITY</th>
-                                            <th style={{ width: '38%', textAlign: 'left' }}>DESCRIPTION</th>
-                                            <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
-                                            <th style={{ width: '8%', textAlign: 'right' }}>QTY</th>
-                                            <th style={{ width: '11%', textAlign: 'right' }}>RATE</th>
-                                            <th style={{ width: '11%', textAlign: 'right' }}>AMOUNT</th>
+                                        <tr style={{ backgroundColor: themeColor || '#dedede' }}>
+                                            <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('item', 'ACTIVITY')}
+                                            </th>
+                                            {showWarehouse && (
+                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('warehouse', 'DESCRIPTION')}
+                                                </th>
+                                            )}
+                                            {showTax && (
+                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('tax', 'TAX')}
+                                                </th>
+                                            )}
+                                            {showUom && (
+                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('uom', 'UOM')}
+                                                </th>
+                                            )}
+                                            {showQty && (
+                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('quantity', 'QTY')}
+                                                </th>
+                                            )}
+                                            {showRate && (
+                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('rate', 'RATE')}
+                                                </th>
+                                            )}
+                                            {showDiscount && (
+                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('discount', 'DISCOUNT')}
+                                                </th>
+                                            )}
+                                            <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('price', 'AMOUNT')}
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -5054,9 +5210,11 @@ const Invoice = () => {
                                             const itemTax = item.taxRate !== undefined ? item.taxRate : (item.tax || defaultVat || 23);
                                             const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
                                             const itemRate = item.rate !== undefined ? item.rate : (item.price || 200);
+                                            const itemDisc = parseFloat(item.discount || 0) || 0;
+                                            const itemUom = item.uom?.name || item.uom || item.unit || 'Units';
                                             const itemAmt = (item.amount !== undefined && item.amount !== null && parseFloat(item.amount) <= (itemQty * itemRate) + 0.01)
                                                 ? parseFloat(item.amount)
-                                                : Math.max(0, (itemQty * itemRate - (parseFloat(item.discount || 0) || 0)) * (1 - overallDiscountRatio));
+                                                : Math.max(0, (itemQty * itemRate - itemDisc) * (1 - overallDiscountRatio));
                                             const isZeroTax = parseFloat(itemTax) === 0;
                                             const isStandardTax = parseFloat(itemTax) === 23;
                                             const taxDisplay = isZeroTax ? 'No VAT' : (isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`));
@@ -5064,10 +5222,12 @@ const Invoice = () => {
                                             return (
                                                 <tr key={idx}>
                                                     <td>{productName}</td>
-                                                    <td>{itemDesc}</td>
-                                                    <td>{taxDisplay}</td>
-                                                    <td style={{ textAlign: 'right' }}>{itemQty}</td>
-                                                    <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>
+                                                    {showWarehouse && <td>{itemDesc}</td>}
+                                                    {showTax && <td>{taxDisplay}</td>}
+                                                    {showUom && <td>{itemUom}</td>}
+                                                    {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
+                                                    {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
+                                                    {showDiscount && <td style={{ textAlign: 'right' }}>{Number(itemDisc).toFixed(2)}</td>}
                                                     <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                                 </tr>
                                             );
@@ -5076,14 +5236,14 @@ const Invoice = () => {
                                 </table>
 
                                 {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                                <div className="invoice-cea-divider-dotted" />
+                                <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
 
                                 <div className="invoice-cea-subtotal-section">
                                     <div className="invoice-cea-appreciation">
                                         We appreciate your business.
                                     </div>
                                     <div className="invoice-cea-totals-grid">
-                                        <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('subTotal') || 'SUBTOTAL'}</span>
                                         <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
 
                                         {lineDiscountsTotal > 0 && calculatedOvDiscountAmt > 0 ? (
@@ -5118,11 +5278,11 @@ const Invoice = () => {
                                             </>
                                         ) : null}
 
-                                        <span className="invoice-cea-total-label">TAX</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'TAX'}</span>
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
 
-                                        <span className="invoice-cea-total-label">TOTAL</span>
-                                        <span className="invoice-cea-total-val">{Number(totalVal).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'TOTAL'}</span>
+                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: themeColor || '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                         <span className="invoice-cea-total-label">PAYMENT</span>
                                         <span className="invoice-cea-total-val">{Number(paidVal).toFixed(2)}</span>
@@ -5130,13 +5290,13 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                                <div className="invoice-cea-divider-dotted" />
+                                <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
 
                                 <div className="invoice-cea-balance-section">
                                     <div className="invoice-cea-balance-box">
                                         <div className="invoice-cea-balance-line">
                                             <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                            <span className="invoice-cea-balance-amount">
+                                            <span className="invoice-cea-balance-amount" style={{ color: themeColor || '#111827' }}>
                                                 {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                             </span>
                                         </div>
@@ -5179,14 +5339,14 @@ const Invoice = () => {
 
                                 {/* 6. VAT SUMMARY */}
                                 <div className="invoice-cea-vat-section">
-                                    <div className="invoice-cea-vat-title">VAT SUMMARY</div>
+                                    <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827' }}>VAT SUMMARY</div>
                                     <table className="invoice-cea-vat-table">
                                         <thead>
-                                            <tr>
-                                                <th style={{ width: '38%', textAlign: 'left' }}></th>
-                                                <th style={{ width: '22%', textAlign: 'left' }}>RATE</th>
-                                                <th style={{ width: '20%', textAlign: 'right' }}>VAT</th>
-                                                <th style={{ width: '20%', textAlign: 'right' }}>NET</th>
+                                            <tr style={{ backgroundColor: themeColor || '#dedede' }}>
+                                                <th style={{ width: '38%', textAlign: 'left', color: getContrastTextColor(themeColor) }}></th>
+                                                <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -5203,7 +5363,7 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 7. BANK DETAILS BOX */}
-                                <div className="invoice-cea-bank-box">
+                                <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                     <div className="invoice-cea-bank-grid">
                                         <div className="invoice-cea-bank-col">
                                             <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
@@ -5220,9 +5380,11 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 8. PAGE FOOTER */}
-                                <div className="invoice-cea-page-footer">
-                                    Page 1 of 1
-                                </div>
+                                {showFooter && (
+                                    <div className="invoice-cea-page-footer">
+                                        Page 1 of 1
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );

@@ -399,6 +399,20 @@ const AuditLogs = () => {
                         DELETE
                     </span>
                 );
+            case 'DELETE_FAILED':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+                        <span className="audit-dot" style={{ background: '#ef4444' }}></span>
+                        DELETE FAILED
+                    </span>
+                );
+            case 'UPDATE_SECURITY':
+                return (
+                    <span className="audit-action-badge" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                        <span className="audit-dot" style={{ background: '#22c55e' }}></span>
+                        SECURITY UPDATED
+                    </span>
+                );
             case 'PAYMENT_ADD':
                 return (
                     <span className="audit-action-badge" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
@@ -936,6 +950,8 @@ const AuditLogs = () => {
                             <option value="CREATE">CREATE</option>
                             <option value="UPDATE">UPDATE</option>
                             <option value="DELETE">DELETE</option>
+                            <option value="DELETE_FAILED">DELETE FAILED</option>
+                            <option value="UPDATE_SECURITY">SECURITY UPDATED</option>
                             <option value="PAYMENT_ADD">PAYMENT ADDED</option>
                             <option value="PAYMENT_UPDATE">PAYMENT UPDATED</option>
                             <option value="PAYMENT_REMOVE">PAYMENT REMOVED</option>

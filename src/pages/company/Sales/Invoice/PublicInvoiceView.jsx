@@ -4,14 +4,38 @@ import salesInvoiceService from '../../../../api/salesInvoiceService';
 import posService from '../../../../services/posService';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import './Invoice.css';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 
-const getCompanyLogoSrc = (logoVal) => {
-    if (!logoVal) return tabAccountsLogo;
+const getContrastTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#ffffff';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 170) ? '#1e293b' : '#ffffff';
+};
+
+const getTintBg = (hexColor, alpha = 0.08) => {
+    if (!hexColor) return '#f8fafc';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#f8fafc';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
+    if (!logoVal) return fallback;
     if (typeof logoVal === 'string') {
+        const resolved = resolveLogoUrl(logoVal);
+        if (resolved) return resolved;
         if (logoVal.startsWith('data:') || logoVal.startsWith('http://') || logoVal.startsWith('https://')) {
             return logoVal;
         }
@@ -19,12 +43,12 @@ const getCompanyLogoSrc = (logoVal) => {
         const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
         return `${serverUrl}${cleanPath}`;
     }
-    return tabAccountsLogo;
+    return fallback;
 };
 
 const PublicInvoiceView = ({ type = 'invoice' }) => {
     const { id } = useParams();
-    const { formatCurrency, companySettings, getSyncRate } = useContext(CompanyContext);
+    const { formatCurrency, companySettings, getSyncRate, getDocumentTitle } = useContext(CompanyContext);
     const [document, setDocument] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -144,7 +168,6 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     };
 
     const getCustomLabel = (key) => {
-        if (key === 'showWarehouse' || key === 'showUom') return false;
         const defaults = {
             billTo: 'Bill To:',
             shipTo: 'Ship To:',
@@ -169,12 +192,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     ? JSON.parse(companyDetails.invoiceLabels)
                     : companyDetails.invoiceLabels;
                 if (labels[key] !== undefined) {
-                    return sanitizeEnglishOnly(labels[key]);
+                    return typeof labels[key] === 'string' ? sanitizeEnglishOnly(labels[key]) : labels[key];
                 }
             } catch (e) {}
         }
-        return sanitizeEnglishOnly(defaults[key] !== undefined ? defaults[key] : key);
+        const val = defaults[key] !== undefined ? defaults[key] : key;
+        return typeof val === 'string' ? sanitizeEnglishOnly(val) : val;
     };
+    const getInvoiceLabel = getCustomLabel;
 
     const items = type === 'pos' ? (document.posinvoiceitem || []) : (document.invoiceitem || []);
 
@@ -366,7 +391,16 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     const bankSortCode = companyDetails.sortCode || '902901';
                     const bankName = companyDetails.bankName || 'Bank Of Ireland';
                     const bankAddress = companyDetails.bankAddress || '97 Main Street, Midleton, Co. Cork';
-                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo);
+                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
+                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#004aad';
+                    const showHeader = getInvoiceLabel('showHeader') !== false;
+                    const showFooter = getInvoiceLabel('showFooter') !== false;
+                    const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
+                    const showTax = getInvoiceLabel('showTax') !== false;
+                    const showUom = getInvoiceLabel('showUom') === true;
+                    const showQty = getInvoiceLabel('showQty') !== false;
+                    const showRate = getInvoiceLabel('showRate') !== false;
+                    const showDiscount = getInvoiceLabel('showDiscount') === true;
 
                     const effectiveItemCount = lineItems.reduce((acc, it) => {
                         const descLen = (it.description || '').length;
@@ -388,33 +422,41 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             id="invoice-print-content"
                         >
                             {/* 1. HEADER: Company Info (Left), CEA Logo (Right) */}
-                            <div className="invoice-cea-header">
-                                <div className="invoice-cea-company">
-                                    <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
-                                    <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
-                                    <div className="invoice-cea-company-line">
-                                        {companyDetails.city && companyDetails.zip
-                                            ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
-                                            : 'Cork, Co, Cork T12VCY2'}
+                            {showHeader && (
+                                <div className="invoice-cea-header">
+                                    <div className="invoice-cea-company">
+                                        <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
+                                        <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
+                                        <div className="invoice-cea-company-line">
+                                            {companyDetails.city && companyDetails.zip
+                                                ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
+                                                : 'Cork, Co, Cork T12VCY2'}
+                                        </div>
+                                        <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
+                                        <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
+                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
                                     </div>
-                                    <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
-                                    <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                    <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
+                                    <div className="invoice-cea-logo-container">
+                                        <img
+                                            src={companyLogoSrc}
+                                            alt={companyDetails.name || "Company Logo"}
+                                            className="invoice-cea-logo-img"
+                                            onError={(e) => {
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = ceaArchitectsLogo;
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="invoice-cea-logo-container">
-                                    <img
-                                        src={ceaArchitectsLogo}
-                                        alt="CEA ARCHITECTS"
-                                        className="invoice-cea-logo-img"
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
                             <div className="invoice-cea-middle">
                                 <div className="invoice-cea-middle-left">
-                                    <div className="invoice-cea-doc-heading">{type === 'pos' ? 'POS RECEIPT' : 'INVOICE'}</div>
-                                    <div className="invoice-cea-bill-label">BILL TO</div>
+                                    <div className="invoice-cea-doc-heading" style={{ color: themeColor || '#1e293b' }}>
+                                        {type === 'pos' ? 'POS RECEIPT' : (companySettings?.invoiceTemplate || getDocumentTitle('invoice') || 'INVOICE')}
+                                    </div>
+                                    <div className="invoice-cea-bill-label">{getInvoiceLabel('billTo') || 'BILL TO'}</div>
                                     <div className="invoice-cea-client-name">{billName}</div>
                                     <div className="invoice-cea-client-line">{billAddr}</div>
                                     {billCityStateZip && billCityStateZip !== billAddr && (
@@ -426,16 +468,16 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 </div>
                                 <div className="invoice-cea-middle-right">
                                     <div className="invoice-cea-meta-grid">
-                                        <span className="invoice-cea-kv-key">INVOICE</span>
+                                        <span className="invoice-cea-kv-key">{getInvoiceLabel('number') || 'INVOICE'}</span>
                                         <span className="invoice-cea-kv-val">{document.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : '1550'}</span>
 
-                                        <span className="invoice-cea-kv-key">DATE</span>
+                                        <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
                                         <span className="invoice-cea-kv-val">{document.date ? formatCeaDate(document.date) : '06-05-2026'}</span>
 
                                         <span className="invoice-cea-kv-key">TERMS</span>
                                         <span className="invoice-cea-kv-val">{document.paymentTerms || 'Net 7'}</span>
 
-                                        <span className="invoice-cea-kv-key">DUE DATE</span>
+                                        <span className="invoice-cea-kv-key">{getInvoiceLabel('dueDate') || 'DUE DATE'}</span>
                                         <span className="invoice-cea-kv-val">{document.dueDate ? formatCeaDate(document.dueDate) : (document.date ? formatCeaDate(document.date) : '13-05-2026')}</span>
                                     </div>
                                 </div>
@@ -444,13 +486,43 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             {/* 3. ITEMS TABLE */}
                             <table className="invoice-cea-table">
                                 <thead>
-                                    <tr>
-                                        <th style={{ width: '22%', textAlign: 'left' }}>ACTIVITY</th>
-                                        <th style={{ width: '38%', textAlign: 'left' }}>DESCRIPTION</th>
-                                        <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
-                                        <th style={{ width: '8%', textAlign: 'right' }}>QTY</th>
-                                        <th style={{ width: '11%', textAlign: 'right' }}>RATE</th>
-                                        <th style={{ width: '11%', textAlign: 'right' }}>AMOUNT</th>
+                                    <tr style={{ backgroundColor: themeColor || '#dedede' }}>
+                                        <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            {getTableHeader('item', 'ACTIVITY')}
+                                        </th>
+                                        {showWarehouse && (
+                                            <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('warehouse', 'DESCRIPTION')}
+                                            </th>
+                                        )}
+                                        {showTax && (
+                                            <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('tax', 'TAX')}
+                                            </th>
+                                        )}
+                                        {showUom && (
+                                            <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('uom', 'UOM')}
+                                            </th>
+                                        )}
+                                        {showQty && (
+                                            <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('quantity', 'QTY')}
+                                            </th>
+                                        )}
+                                        {showRate && (
+                                            <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('rate', 'RATE')}
+                                            </th>
+                                        )}
+                                        {showDiscount && (
+                                            <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('discount', 'DISCOUNT')}
+                                            </th>
+                                        )}
+                                        <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            {getTableHeader('price', 'AMOUNT')}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -461,6 +533,8 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
                                         const itemRate = item.rate !== undefined ? item.rate : (item.price || 200);
                                         const itemAmt = item.amount !== undefined ? item.amount : (itemQty * itemRate);
+                                        const itemDisc = parseFloat(item.discount || 0) || 0;
+                                        const itemUom = item.uom?.name || item.uom || item.unit || 'Units';
                                         const isZeroTax = parseFloat(itemTax) === 0;
                                         const isStandardTax = parseFloat(itemTax) === 23;
                                         const taxDisplay = isZeroTax ? 'No VAT' : (isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`));
@@ -468,10 +542,12 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         return (
                                             <tr key={idx}>
                                                 <td>{productName}</td>
-                                                <td>{itemDesc}</td>
-                                                <td>{taxDisplay}</td>
-                                                <td style={{ textAlign: 'right' }}>{itemQty}</td>
-                                                <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>
+                                                {showWarehouse && <td>{itemDesc}</td>}
+                                                {showTax && <td>{taxDisplay}</td>}
+                                                {showUom && <td>{itemUom}</td>}
+                                                {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
+                                                {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
+                                                {showDiscount && <td style={{ textAlign: 'right' }}>{Number(itemDisc).toFixed(2)}</td>}
                                                 <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                             </tr>
                                         );
@@ -480,14 +556,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </table>
 
                             {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                            <div className="invoice-cea-divider-dotted" />
+                            <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
 
                             <div className="invoice-cea-subtotal-section">
                                 <div className="invoice-cea-appreciation">
                                     We appreciate your business.
                                 </div>
                                 <div className="invoice-cea-totals-grid">
-                                    <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                    <span className="invoice-cea-total-label">{getInvoiceLabel('subTotal') || 'SUBTOTAL'}</span>
                                     <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
 
                                     {totalDiscountVal > 0 && (
@@ -500,13 +576,13 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         </>
                                     )}
 
-                                    <span className="invoice-cea-total-label">TAX</span>
+                                    <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'TAX'}</span>
                                     <span className="invoice-cea-total-val">
                                         {Number(vatSummaryList.reduce((acc, v) => acc + (v.vatAmount || 0), 0)).toFixed(2)}
                                     </span>
 
-                                    <span className="invoice-cea-total-label">TOTAL</span>
-                                    <span className="invoice-cea-total-val">{Number(totalVal).toFixed(2)}</span>
+                                    <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'TOTAL'}</span>
+                                    <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: themeColor || '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                     <span className="invoice-cea-total-label">PAYMENT</span>
                                     <span className="invoice-cea-total-val">{Number(paidVal).toFixed(2)}</span>
@@ -514,13 +590,13 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                            <div className="invoice-cea-divider-dotted" />
+                            <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
 
                             <div className="invoice-cea-balance-section">
                                 <div className="invoice-cea-balance-box">
                                     <div className="invoice-cea-balance-line">
                                         <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                        <span className="invoice-cea-balance-amount">
+                                        <span className="invoice-cea-balance-amount" style={{ color: themeColor || '#111827' }}>
                                             {document?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                         </span>
                                     </div>
@@ -563,14 +639,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
                             {/* 6. VAT SUMMARY */}
                             <div className="invoice-cea-vat-section">
-                                <div className="invoice-cea-vat-title">VAT SUMMARY</div>
+                                <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827' }}>VAT SUMMARY</div>
                                 <table className="invoice-cea-vat-table">
                                     <thead>
-                                        <tr>
-                                            <th style={{ width: '38%', textAlign: 'left' }}></th>
-                                            <th style={{ width: '22%', textAlign: 'left' }}>RATE</th>
-                                            <th style={{ width: '20%', textAlign: 'right' }}>VAT</th>
-                                            <th style={{ width: '20%', textAlign: 'right' }}>NET</th>
+                                        <tr style={{ backgroundColor: themeColor || '#dedede' }}>
+                                            <th style={{ width: '38%', textAlign: 'left', color: getContrastTextColor(themeColor) }}></th>
+                                            <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
+                                            <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
+                                            <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -587,7 +663,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 7. BANK DETAILS BOX */}
-                            <div className="invoice-cea-bank-box">
+                            <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                 <div className="invoice-cea-bank-grid">
                                     <div className="invoice-cea-bank-col">
                                         <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
@@ -604,9 +680,11 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 8. PAGE FOOTER */}
-                            <div className="invoice-cea-page-footer">
-                                Page 1 of 1
-                            </div>
+                            {showFooter && (
+                                <div className="invoice-cea-page-footer">
+                                    Page 1 of 1
+                                </div>
+                            )}
                         </div>
                     );
                 })()}

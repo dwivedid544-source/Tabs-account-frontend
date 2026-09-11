@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Building2, Mail, Phone, MapPin, Globe,
     Save, Upload, Image as ImageIcon,
-    Landmark, FileText, StickyNote, Check, Lock
+    Landmark, FileText, StickyNote, Check, Lock,
+    Plus, Trash2, X, Shield, ShieldCheck, ShieldAlert, Eye, EyeOff, Key, Loader2
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import './CompanySettings.css';
@@ -17,6 +18,27 @@ import { useTranslation } from '../../../../context/LanguageContext';
 import SmtpSettings from '../SmtpSettings/SmtpSettings';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
+
+const getContrastTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#ffffff';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 170) ? '#1e293b' : '#ffffff';
+};
+
+const getTintBg = (hexColor, alpha = 0.08) => {
+    if (!hexColor) return '#f8fafc';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#f8fafc';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
 const purchaseTypes = ['purchasequotation', 'purchaseorder', 'purchasebill', 'purchasereturn', 'payment'];
 const otherTypes = ['goodsreceiptnote', 'voucher', 'stocktransfer', 'adjustment'];
@@ -218,12 +240,26 @@ const CompanySettings = () => {
 
     // Invoice Settings State
     const [invoiceSettings, setInvoiceSettings] = useState({
-        template: 'New York',
+        template: 'Standard VAT (CEA)',
         color: '#004aad',
         showQr: true,
         logo: null,
         logoPreview: null
     });
+
+    // Saved Templates for this Company: { [templateName]: { color, labels, tableHeaders, showQr } }
+    const [savedTemplates, setSavedTemplates] = useState({});
+    const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState('');
+    const [newTemplateColor, setNewTemplateColor] = useState('#e11d48');
+
+    // Invoice Deletion Protection State
+    const [hasDeletionPassword, setHasDeletionPassword] = useState(false);
+    const [deletionPasswordInput, setDeletionPasswordInput] = useState('');
+    const [confirmDeletionPasswordInput, setConfirmDeletionPasswordInput] = useState('');
+    const [showDeletionPassword, setShowDeletionPassword] = useState(false);
+    const [isSavingDeletionPassword, setIsSavingDeletionPassword] = useState(false);
+    const [showChangeDeletionPassword, setShowChangeDeletionPassword] = useState(false);
 
     // Custom Table Headers State
     const [tableHeaders, setTableHeaders] = useState({
@@ -415,7 +451,11 @@ const CompanySettings = () => {
         { code: 'INR', name: 'Indian Rupee (INR ₹)' }
     ];
 
-    const templates = ['Standard VAT (CEA)'];
+    const availableTemplates = Array.from(new Set([
+        'Standard VAT (CEA)',
+        ...Object.keys(savedTemplates || {}),
+        invoiceSettings.template
+    ].filter(Boolean)));
 
     useEffect(() => {
         const fetchCompany = async () => {
@@ -475,8 +515,25 @@ const CompanySettings = () => {
                     notes: data.notes || ''
                 });
 
+                if (data.invoiceLabels) {
+                    try {
+                        const parsedLabels = typeof data.invoiceLabels === 'string'
+                            ? JSON.parse(data.invoiceLabels)
+                            : data.invoiceLabels;
+                        if (parsedLabels && parsedLabels.savedTemplates && typeof parsedLabels.savedTemplates === 'object') {
+                            setSavedTemplates(parsedLabels.savedTemplates);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing savedTemplates:', e);
+                    }
+                }
+
+                if (data.hasInvoiceDeletionPassword !== undefined) {
+                    setHasDeletionPassword(Boolean(data.hasInvoiceDeletionPassword));
+                }
+
                 setInvoiceSettings({
-                    template: data.invoiceTemplate || 'New York',
+                    template: data.invoiceTemplate || 'Standard VAT (CEA)',
                     color: data.invoiceColor || '#004aad',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     logo: null,
@@ -722,6 +779,96 @@ const CompanySettings = () => {
         ref.current.click();
     };
 
+    const handleTemplateChange = (newTpl) => {
+        if (!newTpl) return;
+        if (newTpl === '__add_new__') {
+            setShowAddTemplateModal(true);
+            return;
+        }
+
+        // Cache current template's settings
+        const currentActive = invoiceSettings.template;
+        const updatedTemplates = {
+            ...savedTemplates,
+            [currentActive]: {
+                color: invoiceSettings.color,
+                showQr: invoiceSettings.showQr,
+                labels: { ...invoiceLabels },
+                tableHeaders: { ...tableHeaders }
+            }
+        };
+        setSavedTemplates(updatedTemplates);
+
+        // Load new template if it exists in savedTemplates
+        const targetConfig = updatedTemplates[newTpl];
+        if (targetConfig) {
+            setInvoiceSettings(prev => ({
+                ...prev,
+                template: newTpl,
+                color: targetConfig.color || prev.color,
+                showQr: targetConfig.showQr !== undefined ? targetConfig.showQr : prev.showQr
+            }));
+            if (targetConfig.labels) {
+                setInvoiceLabels(targetConfig.labels);
+            }
+            if (targetConfig.tableHeaders) {
+                setTableHeaders(targetConfig.tableHeaders);
+            }
+        } else {
+            setInvoiceSettings(prev => ({ ...prev, template: newTpl }));
+        }
+    };
+
+    const handleCreateNewTemplate = () => {
+        const trimmed = (newTemplateName || '').trim();
+        if (!trimmed) {
+            toast.error('Please enter a template name.');
+            return;
+        }
+        if (availableTemplates.includes(trimmed)) {
+            toast.error('A template with this name already exists.');
+            return;
+        }
+
+        const updatedTemplates = {
+            ...savedTemplates,
+            [invoiceSettings.template]: {
+                color: invoiceSettings.color,
+                showQr: invoiceSettings.showQr,
+                labels: { ...invoiceLabels },
+                tableHeaders: { ...tableHeaders }
+            },
+            [trimmed]: {
+                color: newTemplateColor || invoiceSettings.color || '#e11d48',
+                showQr: invoiceSettings.showQr,
+                labels: { ...invoiceLabels },
+                tableHeaders: { ...tableHeaders }
+            }
+        };
+
+        setSavedTemplates(updatedTemplates);
+        setInvoiceSettings(prev => ({
+            ...prev,
+            template: trimmed,
+            color: newTemplateColor || prev.color
+        }));
+        setNewTemplateName('');
+        setShowAddTemplateModal(false);
+        toast.success(`Template "${trimmed}" created! Click Save Changes to store.`);
+    };
+
+    const handleDeleteTemplate = (tplNameToDelete) => {
+        if (tplNameToDelete === 'Standard VAT (CEA)') {
+            toast.error('Cannot delete default template.');
+            return;
+        }
+        const updated = { ...savedTemplates };
+        delete updated[tplNameToDelete];
+        setSavedTemplates(updated);
+        handleTemplateChange('Standard VAT (CEA)');
+        toast.success(`Template "${tplNameToDelete}" deleted.`);
+    };
+
     const handleSave = async () => {
         if (!companyId) {
             toast.error('Company ID not found. Please refresh the page.');
@@ -750,7 +897,20 @@ const CompanySettings = () => {
             formDataToSend.append('showQrCode', invoiceSettings.showQr);
             formDataToSend.append('inventoryConfig', JSON.stringify(inventorySettings));
             formDataToSend.append('invoiceTableHeaders', JSON.stringify(tableHeaders));
-            formDataToSend.append('invoiceLabels', JSON.stringify(invoiceLabels));
+
+            const fullInvoiceLabels = {
+                ...invoiceLabels,
+                savedTemplates: {
+                    ...savedTemplates,
+                    [invoiceSettings.template]: {
+                        color: invoiceSettings.color,
+                        showQr: invoiceSettings.showQr,
+                        labels: { ...invoiceLabels },
+                        tableHeaders: { ...tableHeaders }
+                    }
+                }
+            };
+            formDataToSend.append('invoiceLabels', JSON.stringify(fullInvoiceLabels));
 
             // Save the synchronized receipt & payment settings to DB
             formDataToSend.append('receiptTemplate', receiptSettings.template);
@@ -940,6 +1100,66 @@ const CompanySettings = () => {
         }
 
         return `${finalPrefix}${sequenceStr}`;
+    };
+
+    const handleSaveDeletionPassword = async (e) => {
+        if (e) e.preventDefault();
+        const trimmed = deletionPasswordInput.trim();
+        if (!trimmed) {
+            toast.error('Please enter a deletion password');
+            return;
+        }
+        if (trimmed.length < 4) {
+            toast.error('Password must be at least 4 characters long');
+            return;
+        }
+        if (trimmed !== confirmDeletionPasswordInput.trim()) {
+            toast.error('Passwords do not match');
+            return;
+        }
+
+        setIsSavingDeletionPassword(true);
+        try {
+            const activeCompId = companyId || GetCompanyId();
+            const res = await companyService.updateInvoiceDeletionPassword(activeCompId, trimmed);
+            if (res?.data?.success || res?.success) {
+                setHasDeletionPassword(true);
+                setDeletionPasswordInput('');
+                setConfirmDeletionPasswordInput('');
+                setShowChangeDeletionPassword(false);
+                toast.success('Invoice deletion password saved! Invoice deletions are now protected.');
+            } else {
+                toast.error(res?.data?.message || res?.message || 'Failed to save deletion password');
+            }
+        } catch (err) {
+            console.error('Error saving deletion password:', err);
+            toast.error(err.response?.data?.message || 'Error saving invoice deletion password');
+        } finally {
+            setIsSavingDeletionPassword(false);
+        }
+    };
+
+    const handleRemoveDeletionPassword = async () => {
+        if (!window.confirm('Are you sure you want to remove the invoice deletion password?')) {
+            return;
+        }
+        setIsSavingDeletionPassword(true);
+        try {
+            const activeCompId = companyId || GetCompanyId();
+            const res = await companyService.updateInvoiceDeletionPassword(activeCompId, null);
+            if (res?.data?.success || res?.success) {
+                setHasDeletionPassword(false);
+                setDeletionPasswordInput('');
+                setConfirmDeletionPasswordInput('');
+                setShowChangeDeletionPassword(false);
+                toast.success('Invoice deletion password removed.');
+            }
+        } catch (err) {
+            console.error('Error removing deletion password:', err);
+            toast.error(err.response?.data?.message || 'Error removing deletion password');
+        } finally {
+            setIsSavingDeletionPassword(false);
+        }
     };
 
     return (
@@ -1270,16 +1490,213 @@ const CompanySettings = () => {
                             <div className="invoice-settings-layout">
                                 {/* Left Controls */}
                                 <div className="invoice-controls">
+                                    {/* Invoice Deletion Protection (Security Settings) */}
+                                    <div className="deletion-protection-card">
+                                        <div className="deletion-protection-header">
+                                            <div className="deletion-protection-title-wrap">
+                                                <div className="deletion-protection-icon-badge">
+                                                    <Lock size={18} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="deletion-protection-title">Invoice Deletion Protection</h4>
+                                                    <p className="deletion-protection-subtitle">
+                                                        Require authorization password before any invoice can be permanently deleted.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className={`deletion-status-pill ${hasDeletionPassword ? 'active' : 'inactive'}`}>
+                                                {hasDeletionPassword ? (
+                                                    <>
+                                                        <ShieldCheck size={14} />
+                                                        <span>Protected</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <ShieldAlert size={14} />
+                                                        <span>Not Set</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {!hasDeletionPassword && !showChangeDeletionPassword && (
+                                            <div className="deletion-protection-alert">
+                                                <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                                <div>
+                                                    <strong>Deletion Protection Not Configured:</strong> Set an invoice deletion password below so that invoices cannot be deleted without password confirmation.
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {hasDeletionPassword && !showChangeDeletionPassword ? (
+                                            <div className="deletion-protection-actions-bar">
+                                                <div className="deletion-protection-configured-note">
+                                                    <Check size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
+                                                    <span>Password protection is active. Users must confirm this password before deleting invoices.</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-change-deletion-password"
+                                                        onClick={() => setShowChangeDeletionPassword(true)}
+                                                    >
+                                                        Change Password
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-remove-deletion-password"
+                                                        onClick={handleRemoveDeletionPassword}
+                                                        disabled={isSavingDeletionPassword}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="deletion-password-form">
+                                                <div className="deletion-form-grid">
+                                                    <div className="companySetting-form-group" style={{ marginBottom: 0 }}>
+                                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                                                            {hasDeletionPassword ? 'New Deletion Password' : 'Create Deletion Password'}
+                                                        </label>
+                                                        <div className="deletion-input-wrap">
+                                                            <input
+                                                                type={showDeletionPassword ? 'text' : 'password'}
+                                                                value={deletionPasswordInput}
+                                                                onChange={(e) => setDeletionPasswordInput(e.target.value)}
+                                                                placeholder="Min 4 characters"
+                                                                className="deletion-pwd-input"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                className="deletion-pwd-eye-btn"
+                                                                onClick={() => setShowDeletionPassword(!showDeletionPassword)}
+                                                                tabIndex={-1}
+                                                                title={showDeletionPassword ? 'Hide password' : 'Show password'}
+                                                            >
+                                                                {showDeletionPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="companySetting-form-group" style={{ marginBottom: 0 }}>
+                                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                                                            Confirm Password
+                                                        </label>
+                                                        <div className="deletion-input-wrap">
+                                                            <input
+                                                                type={showDeletionPassword ? 'text' : 'password'}
+                                                                value={confirmDeletionPasswordInput}
+                                                                onChange={(e) => setConfirmDeletionPasswordInput(e.target.value)}
+                                                                placeholder="Confirm deletion password"
+                                                                className="deletion-pwd-input"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                                                    {hasDeletionPassword && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-cancel-deletion-password"
+                                                            onClick={() => {
+                                                                setShowChangeDeletionPassword(false);
+                                                                setDeletionPasswordInput('');
+                                                                setConfirmDeletionPasswordInput('');
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        className="btn-save-deletion-password"
+                                                        onClick={handleSaveDeletionPassword}
+                                                        disabled={isSavingDeletionPassword}
+                                                    >
+                                                        {isSavingDeletionPassword ? (
+                                                            <>
+                                                                <Loader2 size={14} className="animate-spin" />
+                                                                <span>Saving...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Key size={14} />
+                                                                <span>{hasDeletionPassword ? 'Update Password' : 'Save Deletion Password'}</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ height: '1px', background: '#e2e8f0', margin: '1.5rem 0' }} />
+
                                     <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Invoice Print Settings</h3>
 
                                     <div className="companySetting-form-group" style={{ marginBottom: '1.5rem' }}>
-                                        <label>Invoice Template</label>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <label style={{ margin: 0, fontWeight: '600' }}>Invoice Template</label>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                {invoiceSettings.template !== 'Standard VAT (CEA)' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteTemplate(invoiceSettings.template)}
+                                                        title="Delete this template"
+                                                        style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            fontSize: '0.78rem',
+                                                            fontWeight: '600',
+                                                            color: '#ef4444',
+                                                            background: '#fee2e2',
+                                                            border: '1px solid #fca5a5',
+                                                            borderRadius: '6px',
+                                                            padding: '4px 8px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Trash2 size={13} /> Delete
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAddTemplateModal(true)}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        fontSize: '0.78rem',
+                                                        fontWeight: '600',
+                                                        color: '#2563eb',
+                                                        background: '#eff6ff',
+                                                        border: '1px solid #bfdbfe',
+                                                        borderRadius: '6px',
+                                                        padding: '4px 10px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                >
+                                                    <Plus size={13} /> Add Template
+                                                </button>
+                                            </div>
+                                        </div>
                                         <select
                                             value={invoiceSettings.template}
-                                            onChange={(e) => setInvoiceSettings({ ...invoiceSettings, template: e.target.value })}
-                                            style={{ padding: '0.8rem', borderColor: '#1e293b' }}
+                                            onChange={(e) => {
+                                                if (e.target.value === '__add_new__') {
+                                                    setShowAddTemplateModal(true);
+                                                } else {
+                                                    handleTemplateChange(e.target.value);
+                                                }
+                                            }}
+                                            style={{ padding: '0.8rem', borderColor: '#1e293b', width: '100%', borderRadius: '6px' }}
                                         >
-                                            {templates.map(t => <option key={t} value={t}>{t}</option>)}
+                                            {availableTemplates.map(t => <option key={t} value={t}>{t}</option>)}
+                                            <option value="__add_new__">+ Add New Template...</option>
                                         </select>
                                     </div>
 
@@ -1482,51 +1899,67 @@ const CompanySettings = () => {
                                 {/* Right Preview */}
                                 <div
                                     className="invoice-preview-container invoice-cea-container"
-                                    style={{ ...previewStyle, background: '#ffffff', padding: '32px 36px 24px 36px', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                                    style={{
+                                        ...previewStyle,
+                                        background: '#ffffff',
+                                        padding: '32px 36px 24px 36px',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '8px'
+                                    }}
                                 >
-                                    {/* 1. HEADER: Company Info (Left), CEA Logo (Right) */}
-                                    <div className="invoice-cea-header">
-                                        <div className="invoice-cea-company">
-                                            <div className="invoice-cea-company-name">{formData.name || 'CEAC Ltd'}</div>
-                                            <div className="invoice-cea-company-line">{formData.address || '17 South Mall'}</div>
-                                            <div className="invoice-cea-company-line">
-                                                {formData.city && formData.zip
-                                                    ? `${formData.city}, ${formData.state ? (formData.state.includes('Co') ? formData.state : `Co, ${formData.state}`) : 'Co, Cork'} ${formData.zip}`
-                                                    : 'Cork, Co, Cork T12VCY2'}
+                                    {/* 1. HEADER: Company Info (Left), Logo (Right) */}
+                                    {invoiceLabels.showHeader !== false && (
+                                        <div className="invoice-cea-header">
+                                            <div className="invoice-cea-company">
+                                                <div className="invoice-cea-company-name">{formData.name || 'CEAC Ltd'}</div>
+                                                <div className="invoice-cea-company-line">{formData.address || '17 South Mall'}</div>
+                                                <div className="invoice-cea-company-line">
+                                                    {formData.city && formData.zip
+                                                        ? `${formData.city}, ${formData.state ? (formData.state.includes('Co') ? formData.state : `Co, ${formData.state}`) : 'Co, Cork'} ${formData.zip}`
+                                                        : 'Cork, Co, Cork T12VCY2'}
+                                                </div>
+                                                <div className="invoice-cea-company-line">{formData.phone || '+353214272000'}</div>
+                                                <div className="invoice-cea-company-line">{formData.email || 'accounts@ceaarchitects.com'}</div>
+                                                <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || '4120278GH'}</div>
                                             </div>
-                                            <div className="invoice-cea-company-line">{formData.phone || '+353214272000'}</div>
-                                            <div className="invoice-cea-company-line">{formData.email || 'accounts@ceaarchitects.com'}</div>
-                                            <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || '4120278GH'}</div>
+                                            <div className="invoice-cea-logo-container">
+                                                <img
+                                                    src={invoiceSettings.logoPreview || resolveLogoUrl(formData.logo) || ceaArchitectsLogo}
+                                                    alt="Company Logo"
+                                                    className="invoice-cea-logo-img"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = ceaArchitectsLogo;
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="invoice-cea-logo-container">
-                                            <img
-                                                src={ceaArchitectsLogo}
-                                                alt="CEA ARCHITECTS"
-                                                className="invoice-cea-logo-img"
-                                            />
-                                        </div>
-                                    </div>
+                                    )}
 
                                     {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
                                     <div className="invoice-cea-middle">
                                         <div className="invoice-cea-middle-left">
-                                            <div className="invoice-cea-doc-heading">INVOICE</div>
-                                            <div className="invoice-cea-bill-label">BILL TO</div>
+                                            <div className="invoice-cea-doc-heading" style={{ color: invoiceSettings.color || '#1e293b' }}>
+                                                {invoiceLabels.number ? invoiceLabels.number.replace(/[:#]/g, '').trim().toUpperCase() : 'INVOICE'}
+                                            </div>
+                                            <div className="invoice-cea-bill-label">
+                                                {invoiceLabels.billTo || 'BILL TO'}
+                                            </div>
                                             <div className="invoice-cea-client-name">Frank Sheridan</div>
                                             <div className="invoice-cea-client-line">56 New cork road, Midleton, Co. Cork</div>
                                         </div>
                                         <div className="invoice-cea-middle-right">
                                             <div className="invoice-cea-meta-grid">
-                                                <span className="invoice-cea-kv-key">INVOICE</span>
+                                                <span className="invoice-cea-kv-key">{invoiceLabels.number || 'INVOICE'}</span>
                                                 <span className="invoice-cea-kv-val">1550</span>
 
-                                                <span className="invoice-cea-kv-key">DATE</span>
+                                                <span className="invoice-cea-kv-key">{invoiceLabels.issue || 'DATE'}</span>
                                                 <span className="invoice-cea-kv-val">06-05-2026</span>
 
                                                 <span className="invoice-cea-kv-key">TERMS</span>
                                                 <span className="invoice-cea-kv-val">Net 7</span>
 
-                                                <span className="invoice-cea-kv-key">DUE DATE</span>
+                                                <span className="invoice-cea-kv-key">{invoiceLabels.dueDate || 'DUE DATE'}</span>
                                                 <span className="invoice-cea-kv-val">13-05-2026</span>
                                             </div>
                                         </div>
@@ -1535,45 +1968,86 @@ const CompanySettings = () => {
                                     {/* 3. ITEMS TABLE */}
                                     <table className="invoice-cea-table">
                                         <thead>
-                                            <tr>
-                                                <th style={{ width: '12%', textAlign: 'left' }}>DATE</th>
-                                                <th style={{ width: '18%', textAlign: 'left' }}>ACTIVITY</th>
-                                                <th style={{ width: '34%', textAlign: 'left' }}>DESCRIPTION</th>
-                                                <th style={{ width: '10%', textAlign: 'left' }}>TAX</th>
-                                                <th style={{ width: '6%', textAlign: 'right' }}>QTY</th>
-                                                <th style={{ width: '10%', textAlign: 'right' }}>RATE</th>
-                                                <th style={{ width: '10%', textAlign: 'right' }}>AMOUNT</th>
+                                            <tr style={{ backgroundColor: invoiceSettings.color || '#dedede' }}>
+                                                <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                    {tableHeaders.item || 'ACTIVITY'}
+                                                </th>
+                                                {invoiceLabels.showWarehouse !== false && (
+                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.warehouse || 'DESCRIPTION'}
+                                                    </th>
+                                                )}
+                                                {invoiceLabels.showTax !== false && (
+                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.tax || 'TAX'}
+                                                    </th>
+                                                )}
+                                                {invoiceLabels.showUom === true && (
+                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.uom || 'UOM'}
+                                                    </th>
+                                                )}
+                                                {invoiceLabels.showQty !== false && (
+                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.quantity || 'QTY'}
+                                                    </th>
+                                                )}
+                                                {invoiceLabels.showRate !== false && (
+                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.rate || 'RATE'}
+                                                    </th>
+                                                )}
+                                                {invoiceLabels.showDiscount === true && (
+                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                        {tableHeaders.discount || 'DISCOUNT'}
+                                                    </th>
+                                                )}
+                                                <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
+                                                    {tableHeaders.price || 'AMOUNT'}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td></td>
                                                 <td>Services</td>
-                                                <td>56 New cork road, Midleton, Co. Cork</td>
-                                                <td>Standard</td>
-                                                <td style={{ textAlign: 'right' }}>1</td>
-                                                <td style={{ textAlign: 'right' }}>200.00</td>
+                                                {invoiceLabels.showWarehouse !== false && <td>56 New cork road, Midleton, Co. Cork</td>}
+                                                {invoiceLabels.showTax !== false && <td>Standard</td>}
+                                                {invoiceLabels.showUom === true && <td>Units</td>}
+                                                {invoiceLabels.showQty !== false && <td style={{ textAlign: 'right' }}>1</td>}
+                                                {invoiceLabels.showRate !== false && <td style={{ textAlign: 'right' }}>200.00</td>}
+                                                {invoiceLabels.showDiscount === true && <td style={{ textAlign: 'right' }}>0.00</td>}
                                                 <td style={{ textAlign: 'right' }}>200.00</td>
                                             </tr>
                                         </tbody>
                                     </table>
 
                                     {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                                    <div className="invoice-cea-divider-dotted" />
+                                    <div className="invoice-cea-divider-dotted" style={{ borderColor: invoiceSettings.color || '#9ca3af', opacity: 0.5 }} />
 
                                     <div className="invoice-cea-subtotal-section">
                                         <div className="invoice-cea-appreciation">
                                             We appreciate your business.
                                         </div>
                                         <div className="invoice-cea-totals-grid">
-                                            <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                            <span className="invoice-cea-total-label">{invoiceLabels.subTotal || 'SUBTOTAL'}</span>
                                             <span className="invoice-cea-total-val">200.00</span>
 
-                                            <span className="invoice-cea-total-label">TAX</span>
-                                            <span className="invoice-cea-total-val">46.00</span>
+                                            {invoiceLabels.showDiscount === true && (
+                                                <>
+                                                    <span className="invoice-cea-total-label">{tableHeaders.discount || 'DISCOUNT'}</span>
+                                                    <span className="invoice-cea-total-val">0.00</span>
+                                                </>
+                                            )}
 
-                                            <span className="invoice-cea-total-label">TOTAL</span>
-                                            <span className="invoice-cea-total-val">246.00</span>
+                                            {invoiceLabels.showTax !== false && (
+                                                <>
+                                                    <span className="invoice-cea-total-label">{invoiceLabels.tax || 'TAX'}</span>
+                                                    <span className="invoice-cea-total-val">46.00</span>
+                                                </>
+                                            )}
+
+                                            <span className="invoice-cea-total-label">{invoiceLabels.total || 'TOTAL'}</span>
+                                            <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: invoiceSettings.color || '#111827' }}>246.00</span>
 
                                             <span className="invoice-cea-total-label">PAYMENT</span>
                                             <span className="invoice-cea-total-val">246.00</span>
@@ -1581,59 +2055,63 @@ const CompanySettings = () => {
                                     </div>
 
                                     {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                                    <div className="invoice-cea-divider-dotted" />
+                                    <div className="invoice-cea-divider-dotted" style={{ borderColor: invoiceSettings.color || '#9ca3af', opacity: 0.5 }} />
 
                                     <div className="invoice-cea-balance-section">
                                         <div className="invoice-cea-balance-box">
                                             <div className="invoice-cea-balance-line">
                                                 <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                                <span className="invoice-cea-balance-amount">EUR 0.00</span>
+                                                <span className="invoice-cea-balance-amount" style={{ color: invoiceSettings.color || '#111827' }}>EUR 0.00</span>
                                             </div>
-                                            <div className="invoice-cea-paid-indicator">
+                                            <div className="invoice-cea-paid-indicator" style={{ color: invoiceSettings.color || '#16a34a' }}>
                                                 PAID
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* 6. VAT SUMMARY */}
-                                    <div className="invoice-cea-vat-section">
-                                        <div className="invoice-cea-vat-title">VAT SUMMARY</div>
-                                        <table className="invoice-cea-vat-table">
-                                            <thead>
-                                                <tr>
-                                                    <th style={{ width: '38%', textAlign: 'left' }}></th>
-                                                    <th style={{ width: '22%', textAlign: 'left' }}>RATE</th>
-                                                    <th style={{ width: '20%', textAlign: 'right' }}>VAT</th>
-                                                    <th style={{ width: '20%', textAlign: 'right' }}>NET</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td></td>
-                                                    <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
-                                                    <td style={{ textAlign: 'right' }}>46.00</td>
-                                                    <td style={{ textAlign: 'right' }}>200.00</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    {invoiceLabels.showTax !== false && (
+                                        <div className="invoice-cea-vat-section">
+                                            <div className="invoice-cea-vat-title" style={{ color: invoiceSettings.color || '#111827' }}>VAT SUMMARY</div>
+                                            <table className="invoice-cea-vat-table">
+                                                <thead>
+                                                    <tr style={{ backgroundColor: invoiceSettings.color || '#dedede' }}>
+                                                        <th style={{ width: '38%', textAlign: 'left' }}></th>
+                                                        <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>RATE</th>
+                                                        <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>VAT</th>
+                                                        <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>NET</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td></td>
+                                                        <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
+                                                        <td style={{ textAlign: 'right' }}>46.00</td>
+                                                        <td style={{ textAlign: 'right' }}>200.00</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
                                     {/* 7. BANK DETAILS BOX */}
-                                    <div className="invoice-cea-bank-box">
-                                        <div className="invoice-cea-bank-grid">
-                                            <div className="invoice-cea-bank-col">
-                                                <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
-                                                <div className="invoice-cea-bank-line">IBAN:{formData.iban || 'IE03BOFI90290116673832'}</div>
-                                                <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
-                                                <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
-                                            </div>
-                                            <div className="invoice-cea-bank-col">
-                                                <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
-                                                <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
-                                                <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
+                                    {invoiceLabels.showFooter !== false && (
+                                        <div className="invoice-cea-bank-box" style={{ borderLeft: `4px solid ${invoiceSettings.color || '#1e293b'}`, background: getTintBg(invoiceSettings.color || '#1e293b', 0.06) }}>
+                                            <div className="invoice-cea-bank-grid">
+                                                <div className="invoice-cea-bank-col">
+                                                    <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
+                                                    <div className="invoice-cea-bank-line">IBAN: {formData.iban || 'IE03BOFI90290116673832'}</div>
+                                                    <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
+                                                    <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
+                                                </div>
+                                                <div className="invoice-cea-bank-col">
+                                                    <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
+                                                    <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
+                                                    <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* 8. PAGE FOOTER */}
                                     <div className="invoice-cea-page-footer">
@@ -2583,6 +3061,211 @@ const CompanySettings = () => {
                     )}
                 </div>
             </div>
+
+            {/* Add Template Modal */}
+            {showAddTemplateModal && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '1rem'
+                    }}
+                    onClick={() => setShowAddTemplateModal(false)}
+                >
+                    <div
+                        style={{
+                            background: '#ffffff',
+                            borderRadius: '16px',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                            width: '100%',
+                            maxWidth: '480px',
+                            overflow: 'hidden'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '1.25rem 1.5rem',
+                            borderBottom: '1px solid #f1f5f9',
+                            background: '#f8fafc'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    background: '#eff6ff',
+                                    color: '#2563eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Plus size={18} />
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#0f172a' }}>
+                                    New Invoice Template
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddTemplateModal(false)}
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem' }}>
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.4rem' }}>
+                                    Template Name <span style={{ color: '#ef4444' }}>*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newTemplateName}
+                                    onChange={(e) => setNewTemplateName(e.target.value)}
+                                    placeholder="e.g. Modern Crimson, Retail Express, CEA Dark"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleCreateNewTemplate();
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem 1rem',
+                                        fontSize: '0.95rem',
+                                        borderRadius: '8px',
+                                        border: '1.5px solid #cbd5e1',
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: '1rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.5rem' }}>
+                                    Theme Accent Color
+                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                                    {['#004aad', '#0ea5e9', '#10b981', '#f59e0b', '#e11d48', '#8b5cf6', '#0f172a', '#334155'].map((c) => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => setNewTemplateColor(c)}
+                                            style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '50%',
+                                                backgroundColor: c,
+                                                border: newTemplateColor === c ? '3px solid #ffffff' : '2px solid transparent',
+                                                boxShadow: newTemplateColor === c ? `0 0 0 2px ${c}` : 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                padding: 0
+                                            }}
+                                        >
+                                            {newTemplateColor === c && <Check size={14} color="#ffffff" />}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input
+                                        type="color"
+                                        value={newTemplateColor}
+                                        onChange={(e) => setNewTemplateColor(e.target.value)}
+                                        style={{ width: '36px', height: '36px', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: 0 }}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={newTemplateColor}
+                                        onChange={(e) => setNewTemplateColor(e.target.value)}
+                                        placeholder="#000000"
+                                        style={{
+                                            width: '120px',
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.88rem',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1'
+                                        }}
+                                    />
+                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Custom hex color</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: '10px',
+                            padding: '1rem 1.5rem',
+                            borderTop: '1px solid #f1f5f9',
+                            background: '#f8fafc'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowAddTemplateModal(false);
+                                    setNewTemplateName('');
+                                }}
+                                style={{
+                                    padding: '0.6rem 1.2rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#475569',
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCreateNewTemplate}
+                                style={{
+                                    padding: '0.6rem 1.4rem',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                    color: '#ffffff',
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                                }}
+                            >
+                                Create Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

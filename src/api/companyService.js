@@ -21,6 +21,14 @@ const companyService = {
                 'Content-Type': 'multipart/form-data'
             }
         });
+    },
+    getInvoiceDeletionPasswordStatus: (id) => {
+        const url = id ? `/companies/${id}/invoice-deletion-password-status` : '/companies/invoice-deletion-password-status';
+        return axiosInstance.get(url);
+    },
+    updateInvoiceDeletionPassword: (id, password) => {
+        const url = id ? `/companies/${id}/invoice-deletion-password` : '/companies/invoice-deletion-password';
+        return axiosInstance.put(url, { password });
     }
 };
 

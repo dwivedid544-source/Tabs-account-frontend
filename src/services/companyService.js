@@ -55,6 +55,18 @@ const updatePeriodLockSettings = async (companyId, data) => {
     return response.data;
 };
 
+const getInvoiceDeletionPasswordStatus = async (companyId) => {
+    const url = companyId ? `/companies/${companyId}/invoice-deletion-password-status` : '/companies/invoice-deletion-password-status';
+    const response = await axiosInstance.get(url);
+    return response.data;
+};
+
+const updateInvoiceDeletionPassword = async (companyId, password) => {
+    const url = companyId ? `/companies/${companyId}/invoice-deletion-password` : '/companies/invoice-deletion-password';
+    const response = await axiosInstance.put(url, { password });
+    return response.data;
+};
+
 const companyService = {
     getCompanies,
     getCompanyById,
@@ -64,7 +76,9 @@ const companyService = {
     getUserCompanies,
     createUserCompany,
     getPeriodLockSettings,
-    updatePeriodLockSettings
+    updatePeriodLockSettings,
+    getInvoiceDeletionPasswordStatus,
+    updateInvoiceDeletionPassword
 };
 
 export default companyService;
