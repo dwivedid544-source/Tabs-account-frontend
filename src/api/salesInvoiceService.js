@@ -15,9 +15,9 @@ const salesInvoiceService = {
         const query = companyId ? `?companyId=${companyId}` : '';
         return axios.put(`/sales-invoices/${id}${query}`, data);
     },
-    delete: (id, companyId) => {
+    delete: (id, companyId, data = null) => {
         const query = companyId ? `?companyId=${companyId}` : '';
-        return axios.delete(`/sales-invoices/${id}${query}`);
+        return axios.delete(`/sales-invoices/${id}${query}`, { data });
     },
     getNextNumber: (companyId) => {
         const query = companyId ? `?companyId=${companyId}` : '';

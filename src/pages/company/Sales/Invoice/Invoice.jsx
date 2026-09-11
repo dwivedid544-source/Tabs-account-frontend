@@ -2170,7 +2170,10 @@ const Invoice = () => {
             date: group.earliestDate,
             dueDate: group.latestDueDate,
             type: 'COMBINED',
+            isCombined: true,
+            invoices: group.invoices || [],
             customer: group.customer,
+            customerId: group.customer?.id || (typeof group.id === 'string' && group.id.startsWith('CUST-') ? parseInt(group.id.replace('CUST-', '')) : null),
             billingName: group.customer?.name,
             billingAddress: group.customer?.billingAddress,
             billingCity: group.customer?.billingCity,
@@ -2592,17 +2595,58 @@ const Invoice = () => {
         if (invoiceToDelete) {
             try {
                 const companyId = GetCompanyId();
-                if (invoiceToDelete.type === 'POS_INVOICE') {
+                const isCombined = invoiceToDelete.type === 'COMBINED' ||
+                                   invoiceToDelete.isCombined ||
+                                   String(invoiceToDelete.id).toLowerCase().startsWith('combined-') ||
+                                   String(invoiceToDelete.invoiceNumber || '').toUpperCase().startsWith('COMBINED-');
+
+                if (isCombined) {
+                    const subInvoices = invoiceToDelete.invoices || [];
+                    const taxInvoiceIds = subInvoices.filter(i => i.type !== 'POS_INVOICE').map(i => i.id);
+                    const posInvoices = subInvoices.filter(i => i.type === 'POS_INVOICE');
+
+                    for (const posInv of posInvoices) {
+                        try {
+                            await posService.deletePOSInvoice(posInv.id);
+                        } catch (posErr) {
+                            console.warn('Error deleting sub POS invoice:', posErr);
+                        }
+                    }
+
+                    const custId = invoiceToDelete.customerId || invoiceToDelete.customer?.id;
+                    await salesInvoiceService.delete(invoiceToDelete.id, companyId, {
+                        invoiceIds: taxInvoiceIds.length > 0 ? taxInvoiceIds : undefined,
+                        customerId: custId
+                    });
+
+                    setInvoices(prev => prev.filter(inv => {
+                        if (inv.id === invoiceToDelete.id) return false;
+                        if (subInvoices.some(si => String(si.id) === String(inv.id) && (si.type || 'TAX_INVOICE') === (inv.type || 'TAX_INVOICE'))) return false;
+                        return true;
+                    }));
+
+                    setShowDeleteModal(false);
+                    setInvoiceToDelete(null);
+                    toast.success('Combined invoice and associated invoices deleted successfully');
+                    fetchData();
+                    if (viewMode) setViewMode(false);
+                } else if (invoiceToDelete.type === 'POS_INVOICE') {
                     await posService.deletePOSInvoice(invoiceToDelete.id);
+                    setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
+                    setShowDeleteModal(false);
+                    setInvoiceToDelete(null);
+                    toast.success('Invoice deleted successfully');
+                    fetchData();
+                    if (viewMode) setViewMode(false);
                 } else {
                     await salesInvoiceService.delete(invoiceToDelete.id, companyId);
+                    setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
+                    setShowDeleteModal(false);
+                    setInvoiceToDelete(null);
+                    toast.success('Invoice deleted successfully');
+                    fetchData();
+                    if (viewMode) setViewMode(false);
                 }
-                setInvoices(invoices.filter(inv => !(inv.id === invoiceToDelete.id && inv.type === invoiceToDelete.type)));
-                setShowDeleteModal(false);
-                setInvoiceToDelete(null);
-                toast.success('Invoice deleted successfully');
-                fetchData();
-                if (viewMode) setViewMode(false);
             } catch (error) {
                 console.error('Error deleting invoice:', error);
                 toast.error(error.response?.data?.message || 'Error deleting invoice');
@@ -3752,10 +3796,15 @@ const Invoice = () => {
                                 <X size={24} />
                             </button>
                         </div>
-                        <p>Are you sure you want to delete this invoice? This action cannot be undone.</p>
+                        <p>
+                            {invoiceToDelete?.type === 'COMBINED' || invoiceToDelete?.isCombined || String(invoiceToDelete?.id).toLowerCase().startsWith('combined-') || String(invoiceToDelete?.invoiceNumber || '').toUpperCase().startsWith('COMBINED-')
+                                ? `Are you sure you want to delete this combined invoice? All ${invoiceToDelete?.invoices?.length ? `${invoiceToDelete.invoices.length} ` : ''}invoices included in this group will be deleted. This action cannot be undone.`
+                                : `Are you sure you want to delete invoice ${invoiceToDelete?.invoiceNumber || ''}? This action cannot be undone.`
+                            }
+                        </p>
                         <div className="Invoice-modal-actions">
-                            <button className="Invoice-btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                            <button className="Invoice-btn-danger" onClick={confirmDelete}>Delete</button>
+                            <button type="button" className="Invoice-btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                            <button type="button" className="Invoice-btn-danger" onClick={confirmDelete}>Delete</button>
                         </div>
                     </div>
                 </div>
