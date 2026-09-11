@@ -42,6 +42,14 @@ const ProfitLoss = () => {
     const [statement, setStatement] = useState(null);
     const [calculations, setCalculations] = useState(null);
 
+    const formatYAxisTick = (val) => {
+        if (!val || val === 0) return '0';
+        if (Math.abs(val) >= 1000000) {
+            return `${(val / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`;
+        }
+        return val.toLocaleString();
+    };
+
     useEffect(() => {
         fetchCompanySettings();
         fetchProfitLoss();
@@ -295,8 +303,8 @@ const ProfitLoss = () => {
                         <div className="chart-card main-chart">
                             <h3>Income vs Expense</h3>
                             <div style={{ width: '100%', height: 300 }}>
-                                <ResponsiveContainer>
-                                    <BarChart data={chartData}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 15, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#10b981" stopOpacity={0.8} />
@@ -309,7 +317,13 @@ const ProfitLoss = () => {
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                        <YAxis axisLine={false} tickLine={false} />
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            width={75}
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
+                                            tickFormatter={formatYAxisTick}
+                                        />
                                         <Tooltip
                                             cursor={false}
                                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
@@ -325,8 +339,8 @@ const ProfitLoss = () => {
                         <div className="chart-card secondary-chart">
                             <h3>Net Profit Trend</h3>
                             <div style={{ width: '100%', height: 300 }}>
-                                <ResponsiveContainer>
-                                    <AreaChart data={chartData}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 15, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
@@ -335,7 +349,13 @@ const ProfitLoss = () => {
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                        <YAxis axisLine={false} tickLine={false} />
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            width={75}
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
+                                            tickFormatter={formatYAxisTick}
+                                        />
                                         <Tooltip
                                             cursor={false}
                                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
