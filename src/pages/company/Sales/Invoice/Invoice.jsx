@@ -475,6 +475,7 @@ const Invoice = () => {
     };
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [showUnpayModal, setShowUnpayModal] = useState(false);
     const [invoiceToUnpay, setInvoiceToUnpay] = useState(null);
 
@@ -2593,6 +2594,7 @@ const Invoice = () => {
 
     const confirmDelete = async () => {
         if (invoiceToDelete) {
+            setIsDeleting(true);
             try {
                 const companyId = GetCompanyId();
                 const isCombined = invoiceToDelete.type === 'COMBINED' ||
@@ -2650,6 +2652,8 @@ const Invoice = () => {
             } catch (error) {
                 console.error('Error deleting invoice:', error);
                 toast.error(error.response?.data?.message || 'Error deleting invoice');
+            } finally {
+                setIsDeleting(false);
             }
         }
     };
@@ -3788,23 +3792,97 @@ const Invoice = () => {
                 </div>
             )}
             {showDeleteModal && (
-                <div className="Invoice-modal-overlay">
-                    <div className="Invoice-modal-content Invoice-confirmation-modal">
-                        <div className="Invoice-modal-header-simple">
-                            <h2 className="text-xl font-bold">Confirm Delete</h2>
-                            <button className="Invoice-close-btn-simple" onClick={() => setShowDeleteModal(false)}>
-                                <X size={24} />
-                            </button>
+                <div className="InvModal-overlay" onClick={() => !isDeleting && setShowDeleteModal(false)}>
+                    <div className="InvModal-card" onClick={(e) => e.stopPropagation()}>
+                        {/* Close button */}
+                        <button
+                            type="button"
+                            className="InvModal-close-btn"
+                            onClick={() => !isDeleting && setShowDeleteModal(false)}
+                            aria-label="Close modal"
+                            disabled={isDeleting}
+                        >
+                            <X size={18} />
+                        </button>
+
+                        {/* Top Icon Badge */}
+                        <div className="InvModal-icon-badge">
+                            <div className="InvModal-icon-inner">
+                                <Trash2 size={24} className="InvModal-trash-icon" />
+                            </div>
                         </div>
-                        <p>
-                            {invoiceToDelete?.type === 'COMBINED' || invoiceToDelete?.isCombined || String(invoiceToDelete?.id).toLowerCase().startsWith('combined-') || String(invoiceToDelete?.invoiceNumber || '').toUpperCase().startsWith('COMBINED-')
-                                ? `Are you sure you want to delete this combined invoice? All ${invoiceToDelete?.invoices?.length ? `${invoiceToDelete.invoices.length} ` : ''}invoices included in this group will be deleted. This action cannot be undone.`
-                                : `Are you sure you want to delete invoice ${invoiceToDelete?.invoiceNumber || ''}? This action cannot be undone.`
-                            }
+
+                        {/* Modal Header */}
+                        <div className="InvModal-header">
+                            <h3 className="InvModal-title">
+                                {invoiceToDelete?.type === 'COMBINED' || invoiceToDelete?.isCombined || String(invoiceToDelete?.id).toLowerCase().startsWith('combined-') || String(invoiceToDelete?.invoiceNumber || '').toUpperCase().startsWith('COMBINED-')
+                                    ? 'Delete Combined Invoice'
+                                    : 'Delete Invoice'
+                                }
+                            </h3>
+                            <div className="InvModal-badge-wrap">
+                                <span className="InvModal-doc-pill">
+                                    <FileText size={12} />
+                                    <span>{invoiceToDelete?.invoiceNumber || 'Invoice'}</span>
+                                </span>
+                                {(invoiceToDelete?.customer?.name || invoiceToDelete?.billingName) && (
+                                    <span className="InvModal-cust-pill">
+                                        {invoiceToDelete?.customer?.name || invoiceToDelete?.billingName}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Warning Callout Box */}
+                        <div className="InvModal-warning-box">
+                            <AlertTriangle size={18} className="InvModal-warning-icon" />
+                            <div className="InvModal-warning-text">
+                                {invoiceToDelete?.type === 'COMBINED' || invoiceToDelete?.isCombined || String(invoiceToDelete?.id).toLowerCase().startsWith('combined-') || String(invoiceToDelete?.invoiceNumber || '').toUpperCase().startsWith('COMBINED-') ? (
+                                    <>
+                                        This will permanently delete all <strong>{invoiceToDelete?.invoices?.length ? `${invoiceToDelete.invoices.length} ` : ''}invoices</strong> in this customer group.
+                                        <span> All linked receipts, stock movements, and ledger balances will be automatically reversed.</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        Are you sure you want to permanently delete this invoice?
+                                        <span> Warehouse stock, journal entries, and linked payments will be automatically reverted.</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        <p className="InvModal-irreversible-note">
+                            This action is permanent and cannot be undone.
                         </p>
-                        <div className="Invoice-modal-actions">
-                            <button type="button" className="Invoice-btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                            <button type="button" className="Invoice-btn-danger" onClick={confirmDelete}>Delete</button>
+
+                        {/* Action Buttons */}
+                        <div className="InvModal-actions">
+                            <button
+                                type="button"
+                                className="InvModal-btn-cancel"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="InvModal-btn-delete"
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        <span>Deleting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={16} />
+                                        <span>Delete Permanently</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -7533,37 +7611,6 @@ const Invoice = () => {
                         </div>
                     )}
 
-                    {showDeleteModal && (
-                        <div className="InvDelete-modal-overlay">
-                            <div className="InvDelete-modal-content">
-                                <div className="InvDelete-modal-header">
-                                    <h2>Delete Invoice</h2>
-                                    <button className="InvDelete-close-btn" onClick={() => setShowDeleteModal(false)}>
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                                <div className="InvDelete-modal-body">
-                                    <div className="InvDelete-icon-box">
-                                        <AlertTriangle size={32} />
-                                    </div>
-                                    <h3 className="InvDelete-title">Are you sure?</h3>
-                                    <p className="InvDelete-desc">You are about to permanently delete invoice</p>
-                                    <div className="InvDelete-invoice-no">#{invoiceToDelete?.invoiceNumber}</div>
-                                    <p className="InvDelete-desc" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                                        This action cannot be undone and will affect your ledger balances.
-                                    </p>
-                                </div>
-                                <div className="InvDelete-modal-footer">
-                                    <button className="InvDelete-btn-cancel" onClick={() => setShowDeleteModal(false)}>
-                                        Cancel
-                                    </button>
-                                    <button className="InvDelete-btn-confirm" onClick={confirmDelete}>
-                                        Delete Permanently
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {showUnpayModal && (
                         <div className="InvDelete-modal-overlay">

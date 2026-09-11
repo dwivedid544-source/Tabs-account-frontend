@@ -1493,6 +1493,288 @@
     transform: translateY(-1px);
 }
 
+/* ==========================================================================
+   PREMIUM INVOICE DELETE CONFIRMATION MODAL
+   ========================================================================== */
+
+.InvModal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    animation: invFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.InvModal-card {
+    position: relative;
+    background: #ffffff;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 20px;
+    padding: 32px 28px 24px;
+    box-shadow: 
+        0 20px 25px -5px rgba(15, 23, 42, 0.1), 
+        0 25px 50px -12px rgba(15, 23, 42, 0.25),
+        0 0 0 1px rgba(226, 232, 240, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: invScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+/* Subtle crimson ambient glow at top */
+.InvModal-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 110px;
+    background: radial-gradient(50% 100% at 50% 0%, rgba(239, 68, 68, 0.09) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.InvModal-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    z-index: 2;
+}
+
+.InvModal-close-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.InvModal-close-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.InvModal-icon-badge {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.InvModal-icon-inner {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 1px solid #fecdd3;
+    box-shadow: 0 0 0 6px #fff1f2, 0 4px 12px rgba(239, 68, 68, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ef4444;
+}
+
+.InvModal-trash-icon {
+    animation: invIconPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.InvModal-header {
+    margin-bottom: 16px;
+    z-index: 1;
+}
+
+.InvModal-title {
+    font-size: 1.28rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    line-height: 1.3;
+}
+
+.InvModal-badge-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.InvModal-doc-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f1f5f9;
+    color: #1e293b;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.InvModal-cust-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.775rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid #bfdbfe;
+}
+
+.InvModal-warning-box {
+    background: #fff8f8;
+    border: 1px solid #fee2e2;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    box-sizing: border-box;
+    z-index: 1;
+}
+
+.InvModal-warning-icon {
+    color: #dc2626;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.InvModal-warning-text {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #991b1b;
+}
+
+.InvModal-warning-text strong {
+    font-weight: 700;
+    color: #7f1d1d;
+}
+
+.InvModal-warning-text span {
+    color: #b91c1c;
+}
+
+.InvModal-irreversible-note {
+    font-size: 0.775rem;
+    color: #94a3b8;
+    margin: 0 0 20px;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.InvModal-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    z-index: 1;
+}
+
+.InvModal-btn-cancel {
+    flex: 1;
+    padding: 11px 18px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.925rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.InvModal-btn-cancel:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.InvModal-btn-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.InvModal-btn-delete {
+    flex: 1.3;
+    padding: 11px 18px;
+    border-radius: 10px;
+    border: 1px solid #dc2626;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.925rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.InvModal-btn-delete:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+
+.InvModal-btn-delete:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.InvModal-btn-delete:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+@keyframes invFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes invScaleUp {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes invIconPop {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 /* Text Utils if missing */
 .Invoice-text-red-500 {
     color: #ef4444;
