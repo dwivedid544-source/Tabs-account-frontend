@@ -4321,6 +4321,7 @@
 .invoice-cea-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     margin-top: 14px;
     font-size: 12px;
 }
@@ -4352,6 +4353,20 @@
     vertical-align: top;
     border: none;
     line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.invoice-cea-table td.invoice-cea-activity-cell {
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+}
+
+.invoice-cea-table td.invoice-cea-desc-cell {
+    color: #374151;
+    white-space: pre-wrap;
+    line-height: 1.45;
 }
 
 /* 4. Dotted Dividers & Totals */

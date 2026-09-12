@@ -411,6 +411,18 @@ const Invoice = () => {
         try {
             setSendingEmail(true);
             const companyId = GetCompanyId();
+            let generatedPdfBase64 = null;
+            if (emailAttachPdf && emailInvoiceData) {
+                try {
+                    const result = await buildCeaPdfDoc(emailInvoiceData);
+                    if (result && result.doc) {
+                        generatedPdfBase64 = result.doc.output('datauristring');
+                    }
+                } catch (pdfErr) {
+                    console.warn('Could not generate client-side PDF for email attachment:', pdfErr);
+                }
+            }
+
             const res = await salesInvoiceService.sendEmail(emailInvoiceData.id, {
                 recipientEmail: emailRecipient,
                 subject: emailSubject,
@@ -419,7 +431,8 @@ const Invoice = () => {
                 sendBcc: emailSendBcc,
                 customerId: emailInvoiceData.customer?.id || emailInvoiceData.customerId,
                 invoiceNumber: emailInvoiceData.invoiceNumber,
-                companyId
+                companyId,
+                pdfBase64: generatedPdfBase64
             }, companyId);
 
             if (res.data?.success) {
@@ -669,8 +682,8 @@ const Invoice = () => {
                     zipCode: inv.shippingZipCode || inv.customer?.shippingZipCode || '',
                     country: inv.shippingCountry || inv.customer?.shippingCountry || ''
                 });
-                setOverallDiscount(inv.overallDiscount || 0);
-                setOverallDiscountType(inv.overallDiscountType || 'percentage');
+                setOverallDiscount(0);
+                setOverallDiscountType('percentage');
                 setSelectedCurrency(inv.currency || companySettings?.currency || 'EUR');
                 setExchangeRate(inv.exchangeRate || 1.0);
 
@@ -698,7 +711,8 @@ const Invoice = () => {
 
                 setCarNumber(inv.carNumber || '');
                 setManualReference(inv.manualReference || '');
-                setPoNumber(inv.poNumber || inv.manualReference || '');
+                setPoNumber(inv.poNumber || '');
+                setShowPoNumberField(!!inv.poNumber);
                 setNumberingMode('manual');
                 const loadedDate = new Date(inv.date).toISOString().split('T')[0];
                 const loadedDueDate = inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '';
@@ -727,19 +741,26 @@ const Invoice = () => {
                 setNotes(inv.notes || '');
                 setSelectedChallan(inv.deliveryChallanId ? { id: inv.deliveryChallanId } : null);
                 setSelectedOrder(inv.salesOrderId ? { id: inv.salesOrderId } : null);
-                setItems((inv.invoiceitem || inv.items || []).map(i => ({
-                    id: i.id,
-                    productId: i.productId,
-                    serviceId: i.serviceId,
-                    warehouseId: i.warehouseId,
-                    uomId: i.uomId || '',
-                    description: i.description,
-                    qty: i.quantity,
-                    rate: i.rate,
-                    tax: i.taxRate,
-                    discount: i.discount,
-                    total: i.amount
-                })));
+                const itemsMeta = Array.isArray(fieldValues?._itemsDiscountMeta) ? fieldValues._itemsDiscountMeta : [];
+                setItems((inv.invoiceitem || inv.items || []).map((i, idx) => {
+                    const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && m.productId === i.productId) || (m.serviceId && m.serviceId === i.serviceId));
+                    const discType = meta?.discountType || i.discountType || i.itemDiscountType || 'percentage';
+                    const discVal = meta?.discount !== undefined ? meta.discount : (i.discountValue !== undefined ? i.discountValue : (i.discount || 0));
+                    return {
+                        id: i.id,
+                        productId: i.productId,
+                        serviceId: i.serviceId,
+                        warehouseId: i.warehouseId,
+                        uomId: i.uomId || '',
+                        description: i.description,
+                        qty: i.quantity,
+                        rate: i.rate,
+                        tax: i.taxRate,
+                        discount: discVal,
+                        discountType: discType,
+                        total: i.amount
+                    };
+                }));
                 setSelectedPhotos(fieldValues?._attachments?.photos || []);
                 setSelectedFiles(fieldValues?._attachments?.files || []);
                 // Restore other charges from saved customFields
@@ -785,6 +806,29 @@ const Invoice = () => {
                 })
                 : [];
 
+            const itemsDiscountMetaPayload = items.map(item => {
+                const itemQty = parseFloat(item.qty) || 0;
+                const itemRate = parseFloat(item.rate) || 0;
+                const discVal = parseFloat(item.discount) || 0;
+                const discType = item.discountType || 'percentage';
+                const itemTax = parseFloat(item.tax) || 0;
+                const resolvedName = item.productId
+                    ? (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : '')
+                    : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : '') : (item.description || ''));
+                return {
+                    productId: item.productId ? parseInt(item.productId) : null,
+                    serviceId: item.serviceId ? parseInt(item.serviceId) : null,
+                    itemName: resolvedName || item.description || '',
+                    description: item.description || resolvedName || '',
+                    quantity: itemQty,
+                    rate: itemRate,
+                    discount: discVal,
+                    discountType: discType,
+                    taxRate: itemTax,
+                    amount: totals.itemDiscountedAmounts?.[item.id] !== undefined ? totals.itemDiscountedAmounts[item.id] : (item.total || 0)
+                };
+            });
+
             const customFieldsPayload = {
                 ...customFieldValues,
                 deliveryPersonName: invoiceMeta.deliveryPersonName,
@@ -794,14 +838,15 @@ const Invoice = () => {
                     photos: selectedPhotos,
                     files: selectedFiles
                 },
-                _otherCharges: validOtherChargesUpdate
+                _otherCharges: validOtherChargesUpdate,
+                _itemsDiscountMeta: itemsDiscountMetaPayload
             };
 
             const data = {
                 customFields: JSON.stringify(customFieldsPayload),
                 invoiceNumber: invoiceMeta.manualNo,
-                manualReference: manualReference || poNumber || null,
-                poNumber: poNumber || manualReference || null,
+                manualReference: manualReference || null,
+                poNumber: (poNumber && typeof poNumber === 'string' && poNumber.trim()) ? poNumber.trim() : null,
                 salespersonId: salespersonId ? parseInt(salespersonId) : null,
                 carNumber: carNumber || null,
                 salesOrderId: selectedOrder ? parseInt(selectedOrder.id) : null,
@@ -825,8 +870,8 @@ const Invoice = () => {
                 shippingState: shippingDetails.state,
                 shippingZipCode: shippingDetails.zipCode,
                 shippingCountry: shippingDetails.country,
-                overallDiscount: parseFloat(overallDiscount) || 0,
-                overallDiscountType: overallDiscountType,
+                overallDiscount: 0,
+                overallDiscountType: 'percentage',
                 currency: selectedCurrency,
                 exchangeRate: parseFloat(exchangeRate) || 1.0,
                 adjustments: adjustments.filter(adj => adj.amount > 0).map(adj => ({
@@ -839,10 +884,11 @@ const Invoice = () => {
                     serviceId: item.serviceId ? parseInt(item.serviceId) : null,
                     warehouseId: item.warehouseId ? parseInt(item.warehouseId) : null,
                     uomId: item.uomId ? parseInt(item.uomId) : null,
-                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : ''),
+                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => s.id === parseInt(item.serviceId))?.name : '') : '')),
                     quantity: parseFloat(item.qty),
                     rate: parseFloat(item.rate),
                     discount: parseFloat(item.discount) || 0,
+                    discountType: item.discountType || 'percentage',
                     taxRate: parseFloat(item.tax)
                 }))
             };
@@ -916,7 +962,7 @@ const Invoice = () => {
     const [selectedCustomerCreditPeriod, setSelectedCustomerCreditPeriod] = useState(0);
 
     const [items, setItems] = useState([
-        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, total: 0, description: '' }
+        { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, discountType: 'percentage', total: 0, description: '' }
     ]);
 
     const [billingDetails, setBillingDetails] = useState({
@@ -1775,7 +1821,7 @@ const Invoice = () => {
         if (!defWarehouseId && allWarehouses.length > 0) {
             defWarehouseId = allWarehouses[0].id;
         }
-        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
+        setItems([{ id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, discountType: 'percentage', total: 0, description: '' }]);
         setAvailableReceipts([]);
         setAdjustments([]);
         setCustomFieldValues({});
@@ -1929,7 +1975,7 @@ const Invoice = () => {
         if (!defWarehouseId && allWarehouses.length > 0) {
             defWarehouseId = allWarehouses[0].id;
         }
-        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }]);
+        setItems(prevItems => [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, discountType: 'percentage', total: 0, description: '' }]);
     };
 
     const handleAutoAddNextRow = (itemId) => {
@@ -1958,7 +2004,7 @@ const Invoice = () => {
                     if (!defWarehouseId && allWarehouses.length > 0) {
                         defWarehouseId = allWarehouses[0].id;
                     }
-                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, total: 0, description: '' }];
+                    return [...prevItems, { id: Date.now(), productId: '', serviceId: '', warehouseId: defWarehouseId, qty: 1, uomId: '', rate: 0, tax: defaultVat, discount: 0, discountType: 'percentage', total: 0, description: '' }];
                 }
             }
             return prevItems;
@@ -2001,11 +2047,18 @@ const Invoice = () => {
                 const qty = parseFloat(updatedItem.qty) || 0;
                 const rate = parseFloat(updatedItem.rate) || 0;
                 const tax = parseFloat(updatedItem.tax) || 0;
-                const discount = parseFloat(updatedItem.discount) || 0;
+                const discVal = parseFloat(updatedItem.discount) || 0;
+                const discType = updatedItem.discountType || 'percentage';
 
-                const subtotal = qty * rate;
-                const taxable = Math.max(0, subtotal - discount);
+                const lineGross = qty * rate;
+                let itemDiscountAmt = 0;
+                if (discType === 'fixed' || discType === 'amount') {
+                    itemDiscountAmt = Math.min(lineGross, Math.max(0, discVal));
+                } else {
+                    itemDiscountAmt = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
+                }
 
+                const taxable = Math.max(0, lineGross - itemDiscountAmt);
                 updatedItem.total = taxable;
                 return updatedItem;
             }
@@ -2015,56 +2068,38 @@ const Invoice = () => {
 
     const calculateTotals = () => {
         let subTotal = 0;
-        let lineDiscountSum = 0;
-
-        const calculatedItems = items.map(item => {
-            const qty = parseFloat(item.qty) || 0;
-            const rate = parseFloat(item.rate) || 0;
-            const itemDiscount = parseFloat(item.discount) || 0;
-            const taxRate = parseFloat(item.tax) || 0;
-
-            const lineGross = qty * rate;
-            const lineTaxableBeforeOverall = Math.max(0, lineGross - itemDiscount);
-            subTotal += lineGross;
-            lineDiscountSum += itemDiscount;
-
-            return {
-                ...item,
-                qty,
-                rate,
-                lineGross,
-                itemDiscount,
-                lineTaxableBeforeOverall,
-                taxRate
-            };
-        });
-
-        const netBeforeOverall = Math.max(0, subTotal - lineDiscountSum);
-        let ovDiscountAmt = 0;
-        const ovVal = parseFloat(overallDiscount) || 0;
-        if (ovVal > 0) {
-            if (overallDiscountType === 'percentage') {
-                ovDiscountAmt = (netBeforeOverall * Math.min(100, Math.max(0, ovVal))) / 100;
-            } else {
-                ovDiscountAmt = Math.min(netBeforeOverall, Math.max(0, ovVal));
-            }
-        }
-
-        const totalDiscount = lineDiscountSum + ovDiscountAmt;
-        const discountedTaxable = Math.max(0, subTotal - totalDiscount);
-
-        const overallDiscountRatio = netBeforeOverall > 0 ? (ovDiscountAmt / netBeforeOverall) : 0;
-
+        let totalDiscount = 0;
         let totalTax = 0;
         const itemDiscountedAmounts = {};
-        calculatedItems.forEach(item => {
-            const lineDiscountedTaxable = item.lineTaxableBeforeOverall * (1 - overallDiscountRatio);
-            itemDiscountedAmounts[item.id] = lineDiscountedTaxable;
-            if (item.taxRate > 0) {
-                const lineTax = (lineDiscountedTaxable * item.taxRate) / 100;
+
+        items.forEach(item => {
+            const qty = parseFloat(item.qty) || 0;
+            const rate = parseFloat(item.rate) || 0;
+            const taxRate = parseFloat(item.tax) || 0;
+            const discVal = parseFloat(item.discount) || 0;
+            const discType = item.discountType || 'percentage';
+
+            const lineGross = qty * rate;
+            let itemDiscountAmt = 0;
+            if (discType === 'fixed' || discType === 'amount') {
+                itemDiscountAmt = Math.min(lineGross, Math.max(0, discVal));
+            } else {
+                itemDiscountAmt = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
+            }
+
+            const lineTaxable = Math.max(0, lineGross - itemDiscountAmt);
+            itemDiscountedAmounts[item.id] = lineTaxable;
+
+            subTotal += lineGross;
+            totalDiscount += itemDiscountAmt;
+
+            if (taxRate > 0) {
+                const lineTax = (lineTaxable * taxRate) / 100;
                 totalTax += lineTax;
             }
         });
+
+        const discountedTaxable = Math.max(0, subTotal - totalDiscount);
 
         // Other charges total (added to Grand Total)
         const otherChargesTotal = showOtherCharges
@@ -2081,8 +2116,8 @@ const Invoice = () => {
         return {
             subTotal,
             discount: totalDiscount,
-            lineDiscountSum,
-            ovDiscountAmt,
+            lineDiscountSum: totalDiscount,
+            ovDiscountAmt: 0,
             totalDiscount,
             discountedTaxable,
             tax: totalTax,
@@ -2279,6 +2314,29 @@ const Invoice = () => {
                 })
                 : [];
 
+            const itemsDiscountMetaPayload = items.map(item => {
+                const itemQty = parseFloat(item.qty) || 0;
+                const itemRate = parseFloat(item.rate) || 0;
+                const discVal = parseFloat(item.discount) || 0;
+                const discType = item.discountType || 'percentage';
+                const itemTax = parseFloat(item.tax) || 0;
+                const resolvedName = item.productId
+                    ? (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : '')
+                    : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : '') : (item.description || ''));
+                return {
+                    productId: item.productId ? parseInt(item.productId) : null,
+                    serviceId: item.serviceId ? parseInt(item.serviceId) : null,
+                    itemName: resolvedName || item.description || '',
+                    description: item.description || resolvedName || '',
+                    quantity: itemQty,
+                    rate: itemRate,
+                    discount: discVal,
+                    discountType: discType,
+                    taxRate: itemTax,
+                    amount: totals.itemDiscountedAmounts?.[item.id] !== undefined ? totals.itemDiscountedAmounts[item.id] : (item.total || 0)
+                };
+            });
+
             const customFieldsPayload = {
                 ...customFieldValues,
                 deliveryPersonName: invoiceMeta.deliveryPersonName,
@@ -2288,14 +2346,15 @@ const Invoice = () => {
                     photos: selectedPhotos,
                     files: selectedFiles
                 },
-                _otherCharges: validOtherCharges
+                _otherCharges: validOtherCharges,
+                _itemsDiscountMeta: itemsDiscountMetaPayload
             };
 
             const data = {
                 customFields: JSON.stringify(customFieldsPayload),
                 invoiceNumber: invoiceMeta.manualNo || `INV-${Date.now()}`,
-                manualReference: overrideManualRef !== null ? overrideManualRef : (manualReference || poNumber || null),
-                poNumber: poNumber || (overrideManualRef !== null ? overrideManualRef : (manualReference || null)),
+                manualReference: overrideManualRef !== null ? overrideManualRef : (manualReference || null),
+                poNumber: (poNumber && typeof poNumber === 'string' && poNumber.trim()) ? poNumber.trim() : null,
                 salespersonId: salespersonId ? parseInt(salespersonId) : null,
                 carNumber: carNumber || null,
                 date: invoiceMeta.date,
@@ -2319,8 +2378,8 @@ const Invoice = () => {
                 shippingState: shippingDetails.state,
                 shippingZipCode: shippingDetails.zipCode,
                 shippingCountry: shippingDetails.country,
-                overallDiscount: parseFloat(overallDiscount) || 0,
-                overallDiscountType: overallDiscountType,
+                overallDiscount: 0,
+                overallDiscountType: 'percentage',
                 currency: selectedCurrency,
                 exchangeRate: parseFloat(exchangeRate) || 1.0,
                 adjustments: adjustments.filter(adj => adj.amount > 0).map(adj => ({
@@ -2335,10 +2394,11 @@ const Invoice = () => {
                         ? parseInt(item.warehouseId)
                         : (allWarehouses.length > 0 ? allWarehouses[0].id : null),
                     uomId: item.uomId ? parseInt(item.uomId) : null,
-                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : ''),
+                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => s.id === parseInt(item.serviceId))?.name : '') : '')),
                     quantity: parseFloat(item.qty),
                     rate: parseFloat(item.rate),
                     discount: parseFloat(item.discount) || 0,
+                    discountType: item.discountType || 'percentage',
                     taxRate: parseFloat(item.tax)
                 }))
             };
@@ -2762,11 +2822,9 @@ const Invoice = () => {
         }
     };
 
-    const handleDownloadSingleInvoicePDF = async (invInput) => {
-        if (!invInput) return;
-        try {
-            toast.loading('Generating invoice PDF...', { id: 'single-inv-pdf' });
-            let inv = invInput;
+    async function buildCeaPdfDoc(invInput) {
+        if (!invInput) return null;
+        let inv = invInput;
             const companyId = GetCompanyId();
             const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
 
@@ -2883,19 +2941,48 @@ const Invoice = () => {
             const billEmail = inv.billingEmail || targetCust.email || '';
             const billVat = targetCust.gstin || targetCust.gstNumber || targetCust.vatNumber || '';
 
+            let cfData = {};
+            if (inv.customFields) {
+                try {
+                    cfData = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
+                } catch (e) {
+                    cfData = {};
+                }
+            }
+            const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
+
             // Group VAT categories and calculate line discounted amounts
             const groups = {};
-            const processedItems = lineItems.map((item) => {
-                const actName = item.service?.name || item.product?.name || item.activity || (item.product ? 'Product' : (item.service ? 'Service' : 'Services'));
-                const desc = item.description || (item.product?.name ? item.description : billAddr) || (item.service?.name || actName);
+            const processedItems = lineItems.map((item, idx) => {
+                const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
+                const actName = meta?.itemName
+                    || item.service?.name 
+                    || item.product?.name 
+                    || item.activity 
+                    || item.name 
+                    || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
+                    || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
+                    || item.description 
+                    || (item.serviceId ? 'Service' : 'Item');
+                const desc = item.description || meta?.description || item.service?.name || item.product?.name || actName || '';
                 const itemTax = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null ? parseFloat(item.tax) : 0);
                 const qty = item.quantity !== undefined && item.quantity !== null ? parseFloat(item.quantity) : (parseFloat(item.qty) || 1);
-                const rate = parseFloat(item.rate || item.price || 0);
-                const itemDisc = parseFloat(item.discount || 0) || 0;
+                const rate = parseFloat(item.rate !== undefined && item.rate !== null ? item.rate : (item.price || 0));
                 const lineGross = qty * rate;
+
+                const discType = meta?.discountType || item.discountType || (item.discount > 0 && item.discount <= 100 && (Math.abs((lineGross * item.discount) / 100 - (item.discountAmount || 0)) < 0.01) ? 'percentage' : 'fixed');
+                const discVal = meta?.discount !== undefined ? parseFloat(meta.discount) : (item.discountValue !== undefined ? parseFloat(item.discountValue) : (parseFloat(item.discount || 0) || 0));
+
+                let itemDisc = 0;
+                if (discType === 'fixed' || discType === 'amount') {
+                    itemDisc = Math.min(lineGross, Math.max(0, discVal));
+                } else {
+                    itemDisc = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
+                }
+
                 const lineNetBeforeOv = Math.max(0, lineGross - itemDisc);
                 const lineDiscountedTaxable = lineNetBeforeOv * (1 - overallDiscountRatio);
-                const amt = (item.amount !== undefined && item.amount !== null && parseFloat(item.amount) <= lineGross + 0.01)
+                const amt = (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount)))
                     ? parseFloat(item.amount)
                     : lineDiscountedTaxable;
 
@@ -2909,16 +2996,22 @@ const Invoice = () => {
                 }
 
                 const isZeroTax = itemTax === 0;
-                const isStandardTax = itemTax === 23;
-                const taxDisplay = isZeroTax ? 'No VAT' : (isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`));
+                const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(itemTax.toFixed(2))}%`);
+                const discText = discVal > 0
+                    ? (discType === 'percentage' ? `${discVal}%` : `-${Number(discVal).toFixed(2)}`)
+                    : '0%';
+
+                const uom = item.unit || item.uom || meta?.uom || meta?.unit || '';
 
                 return {
                     actName,
                     desc,
                     taxDisplay,
+                    discText,
                     qty,
                     rate,
-                    amt
+                    amt,
+                    uom
                 };
             });
 
@@ -3040,7 +3133,7 @@ const Invoice = () => {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(13);
             doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
-            doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (companySettings?.invoiceTemplate || getDocumentTitle('invoice') || 'INVOICE'), 14, midY);
+            doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (comp?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE')), 14, midY);
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
@@ -3083,7 +3176,7 @@ const Invoice = () => {
             const metaRows = [
                 { key: getInvoiceLabel('number') || 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
                 { key: getInvoiceLabel('issue') || 'DATE', val: formatCeaDate(inv.date) },
-                ...(inv.poNumber || inv.manualReference ? [{ key: 'P.O. #', val: inv.poNumber || inv.manualReference }] : []),
+                ...(inv.poNumber && typeof inv.poNumber === 'string' && inv.poNumber.trim() ? [{ key: 'P.O. #', val: inv.poNumber.trim() }] : []),
                 { key: 'TERMS', val: inv.paymentTerms || 'Net 7' },
                 { key: getInvoiceLabel('dueDate') || 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
             ];
@@ -3104,53 +3197,80 @@ const Invoice = () => {
 
             // --- 3. ITEMS TABLE ---
             const tableStartY = Math.max(billY + 4, metaY + 4);
-            const tableHead = [[
-                getTableHeader('item', 'ACTIVITY'),
-                getTableHeader('warehouse', 'DESCRIPTION'),
-                getTableHeader('tax', 'TAX'),
-                getTableHeader('quantity', 'QTY'),
-                getTableHeader('rate', 'RATE'),
-                getTableHeader('price', 'AMOUNT')
-            ]];
-            const tableBody = processedItems.map(it => [
-                it.actName,
-                it.desc,
-                it.taxDisplay,
-                it.qty,
-                Number(it.rate).toFixed(2),
-                Number(it.amt).toFixed(2)
-            ]);
+
+            const showUom = getInvoiceLabel('showUom') === true;
+            const showQty = getInvoiceLabel('showQty') !== false;
+            const showRate = getInvoiceLabel('showRate') !== false;
+            const showDiscount = getInvoiceLabel('showDiscount') !== false || processedItems.some(it => it.discText !== '0%');
+            const showTax = getInvoiceLabel('showTax') !== false;
+
+            const cols = [
+                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 32, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+                { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
+                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'left', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
+                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QTY'), fixedWidth: 10, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
+                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'VAT'), fixedWidth: 18, align: 'left', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+                { key: 'price', header: getTableHeader('price', 'AMOUNT'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+            ];
+
+            const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
+            const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
+            const flexWidth = Math.max(45, totalPrintableWidth - fixedWidthSum);
+
+            const tableHead = [cols.map(c => c.header)];
+            const tableBody = processedItems.map(it => cols.map(c => c.getData(it)));
+
+            const columnStyles = {};
+            cols.forEach((c, idx) => {
+                columnStyles[idx] = {
+                    cellWidth: c.isFlex ? flexWidth : c.fixedWidth,
+                    halign: c.align,
+                    valign: 'middle',
+                    ...(c.fontStyle === 'bold' ? { fontStyle: 'bold' } : {})
+                };
+            });
 
             safeAutoTable(doc, {
                 startY: tableStartY,
                 head: tableHead,
                 body: tableBody,
                 theme: 'plain',
+                styles: {
+                    overflow: 'linebreak',
+                    valign: 'middle',
+                    fontSize: 8,
+                    lineColor: [226, 232, 240],
+                    lineWidth: { bottom: 0.1 }
+                },
                 headStyles: {
                     fillColor: themeRgb,
                     textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 8,
-                    cellPadding: 2.5
+                    cellPadding: 2.8,
+                    valign: 'middle'
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
                     fontSize: 8,
-                    cellPadding: 2.2
+                    cellPadding: { top: 3.5, bottom: 3.5, left: 2, right: 2 },
+                    valign: 'middle',
+                    overflow: 'linebreak',
+                    lineHeight: 1.25
                 },
-                columnStyles: {
-                    0: { cellWidth: 38, halign: 'left' },
-                    1: { cellWidth: 'auto', halign: 'left' },
-                    2: { cellWidth: 22, halign: 'left' },
-                    3: { cellWidth: 14, halign: 'right' },
-                    4: { cellWidth: 22, halign: 'right' },
-                    5: { cellWidth: 24, halign: 'right' }
-                },
+                columnStyles: columnStyles,
+                rowPageBreak: 'avoid',
                 margin: { left: 14, right: 14 }
             });
 
             // --- 4. DIVIDER & TOTALS SECTION ---
             let postTableY = doc.lastAutoTable.finalY + 3;
+            if (postTableY > 215) {
+                doc.addPage();
+                postTableY = 20;
+            }
             doc.setDrawColor(203, 213, 225);
             doc.setLineDashPattern([1, 1], 0);
             doc.line(14, postTableY, 196, postTableY);
@@ -3175,22 +3295,14 @@ const Invoice = () => {
                 totY += 4.5;
             };
 
-            printTotalLine(getInvoiceLabel('subTotal') || 'SUBTOTAL', Number(subtotalVal).toFixed(2));
-            if (lineDiscountsTotal > 0 && calculatedOvDiscountAmt > 0) {
-                printTotalLine('LINE DISCOUNT', `-${Number(lineDiscountsTotal).toFixed(2)}`);
-                printTotalLine(`OVERALL DISCOUNT (${ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})`, `-${Number(calculatedOvDiscountAmt).toFixed(2)}`);
-                printTotalLine('TOTAL DISCOUNT', `-${Number(discountVal).toFixed(2)}`);
-                printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
-            } else if (calculatedOvDiscountAmt > 0 || ovDiscountValue > 0) {
-                printTotalLine(`TOTAL DISCOUNT (${ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})`, `-${Number(calculatedOvDiscountAmt || discountVal).toFixed(2)}`);
-                printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
-            } else if (discountVal > 0) {
-                printTotalLine('TOTAL DISCOUNT', `-${Number(discountVal).toFixed(2)}`);
-                printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+            printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
+            printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2));
+            printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+            printTotalLine(getInvoiceLabel('tax') || 'VAT', Number(taxVal).toFixed(2));
+            printTotalLine(getInvoiceLabel('total') || 'GRAND TOTAL', Number(totalVal).toFixed(2), true);
+            if (parseFloat(paidVal) > 0) {
+                printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
             }
-            printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
-            printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
-            printTotalLine('PAYMENT', Number(paidVal).toFixed(2));
 
             // Dotted divider before Balance Due
             doc.setDrawColor(203, 213, 225);
@@ -3320,6 +3432,18 @@ const Invoice = () => {
                 doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
             }
 
+            return { doc, inv };
+    }
+
+    const handleDownloadSingleInvoicePDF = async (invInput) => {
+        if (!invInput) return;
+        try {
+            toast.loading('Generating invoice PDF...', { id: 'single-inv-pdf' });
+            const result = await buildCeaPdfDoc(invInput);
+            if (!result || !result.doc) {
+                throw new Error('PDF document could not be built');
+            }
+            const { doc, inv } = result;
             const cleanInvNum = String(inv.invoiceNumber || 'Invoice').replace(/[\\/:*?"<>|#]/g, '_');
             const fileName = `${cleanInvNum}.pdf`;
             safeSavePdf(doc, fileName);
@@ -3469,7 +3593,7 @@ const Invoice = () => {
 
                 return {
                     'Invoice #': inv.invoiceNumber || 'N/A',
-                    'Purchase Order #': inv.poNumber || inv.manualReference || 'N/A',
+                    'Purchase Order #': inv.poNumber || '',
                     'Type': inv.type === 'POS_INVOICE' ? 'POS' : 'Sales Invoice',
                     'Customer Name': inv.customer?.name || inv.billingName || 'Walk-in Customer',
                     'Customer Phone': inv.customer?.phone || '',
@@ -3581,7 +3705,7 @@ const Invoice = () => {
 
                 return [
                     inv.invoiceNumber || 'N/A',
-                    inv.poNumber || inv.manualReference || '-',
+                    inv.poNumber || '-',
                     inv.type === 'POS_INVOICE' ? 'POS' : 'INV',
                     inv.customer?.name || inv.billingName || 'Walk-in Customer',
                     dateDisplay,
@@ -4962,7 +5086,7 @@ const Invoice = () => {
                     const showUom = getInvoiceLabel('showUom') === true;
                     const showQty = getInvoiceLabel('showQty') !== false;
                     const showRate = getInvoiceLabel('showRate') !== false;
-                    const showDiscount = getInvoiceLabel('showDiscount') === true;
+                    const showDiscount = getInvoiceLabel('showDiscount') !== false || itemsList.some(it => parseFloat(it.discount || 0) > 0);
 
                     const formatCeaDate = (dateVal) => {
                         if (!dateVal) return '';
@@ -4988,6 +5112,15 @@ const Invoice = () => {
                     const gstin = targetCust?.gstin || targetCust?.gstNumber || targetCust?.vatNumber;
 
                     const rawItems = selectedInvoice?.invoiceitem || selectedInvoice?.posinvoiceitem || selectedInvoice?.items || [];
+                    let previewCf = {};
+                    if (selectedInvoice?.customFields) {
+                        try {
+                            previewCf = typeof selectedInvoice.customFields === 'string' ? JSON.parse(selectedInvoice.customFields) : selectedInvoice.customFields;
+                        } catch (e) {
+                            previewCf = {};
+                        }
+                    }
+                    const previewItemsMeta = Array.isArray(previewCf?._itemsDiscountMeta) ? previewCf._itemsDiscountMeta : [];
                     const lineItems = rawItems.length > 0 ? rawItems : [
                         {
                             activity: 'Services',
@@ -5144,7 +5277,7 @@ const Invoice = () => {
                                 <div className="invoice-cea-middle">
                                     <div className="invoice-cea-middle-left">
                                         <div className="invoice-cea-doc-heading" style={{ color: themeColor || '#1e293b' }}>
-                                            {selectedInvoice?.type === 'POS_INVOICE' ? 'POS RECEIPT' : (companySettings?.invoiceTemplate || getDocumentTitle('invoice') || 'INVOICE')}
+                                            {selectedInvoice?.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (companyDetails?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE'))}
                                         </div>
                                         <div className="invoice-cea-bill-label">{getInvoiceLabel('billTo') || 'BILL TO'}</div>
                                         <div className="invoice-cea-client-name">{billName}</div>
@@ -5164,10 +5297,10 @@ const Invoice = () => {
                                             <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '06-05-2026'}</span>
 
-                                            {(selectedInvoice?.poNumber || selectedInvoice?.manualReference) && (
+                                            {(selectedInvoice?.poNumber && typeof selectedInvoice.poNumber === 'string' && selectedInvoice.poNumber.trim()) && (
                                                 <>
                                                     <span className="invoice-cea-kv-key">P.O. #</span>
-                                                    <span className="invoice-cea-kv-val">{selectedInvoice.poNumber || selectedInvoice.manualReference}</span>
+                                                    <span className="invoice-cea-kv-val">{selectedInvoice.poNumber.trim()}</span>
                                                 </>
                                             )}
 
@@ -5184,69 +5317,89 @@ const Invoice = () => {
                                 <table className="invoice-cea-table">
                                     <thead>
                                         <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                            <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '18%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            {showWarehouse && (
-                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
-                                                    {getTableHeader('warehouse', 'DESCRIPTION')}
-                                                </th>
-                                            )}
-                                            {showTax && (
-                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
-                                                    {getTableHeader('tax', 'TAX')}
-                                                </th>
-                                            )}
+                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                {getTableHeader('warehouse', 'DESCRIPTION')}
+                                            </th>
                                             {showUom && (
-                                                <th style={{ textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '6%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '7%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('quantity', 'QTY')}
                                                 </th>
                                             )}
                                             {showRate && (
-                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('rate', 'RATE')}
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
-                                            <th style={{ textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            {showTax && (
+                                                <th style={{ width: '9%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('tax', 'VAT')}
+                                                </th>
+                                            )}
+                                            <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                 {getTableHeader('price', 'AMOUNT')}
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {lineItems.map((item, idx) => {
-                                            const productName = item.service?.name || item.product?.name || item.activity || 'Services';
-                                            const itemDesc = item.description || (item.product?.name ? item.description : billAddr) || '56 New cork road, Midleton, Co. Cork';
-                                            const itemTax = item.taxRate !== undefined ? item.taxRate : (item.tax || defaultVat || 23);
-                                            const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
-                                            const itemRate = item.rate !== undefined ? item.rate : (item.price || 200);
-                                            const itemDisc = parseFloat(item.discount || 0) || 0;
+                                            const meta = previewItemsMeta[idx] || previewItemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
+                                            const productName = meta?.itemName 
+                                                || item.service?.name 
+                                                || item.product?.name 
+                                                || item.activity 
+                                                || item.name 
+                                                || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
+                                                || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
+                                                || item.description 
+                                                || (item.serviceId ? 'Service' : 'Item');
+                                            const itemDesc = item.description || meta?.description || (item.product?.name ? item.product.name : (item.service?.name || ''));
+                                            const itemTax = (item.taxRate !== undefined && item.taxRate !== null) ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null ? parseFloat(item.tax) : (defaultVat || 23));
+                                            const itemQty = item.quantity !== undefined ? parseFloat(item.quantity) : (parseFloat(item.qty) || 1);
+                                            const itemRate = (item.rate !== undefined && item.rate !== null) ? parseFloat(item.rate) : (parseFloat(item.price) || 0);
+                                            const lineGross = itemQty * itemRate;
+
+                                            const discType = meta?.discountType || item.discountType || (item.discount > 0 && item.discount <= 100 && (Math.abs((lineGross * item.discount) / 100 - (item.discountAmount || 0)) < 0.01) ? 'percentage' : 'fixed');
+                                            const discVal = meta?.discount !== undefined ? parseFloat(meta.discount) : (item.discountValue !== undefined ? parseFloat(item.discountValue) : (parseFloat(item.discount || 0) || 0));
+
+                                            let itemDisc = 0;
+                                            if (discType === 'fixed' || discType === 'amount') {
+                                                itemDisc = Math.min(lineGross, Math.max(0, discVal));
+                                            } else {
+                                                itemDisc = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
+                                            }
+
                                             const itemUom = item.uom?.name || item.uom || item.unit || 'Units';
-                                            const itemAmt = (item.amount !== undefined && item.amount !== null && parseFloat(item.amount) <= (itemQty * itemRate) + 0.01)
+                                            const itemAmt = (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount)))
                                                 ? parseFloat(item.amount)
-                                                : Math.max(0, (itemQty * itemRate - itemDisc) * (1 - overallDiscountRatio));
+                                                : Math.max(0, (lineGross - itemDisc) * (1 - overallDiscountRatio));
                                             const isZeroTax = parseFloat(itemTax) === 0;
-                                            const isStandardTax = parseFloat(itemTax) === 23;
-                                            const taxDisplay = isZeroTax ? 'No VAT' : (isStandardTax ? 'Standard' : (item.taxName || `${itemTax}%`));
+                                            const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(Number(itemTax).toFixed(2))}%`);
+                                            const discDisplay = discVal > 0
+                                                ? (discType === 'percentage' ? `${discVal}%` : `-${Number(discVal).toFixed(2)}`)
+                                                : '0%';
 
                                             return (
                                                 <tr key={idx}>
-                                                    <td>{productName}</td>
-                                                    {showWarehouse && <td>{itemDesc}</td>}
-                                                    {showTax && <td>{taxDisplay}</td>}
+                                                    <td className="invoice-cea-activity-cell">{productName}</td>
+                                                    <td className="invoice-cea-desc-cell">{itemDesc}</td>
                                                     {showUom && <td>{itemUom}</td>}
                                                     {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
                                                     {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
-                                                    {showDiscount && <td style={{ textAlign: 'right' }}>{Number(itemDisc).toFixed(2)}</td>}
+                                                    {showDiscount && <td style={{ textAlign: 'right' }}>{discDisplay}</td>}
+                                                    {showTax && <td>{taxDisplay}</td>}
                                                     <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                                 </tr>
                                             );
@@ -5262,49 +5415,29 @@ const Invoice = () => {
                                         We appreciate your business.
                                     </div>
                                     <div className="invoice-cea-totals-grid">
-                                        <span className="invoice-cea-total-label">{getInvoiceLabel('subTotal') || 'SUBTOTAL'}</span>
+                                        <span className="invoice-cea-total-label">SUBTOTAL</span>
                                         <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
 
-                                        {lineDiscountsTotal > 0 && calculatedOvDiscountAmt > 0 ? (
-                                            <>
-                                                <span className="invoice-cea-total-label">LINE DISCOUNT</span>
-                                                <span className="invoice-cea-total-val">-{Number(lineDiscountsTotal).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-label">DISCOUNT</span>
+                                        <span className="invoice-cea-total-val" style={{ color: discountVal > 0 ? '#dc2626' : undefined }}>
+                                            {discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2)}
+                                        </span>
 
-                                                <span className="invoice-cea-total-label">OVERALL DISCOUNT ({ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})</span>
-                                                <span className="invoice-cea-total-val">-{Number(calculatedOvDiscountAmt).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                        <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
 
-                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT</span>
-                                                <span className="invoice-cea-total-val">-{Number(discountVal).toFixed(2)}</span>
-
-                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
-                                            </>
-                                        ) : (calculatedOvDiscountAmt > 0 || ovDiscountValue > 0) ? (
-                                            <>
-                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT ({ovDiscountType === 'percentage' ? `${ovDiscountValue}%` : 'FIXED'})</span>
-                                                <span className="invoice-cea-total-val">-{Number(calculatedOvDiscountAmt || discountVal).toFixed(2)}</span>
-
-                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
-                                            </>
-                                        ) : discountVal > 0 ? (
-                                            <>
-                                                <span className="invoice-cea-total-label">TOTAL DISCOUNT</span>
-                                                <span className="invoice-cea-total-val">-{Number(discountVal).toFixed(2)}</span>
-
-                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
-                                            </>
-                                        ) : null}
-
-                                        <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'TAX'}</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'VAT'}</span>
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
 
-                                        <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'TOTAL'}</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
                                         <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: themeColor || '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
-                                        <span className="invoice-cea-total-label">PAYMENT</span>
-                                        <span className="invoice-cea-total-val">{Number(paidVal).toFixed(2)}</span>
+                                        {parseFloat(paidVal) > 0 && (
+                                            <>
+                                                <span className="invoice-cea-total-label">PAYMENT</span>
+                                                <span className="invoice-cea-total-val">-{Number(paidVal).toFixed(2)}</span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
@@ -6707,10 +6840,10 @@ const Invoice = () => {
                                             <tr>
                                                 <th style={{ width: '22%' }}>{(getTableHeader('item', 'ACTIVITY') || 'ACTIVITY').toUpperCase()}</th>
                                                 <th style={{ width: '22%' }}>DESCRIPTION</th>
-                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '10%' }}>{(getTableHeader('quantity', 'QTY') || 'QTY').toUpperCase()}</th>}
+                                                {getInvoiceLabel('showQty') !== false && <th style={{ width: '9%' }}>{(getTableHeader('quantity', 'QTY') || 'QTY').toUpperCase()}</th>}
                                                 {getInvoiceLabel('showRate') !== false && <th style={{ width: '12%' }}>{(getTableHeader('rate', 'RATE') || 'RATE').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '12%' }}>{(getTableHeader('tax', 'VAT %') || 'VAT %').toUpperCase()}</th>}
-                                                {getInvoiceLabel('showDiscount') !== false && <th style={{ width: '8%' }}>{(getTableHeader('discount', 'DISC.') || 'DISC.').toUpperCase()}</th>}
+                                                <th style={{ width: '12%' }}>{(getTableHeader('discount', 'DISCOUNT') || 'DISCOUNT').toUpperCase()}</th>
+                                                {getInvoiceLabel('showTax') !== false && <th style={{ width: '11%' }}>{(getTableHeader('tax', 'VAT %') || 'VAT %').toUpperCase()}</th>}
                                                 <th style={{ width: '12%' }}>{(getTableHeader('price', 'AMOUNT') || 'AMOUNT').toUpperCase()}</th>
                                                 <th style={{ width: '2%' }}></th>
                                             </tr>
@@ -6832,6 +6965,31 @@ const Invoice = () => {
                                                                 onChange={(e) => updateItem(item.id, 'rate', e.target.value.replace(/-/g, ''))} />
                                                         </td>
                                                     )}
+                                                    <td>
+                                                        <div className="Invoice-compact-discount-input-group" style={{ width: '100%' }}>
+                                                            <input
+                                                                type="number"
+                                                                className="Invoice-compact-discount-number-input"
+                                                                style={{ flex: 1, minWidth: '30px' }}
+                                                                value={item.discount}
+                                                                min="0"
+                                                                placeholder="0"
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === '-' || e.key === 'e') e.preventDefault();
+                                                                    if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
+                                                                }}
+                                                                onChange={(e) => updateItem(item.id, 'discount', e.target.value.replace(/-/g, ''))}
+                                                            />
+                                                            <select
+                                                                className="Invoice-compact-discount-type-select"
+                                                                value={item.discountType || 'percentage'}
+                                                                onChange={(e) => updateItem(item.id, 'discountType', e.target.value)}
+                                                            >
+                                                                <option value="percentage">%</option>
+                                                                <option value="fixed">{formatDocCurrency(0, selectedCurrency).replace(/[0-9.,\s]/g, '') || '€'}</option>
+                                                            </select>
+                                                        </div>
+                                                    </td>
                                                     {getInvoiceLabel('showTax') !== false && (
                                                         <td>
                                                             <select
@@ -6847,17 +7005,6 @@ const Invoice = () => {
                                                                     <option value={item.tax}>{parseFloat(item.tax) === 0 ? 'No VAT' : `${item.tax}%`}</option>
                                                                 )}
                                                             </select>
-                                                        </td>
-                                                    )}
-                                                    {getInvoiceLabel('showDiscount') !== false && (
-                                                        <td>
-                                                            <input type="number" className="Invoice-compact-input text-right" value={item.discount}
-                                                                min="0"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                                                    if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
-                                                                }}
-                                                                onChange={(e) => updateItem(item.id, 'discount', e.target.value.replace(/-/g, ''))} />
                                                         </td>
                                                     )}
                                                     <td>
@@ -7223,45 +7370,19 @@ const Invoice = () => {
                                 <div className="Invoice-compact-totals-box">
                                     <div className="Invoice-compact-totals-top">
                                         <div className="Invoice-compact-t-row">
-                                            <span>Sub Total:</span>
+                                            <span>Subtotal:</span>
                                             <span>{formatDocCurrency(totals.subTotal, selectedCurrency)}</span>
                                         </div>
-                                        {totals.lineDiscountSum > 0 && (
-                                            <div className="Invoice-compact-t-row text-xs text-red-500">
-                                                <span>Line Discounts:</span>
-                                                <span>-{formatDocCurrency(totals.lineDiscountSum, selectedCurrency)}</span>
-                                            </div>
-                                        )}
-                                        <div className="Invoice-compact-t-row Invoice-totals-discount-row">
-                                            <div className="Invoice-totals-discount-label-row">
-                                                <span>Overall Disc:</span>
-                                                <div className="Invoice-compact-discount-input-group">
-                                                    <input
-                                                        type="number"
-                                                        className="Invoice-compact-discount-number-input"
-                                                        value={overallDiscount}
-                                                        onChange={(e) => setOverallDiscount(e.target.value)}
-                                                    />
-                                                    <select
-                                                        className="Invoice-compact-discount-type-select"
-                                                        value={overallDiscountType}
-                                                        onChange={(e) => setOverallDiscountType(e.target.value)}
-                                                    >
-                                                        <option value="percentage">%</option>
-                                                        <option value="fixed">Amt</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <span className="text-red-500">-{formatDocCurrency(totals.ovDiscountAmt, selectedCurrency)}</span>
+                                        <div className="Invoice-compact-t-row" style={{ color: totals.discount > 0 ? '#dc2626' : undefined }}>
+                                            <span>Discount:</span>
+                                            <span>{totals.discount > 0 ? `-${formatDocCurrency(totals.discount, selectedCurrency)}` : formatDocCurrency(0, selectedCurrency)}</span>
                                         </div>
-                                        {totals.totalDiscount > 0 && (
-                                            <div className="Invoice-compact-t-row text-xs font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
-                                                <span>Taxable Amount:</span>
-                                                <span>{formatDocCurrency(totals.discountedTaxable, selectedCurrency)}</span>
-                                            </div>
-                                        )}
+                                        <div className="Invoice-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
+                                            <span>Taxable Amount:</span>
+                                            <span>{formatDocCurrency(totals.discountedTaxable, selectedCurrency)}</span>
+                                        </div>
                                         <div className="Invoice-compact-t-row">
-                                            <span>{getInvoiceLabel('tax', 'VAT')}:</span>
+                                            <span>VAT:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
                                         </div>
                                         {showOtherCharges && otherCharges.filter(c => c.accountId && parseFloat(c.value !== undefined ? c.value : c.amount) > 0).map((charge) => {

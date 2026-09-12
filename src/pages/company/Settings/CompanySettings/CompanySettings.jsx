@@ -452,6 +452,7 @@ const CompanySettings = () => {
     ];
 
     const availableTemplates = Array.from(new Set([
+        'Light Grey',
         'Standard VAT (CEA)',
         ...Object.keys(savedTemplates || {}),
         invoiceSettings.template
@@ -805,7 +806,7 @@ const CompanySettings = () => {
             setInvoiceSettings(prev => ({
                 ...prev,
                 template: newTpl,
-                color: targetConfig.color || prev.color,
+                color: targetConfig.color || (newTpl === 'Light Grey' || newTpl === 'Standard VAT (CEA)' ? '#475569' : prev.color),
                 showQr: targetConfig.showQr !== undefined ? targetConfig.showQr : prev.showQr
             }));
             if (targetConfig.labels) {
@@ -815,7 +816,12 @@ const CompanySettings = () => {
                 setTableHeaders(targetConfig.tableHeaders);
             }
         } else {
-            setInvoiceSettings(prev => ({ ...prev, template: newTpl }));
+            const defaultTplColor = (newTpl === 'Light Grey' || newTpl === 'Standard VAT (CEA)') ? '#475569' : undefined;
+            setInvoiceSettings(prev => ({ 
+                ...prev, 
+                template: newTpl,
+                color: defaultTplColor || prev.color
+            }));
         }
     };
 
@@ -1640,7 +1646,7 @@ const CompanySettings = () => {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                             <label style={{ margin: 0, fontWeight: '600' }}>Invoice Template</label>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                {invoiceSettings.template !== 'Standard VAT (CEA)' && (
+                                                {invoiceSettings.template !== 'Standard VAT (CEA)' && invoiceSettings.template !== 'Light Grey' && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDeleteTemplate(invoiceSettings.template)}
@@ -2009,8 +2015,8 @@ const CompanySettings = () => {
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td>Services</td>
-                                                {invoiceLabels.showWarehouse !== false && <td>56 New cork road, Midleton, Co. Cork</td>}
+                                                <td className="invoice-cea-activity-cell">Services</td>
+                                                {invoiceLabels.showWarehouse !== false && <td className="invoice-cea-desc-cell">56 New cork road, Midleton, Co. Cork</td>}
                                                 {invoiceLabels.showTax !== false && <td>Standard</td>}
                                                 {invoiceLabels.showUom === true && <td>Units</td>}
                                                 {invoiceLabels.showQty !== false && <td style={{ textAlign: 'right' }}>1</td>}
