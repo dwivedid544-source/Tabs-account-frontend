@@ -85,14 +85,18 @@ const InvoiceActionDropdown = ({
     const handleAuditTrail = () => {
         onClose?.();
         if (navigate && invoice) {
+            const invoiceId = invoice.id || invoice.invoiceId || '';
+            const invoiceNum = invoice.invoiceNumber || invoice.number || '';
+            const invoiceType = invoice.type || 'TAX_INVOICE';
+
             navigate(
-                `/company/settings/audit-logs?entity=Invoice&search=${encodeURIComponent(invoice.invoiceNumber || '')}&fromInvoiceId=${invoice.id || ''}&invoiceType=${invoice.type || 'TAX_INVOICE'}&invoiceNumber=${encodeURIComponent(invoice.invoiceNumber || '')}`,
+                `/company/settings/audit-logs?entityType=Invoice&entityId=${invoiceId}&invoiceNumber=${encodeURIComponent(invoiceNum)}`,
                 {
                     state: {
                         fromInvoice: {
-                            id: invoice.id,
-                            invoiceNumber: invoice.invoiceNumber,
-                            type: invoice.type || 'TAX_INVOICE'
+                            id: invoiceId,
+                            invoiceNumber: invoiceNum,
+                            type: invoiceType
                         }
                     }
                 }

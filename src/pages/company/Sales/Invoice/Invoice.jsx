@@ -1934,9 +1934,8 @@ const Invoice = () => {
                 if (res.data?.success) {
                     setNextInvoiceNumber(res.data.nextNumber);
                     setInvoiceMeta(prev => ({ ...prev, manualNo: res.data.nextNumber }));
-                    if (res.data.nextManualReference) {
-                        setManualReference(res.data.nextManualReference);
-                    }
+                    setManualReference('');
+                    setPoNumber('');
                 }
             }
         } catch (error) {
@@ -3205,21 +3204,26 @@ const Invoice = () => {
             const showTax = getInvoiceLabel('showTax') !== false;
 
             const cols = [
-                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 32, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 28, align: 'left', fontStyle: 'bold', getData: it => it.actName },
                 { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
-                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'left', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
-                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QTY'), fixedWidth: 10, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
-                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
+                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
                 ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
-                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'VAT'), fixedWidth: 18, align: 'left', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
-                { key: 'price', header: getTableHeader('price', 'AMOUNT'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 20, align: 'left', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
             ];
 
             const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
             const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
             const flexWidth = Math.max(45, totalPrintableWidth - fixedWidthSum);
 
-            const tableHead = [cols.map(c => c.header)];
+            const tableHead = [
+                cols.map(c => ({
+                    content: c.header,
+                    styles: { halign: c.align }
+                }))
+            ];
             const tableBody = processedItems.map(it => cols.map(c => c.getData(it)));
 
             const columnStyles = {};
@@ -3249,18 +3253,24 @@ const Invoice = () => {
                     textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 8,
-                    cellPadding: 2.8,
+                    cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 },
                     valign: 'middle'
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
                     fontSize: 8,
-                    cellPadding: { top: 3.5, bottom: 3.5, left: 2, right: 2 },
+                    cellPadding: { top: 3.5, bottom: 3.5, left: 2.5, right: 2.5 },
                     valign: 'middle',
                     overflow: 'linebreak',
                     lineHeight: 1.25
                 },
                 columnStyles: columnStyles,
+                didParseCell: (data) => {
+                    const col = cols[data.column.index];
+                    if (col && col.align) {
+                        data.cell.styles.halign = col.align;
+                    }
+                },
                 rowPageBreak: 'avoid',
                 margin: { left: 14, right: 14 }
             });
@@ -3286,20 +3296,24 @@ const Invoice = () => {
             const totValX = 196;
             let totY = postTableY + 1;
 
-            const printTotalLine = (label, val, isBold = false) => {
+            const printTotalLine = (label, val, isBold = false, isDiscount = false) => {
                 doc.setFont('helvetica', isBold ? 'bold' : 'normal');
                 doc.setFontSize(8);
-                doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
+                if (isDiscount && discountVal > 0) {
+                    doc.setTextColor(220, 38, 38);
+                } else {
+                    doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
+                }
                 doc.text(label, totLabelX, totY);
                 doc.text(val, totValX, totY, { align: 'right' });
                 totY += 4.5;
             };
 
             printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
-            printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2));
+            printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2), false, true);
             printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
-            printTotalLine(getInvoiceLabel('tax') || 'VAT', Number(taxVal).toFixed(2));
-            printTotalLine(getInvoiceLabel('total') || 'GRAND TOTAL', Number(totalVal).toFixed(2), true);
+            printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
+            printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
             if (parseFloat(paidVal) > 0) {
                 printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
             }
@@ -3363,10 +3377,15 @@ const Invoice = () => {
             doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
             doc.text('VAT SUMMARY', 14, vatSectionY);
 
-            const vatTableHead = [['', 'RATE', 'VAT', 'NET']];
+            const vatTableHead = [[
+                { content: '', styles: { halign: 'left' } },
+                { content: 'RATE', styles: { halign: 'left' } },
+                { content: 'VAT', styles: { halign: 'right' } },
+                { content: 'NET', styles: { halign: 'right' } }
+            ]];
             const vatTableBody = vatSummaryList.map(v => [
                 '',
-                parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate).toFixed(2))}%`,
+                parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate !== undefined ? v.rate : 23).toFixed(2))}%`,
                 Number(v.vatAmount).toFixed(2),
                 Number(v.netAmount).toFixed(2)
             ]);
@@ -3381,18 +3400,24 @@ const Invoice = () => {
                     textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 7.5,
-                    cellPadding: 1.8
+                    cellPadding: { top: 2, bottom: 2, left: 2.5, right: 2.5 }
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
                     fontSize: 7.5,
-                    cellPadding: 1.6
+                    cellPadding: { top: 2, bottom: 2, left: 2.5, right: 2.5 }
                 },
                 columnStyles: {
-                    0: { cellWidth: 70 },
+                    0: { cellWidth: 70, halign: 'left' },
                     1: { cellWidth: 40, halign: 'left' },
                     2: { cellWidth: 36, halign: 'right' },
                     3: { cellWidth: 36, halign: 'right' }
+                },
+                didParseCell: (data) => {
+                    if (data.column.index === 0) data.cell.styles.halign = 'left';
+                    if (data.column.index === 1) data.cell.styles.halign = 'left';
+                    if (data.column.index === 2) data.cell.styles.halign = 'right';
+                    if (data.column.index === 3) data.cell.styles.halign = 'right';
                 },
                 margin: { left: 14, right: 14 }
             });
@@ -3407,6 +3432,10 @@ const Invoice = () => {
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
             doc.roundedRect(14, bankY, 182, 24, 2, 2, 'FD');
+
+            // Left accent border bar
+            doc.setFillColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.rect(14, bankY, 2, 24).fill();
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.5);
@@ -6405,7 +6434,7 @@ const Invoice = () => {
                                 <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Optional Fields:</span>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={showPoNumberField} onChange={(e) => setShowPoNumberField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
-                                    Purchase Order No.
+                                    Customer PO Number
                                 </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={showCurrencyField} onChange={(e) => setShowCurrencyField(e.target.checked)} style={{ cursor: 'pointer', accentColor: '#1e293b' }} />
@@ -6561,13 +6590,13 @@ const Invoice = () => {
                                     {showPoNumberField && (
                                         <div className="Invoice-meta-col">
                                             <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
-                                                PURCHASE ORDER NO.
+                                                CUSTOMER PO NUMBER
                                             </label>
                                             <input
                                                 type="text"
                                                 value={poNumber}
                                                 onChange={(e) => setPoNumber(e.target.value)}
-                                                placeholder="e.g. PO-00123"
+                                                placeholder="e.g. PO-00123 (Optional)"
                                                 style={{ width: '100%', maxWidth: '280px' }}
                                                 className="Invoice-compact-input"
                                             />
@@ -6737,16 +6766,26 @@ const Invoice = () => {
                                                                     : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0)
                                                                         ? parseFloat(p.taxAccount)
                                                                         : defaultVat);
+                                                                const pDiscount = (p.discount !== undefined && p.discount !== null && p.discount !== '' && !isNaN(parseFloat(p.discount)))
+                                                                    ? parseFloat(p.discount)
+                                                                    : ((p.defaultDiscount !== undefined && p.defaultDiscount !== null && p.defaultDiscount !== '' && !isNaN(parseFloat(p.defaultDiscount)))
+                                                                        ? parseFloat(p.defaultDiscount)
+                                                                        : 0);
+                                                                const rateVal = Number(convertedPrice.toFixed(2)) || 0;
+                                                                const lineGross = 1 * rateVal;
+                                                                const discAmt = (lineGross * Math.min(100, Math.max(0, pDiscount))) / 100;
+                                                                const lineTotal = Math.max(0, lineGross - discAmt);
                                                                 const newItem = {
                                                                     id: Date.now(),
                                                                     productId: pId,
                                                                     serviceId: '',
                                                                     uomId: p.salesUomId || p.uomId || '',
-                                                                    rate: Number(convertedPrice.toFixed(2)) || 0,
+                                                                    rate: rateVal,
                                                                     qty: 1,
                                                                     tax: pTax,
-                                                                    discount: 0,
-                                                                    total: Number(convertedPrice.toFixed(2)) || 0,
+                                                                    discount: pDiscount,
+                                                                    discountType: 'percentage',
+                                                                    total: Number(lineTotal.toFixed(2)) || 0,
                                                                     description: p.name,
                                                                     warehouseId: autoWarehouseId
                                                                 };
@@ -6767,16 +6806,24 @@ const Invoice = () => {
                                                                 const sTax = (s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' && parseFloat(s.taxRate) > 0)
                                                                     ? parseFloat(s.taxRate)
                                                                     : defaultVat;
+                                                                const sDiscount = (s.discount !== undefined && s.discount !== null && s.discount !== '' && !isNaN(parseFloat(s.discount)))
+                                                                    ? parseFloat(s.discount)
+                                                                    : 0;
+                                                                const sRate = Number(convertedPrice.toFixed(2)) || 0;
+                                                                const sGross = 1 * sRate;
+                                                                const sDiscAmt = (sGross * Math.min(100, Math.max(0, sDiscount))) / 100;
+                                                                const sTotal = Math.max(0, sGross - sDiscAmt);
                                                                 const newItem = {
                                                                     id: Date.now(),
                                                                     serviceId: sId,
                                                                     productId: '',
                                                                     uomId: '',
-                                                                    rate: Number(convertedPrice.toFixed(2)) || 0,
+                                                                    rate: sRate,
                                                                     qty: 1,
                                                                     tax: sTax,
-                                                                    discount: 0,
-                                                                    total: Number(convertedPrice.toFixed(2)) || 0,
+                                                                    discount: sDiscount,
+                                                                    discountType: 'percentage',
+                                                                    total: Number(sTotal.toFixed(2)) || 0,
                                                                     description: s.name
                                                                 };
                                                                 setItems(prev => {
@@ -6880,6 +6927,11 @@ const Invoice = () => {
                                                                         }
                                                                         const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
                                                                         const convertedPrice = p.salePrice ? (p.salePrice / conversionRate) : 0;
+                                                                        const pDiscount = (p.discount !== undefined && p.discount !== null && p.discount !== '' && !isNaN(parseFloat(p.discount)))
+                                                                            ? parseFloat(p.discount)
+                                                                            : ((p.defaultDiscount !== undefined && p.defaultDiscount !== null && p.defaultDiscount !== '' && !isNaN(parseFloat(p.defaultDiscount)))
+                                                                                ? parseFloat(p.defaultDiscount)
+                                                                                : 0);
                                                                         updateItem(item.id, {
                                                                             productId: pId,
                                                                             serviceId: '',
@@ -6890,6 +6942,8 @@ const Invoice = () => {
                                                                                 : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0)
                                                                                     ? parseFloat(p.taxAccount)
                                                                                     : defaultVat),
+                                                                            discount: pDiscount,
+                                                                            discountType: 'percentage',
                                                                             description: item.description || p.name,
                                                                             warehouseId: autoWarehouseId
                                                                         });
@@ -6900,6 +6954,9 @@ const Invoice = () => {
                                                                     if (s) {
                                                                         const conversionRate = getSyncRate(selectedCurrency, companySettings?.currency || 'INR') || 1.0;
                                                                         const convertedPrice = s.price ? (s.price / conversionRate) : 0;
+                                                                        const sDiscount = (s.discount !== undefined && s.discount !== null && s.discount !== '' && !isNaN(parseFloat(s.discount)))
+                                                                            ? parseFloat(s.discount)
+                                                                            : 0;
                                                                         updateItem(item.id, {
                                                                             serviceId: sId,
                                                                             productId: '',
@@ -6907,6 +6964,8 @@ const Invoice = () => {
                                                                             tax: (s.taxRate !== undefined && s.taxRate !== null && s.taxRate !== '' && parseFloat(s.taxRate) > 0)
                                                                                 ? parseFloat(s.taxRate)
                                                                                 : defaultVat,
+                                                                            discount: sDiscount,
+                                                                            discountType: 'percentage',
                                                                             description: item.description || s.name
                                                                         });
                                                                     }
@@ -6916,6 +6975,8 @@ const Invoice = () => {
                                                                         serviceId: '',
                                                                         rate: 0,
                                                                         tax: defaultVat,
+                                                                        discount: 0,
+                                                                        discountType: 'percentage',
                                                                         description: ''
                                                                     });
                                                                 }

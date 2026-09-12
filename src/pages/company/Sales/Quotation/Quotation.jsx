@@ -1034,6 +1034,20 @@ const Quotation = () => {
         }
         if (!selectedProduct && !selectedService) return;
 
+        const pDisc = selectedProduct
+            ? ((selectedProduct.discount !== undefined && selectedProduct.discount !== null && selectedProduct.discount !== '' && !isNaN(parseFloat(selectedProduct.discount)))
+                ? parseFloat(selectedProduct.discount)
+                : ((selectedProduct.defaultDiscount !== undefined && selectedProduct.defaultDiscount !== null && !isNaN(parseFloat(selectedProduct.defaultDiscount)))
+                    ? parseFloat(selectedProduct.defaultDiscount)
+                    : 0))
+            : 0;
+        const rateVal = selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0);
+        const taxVal = selectedProduct ? (selectedProduct.taxRate || 0) : (selectedService?.taxRate || 0);
+        const subtotal = 1 * rateVal;
+        const taxable = subtotal - pDisc;
+        const taxAmount = (taxable * taxVal) / 100;
+        const totalVal = taxable + taxAmount;
+
         const newItem = {
             id: Date.now(),
             productId: selectedProduct ? selectedProduct.id : '',
@@ -1041,11 +1055,11 @@ const Quotation = () => {
             warehouseId: selectedProduct ? (allWarehouses[0]?.id || '') : '',
             qty: 1,
             uomId: selectedProduct ? (selectedProduct.salesUomId || selectedProduct.uomId || '') : '',
-            rate: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0),
-            tax: selectedProduct ? (selectedProduct.taxRate || 0) : (selectedService?.taxRate || 0),
-            discount: 0,
+            rate: rateVal,
+            tax: taxVal,
+            discount: pDisc,
             description: selectedProduct ? selectedProduct.name : selectedService?.name || '',
-            total: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0)
+            total: totalVal
         };
 
         setItems(prev => {
@@ -1800,11 +1814,17 @@ const Quotation = () => {
                                                                             const pId = eventValue.split('-')[1];
                                                                             const p = allProducts.find(x => x.id === parseInt(pId));
                                                                             if (p) {
+                                                                                const pDisc = (p.discount !== undefined && p.discount !== null && p.discount !== '' && !isNaN(parseFloat(p.discount)))
+                                                                                    ? parseFloat(p.discount)
+                                                                                    : ((p.defaultDiscount !== undefined && p.defaultDiscount !== null && !isNaN(parseFloat(p.defaultDiscount)))
+                                                                                        ? parseFloat(p.defaultDiscount)
+                                                                                        : 0);
                                                                                 updateItem(item.id, {
                                                                                     productId: pId,
                                                                                     serviceId: '',
                                                                                     rate: p.salePrice || 0,
                                                                                     tax: p.taxRate || defaultVat || 0,
+                                                                                    discount: pDisc,
                                                                                     description: item.description || p.name,
                                                                                     uomId: p.salesUomId || p.uomId || ''
                                                                                 });
@@ -1818,6 +1838,7 @@ const Quotation = () => {
                                                                                     productId: '',
                                                                                     rate: s.price || 0,
                                                                                     tax: s.taxRate || defaultVat || 0,
+                                                                                    discount: 0,
                                                                                     description: item.description || s.name,
                                                                                     uomId: s.uomId || ''
                                                                                 });
@@ -1828,6 +1849,7 @@ const Quotation = () => {
                                                                                 serviceId: '',
                                                                                 rate: 0,
                                                                                 tax: defaultVat || 0,
+                                                                                discount: 0,
                                                                                 description: '',
                                                                                 uomId: ''
                                                                             });

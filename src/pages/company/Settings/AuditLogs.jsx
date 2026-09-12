@@ -20,26 +20,34 @@ const AuditLogs = () => {
     const { currentUser } = useContext(AuthContext);
     const isSuperAdmin = currentUser?.role?.toUpperCase() === 'SUPERADMIN';
 
-    const [searchParams] = useSearchParams();
-    const initialSearch = searchParams.get('search') || searchParams.get('invoiceNumber') || '';
-    const initialEntity = searchParams.get('entity') || (initialSearch ? 'Invoice' : '');
-    const initialAction = searchParams.get('action') || '';
-    const initialEntityId = searchParams.get('entityId') || searchParams.get('invoiceId') || '';
+    const [searchParams, setSearchParams] = useSearchParams();
+    const queryEntityType = searchParams.get('entityType') || searchParams.get('entity') || '';
+    const queryEntityId = searchParams.get('entityId') || searchParams.get('invoiceId') || searchParams.get('fromInvoiceId') || '';
+    const querySearch = searchParams.get('search') || '';
+    const queryAction = searchParams.get('action') || '';
+    const queryInvoiceNumber = searchParams.get('invoiceNumber') || '';
+    const queryInvoiceType = searchParams.get('invoiceType') || searchParams.get('type') || '';
+
+    const initialEntity = queryEntityType || (queryEntityId ? 'Invoice' : '');
+    const initialEntityId = queryEntityId;
+    const initialSearch = querySearch;
+    const initialAction = queryAction;
 
     // Preserve invoice context from navigation state or URL query params
     const fromInvoiceState = location.state?.fromInvoice;
-    const fromInvoiceParamId = searchParams.get('fromInvoiceId') || searchParams.get('invoiceId');
-    const fromInvoiceParamNumber = searchParams.get('invoiceNumber');
-    const fromInvoiceParamType = searchParams.get('invoiceType') || searchParams.get('type');
+    const fromInvoiceParamId = queryEntityId;
+    const fromInvoiceParamNumber = queryInvoiceNumber;
+    const fromInvoiceParamType = queryInvoiceType;
 
     // Consolidated invoice origin context
     const invoiceContext = fromInvoiceState || (fromInvoiceParamId || fromInvoiceParamNumber ? {
         id: fromInvoiceParamId ? (isNaN(parseInt(fromInvoiceParamId)) ? fromInvoiceParamId : parseInt(fromInvoiceParamId)) : undefined,
-        invoiceNumber: fromInvoiceParamNumber || searchParams.get('search') || '',
+        invoiceNumber: fromInvoiceParamNumber || '',
         type: fromInvoiceParamType || 'TAX_INVOICE'
     } : null);
 
-    const [resolvedInvoiceId, setResolvedInvoiceId] = useState(invoiceContext?.id || null);
+    const [resolvedInvoiceId, setResolvedInvoiceId] = useState(invoiceContext?.id || (queryEntityId && !isNaN(parseInt(queryEntityId)) ? parseInt(queryEntityId) : null));
+    const [resolvedInvoiceNumber, setResolvedInvoiceNumber] = useState(invoiceContext?.invoiceNumber || queryInvoiceNumber || '');
 
     const [logs, setLogs] = useState([]);
     const [users, setUsers] = useState([]);
@@ -285,6 +293,33 @@ const AuditLogs = () => {
         }
     }, [isSuperAdmin]);
 
+    // Synchronize filters when URL search parameters change (deep linking / back-forward navigation)
+    useEffect(() => {
+        const pEntityType = searchParams.get('entityType') || searchParams.get('entity') || '';
+        const pEntityId = searchParams.get('entityId') || searchParams.get('invoiceId') || searchParams.get('fromInvoiceId') || '';
+        const pSearch = searchParams.get('search') || '';
+        const pAction = searchParams.get('action') || '';
+        const pInvoiceNum = searchParams.get('invoiceNumber') || '';
+
+        if (pEntityType || pEntityId) {
+            setEntity(pEntityType || (pEntityId ? 'Invoice' : ''));
+            setEntityId(pEntityId);
+            setSearch(pSearch);
+            if (pAction) setAction(pAction);
+            if (pEntityId) setResolvedInvoiceId(isNaN(parseInt(pEntityId)) ? pEntityId : parseInt(pEntityId));
+            if (pInvoiceNum) setResolvedInvoiceNumber(pInvoiceNum);
+            setPage(1);
+        } else if (!searchParams.toString()) {
+            setEntity('');
+            setEntityId('');
+            setSearch('');
+            setAction('');
+            setResolvedInvoiceId(null);
+            setResolvedInvoiceNumber('');
+            setPage(1);
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         fetchAuditLogs();
     }, [page, limit, action, entity, entityId, userId, selectedCompanyId, startDate, endDate]);
@@ -325,6 +360,7 @@ const AuditLogs = () => {
                 search: search.trim() || undefined,
                 action: action || undefined,
                 entity: entity || undefined,
+                entityType: entity || undefined,
                 entityId: entityId.trim() || undefined,
                 userId: userId || undefined,
                 companyId: selectedCompanyId || undefined,
@@ -341,10 +377,22 @@ const AuditLogs = () => {
                     setTotalLogs(response.data.pagination.total || 0);
                 }
 
-                if (!invoiceContext?.id && fetchedLogs.length > 0) {
+                if (!resolvedInvoiceId && fetchedLogs.length > 0) {
                     const match = fetchedLogs.find(l => (l.entity === 'Invoice' || l.entityType === 'Invoice' || l.entity === 'Sales Invoice') && l.entityId);
                     if (match && match.entityId) {
                         setResolvedInvoiceId(match.entityId);
+                    }
+                }
+
+                if (!resolvedInvoiceNumber && fetchedLogs.length > 0) {
+                    for (const l of fetchedLogs) {
+                        try {
+                            const p = typeof l.details === 'string' ? JSON.parse(l.details) : l.details;
+                            if (p?.invoiceNumber) {
+                                setResolvedInvoiceNumber(p.invoiceNumber);
+                                break;
+                            }
+                        } catch {}
                     }
                 }
             }
@@ -372,6 +420,9 @@ const AuditLogs = () => {
         setStartDate('');
         setEndDate('');
         setPage(1);
+        setResolvedInvoiceId(null);
+        setResolvedInvoiceNumber('');
+        setSearchParams({}, { replace: true });
     };
 
     const getActionBadge = (act) => {
@@ -529,12 +580,12 @@ const AuditLogs = () => {
         );
     };
 
-    const activeInvoiceNumber = invoiceContext?.invoiceNumber || (entity === 'Invoice' && search.trim() ? search.trim() : (searchParams.get('entity') === 'Invoice' && searchParams.get('search') ? searchParams.get('search') : ''));
-    const hasInvoiceContext = Boolean(resolvedInvoiceId || invoiceContext?.id || activeInvoiceNumber);
+    const activeInvoiceNumber = resolvedInvoiceNumber || invoiceContext?.invoiceNumber || (entity === 'Invoice' && search.trim() ? search.trim() : '');
+    const hasInvoiceContext = Boolean(resolvedInvoiceId || invoiceContext?.id || (entity === 'Invoice' && entityId) || activeInvoiceNumber);
 
     const handleBack = () => {
-        const targetInvoiceId = invoiceContext?.id || resolvedInvoiceId;
-        const targetInvoiceNumber = invoiceContext?.invoiceNumber || activeInvoiceNumber;
+        const targetInvoiceId = invoiceContext?.id || resolvedInvoiceId || (entity === 'Invoice' && !isNaN(parseInt(entityId)) ? parseInt(entityId) : undefined);
+        const targetInvoiceNumber = invoiceContext?.invoiceNumber || resolvedInvoiceNumber || activeInvoiceNumber;
         const targetType = invoiceContext?.type || searchParams.get('invoiceType') || searchParams.get('type') || 'TAX_INVOICE';
 
         if (targetInvoiceId || targetInvoiceNumber) {
@@ -922,6 +973,51 @@ const AuditLogs = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Active Invoice Filter Banner */}
+            {((entity === 'Invoice' && entityId) || (searchParams.get('entityType') === 'Invoice' && searchParams.get('entityId'))) && (
+                <div className="audit-active-invoice-banner" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 16px',
+                    backgroundColor: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '8px',
+                    marginBottom: '1rem',
+                    fontSize: '0.875rem',
+                    color: '#1e40af'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Info size={16} style={{ color: '#2563eb', flexShrink: 0 }} />
+                        <span>
+                            Showing audit records for Invoice: <strong>{activeInvoiceNumber || `#${entityId}`}</strong> {entityId && <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>(ID: {entityId})</span>}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            color: '#2563eb',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            transition: 'all 0.15s ease'
+                        }}
+                        title="Clear invoice filter and view all audit records"
+                    >
+                        <X size={13} />
+                        <span>Clear Filter (View All Logs)</span>
+                    </button>
+                </div>
+            )}
 
             {/* Filter and Search Panel */}
             <div className="audit-filters-card">

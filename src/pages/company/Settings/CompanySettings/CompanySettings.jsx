@@ -2082,15 +2082,13 @@ const CompanySettings = () => {
                                             <table className="invoice-cea-vat-table">
                                                 <thead>
                                                     <tr style={{ backgroundColor: invoiceSettings.color || '#dedede' }}>
-                                                        <th style={{ width: '38%', textAlign: 'left' }}></th>
-                                                        <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>RATE</th>
-                                                        <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>VAT</th>
-                                                        <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>NET</th>
+                                                        <th style={{ width: '40%', textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>RATE</th>
+                                                        <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>VAT</th>
+                                                        <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>NET</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <tr>
-                                                        <td></td>
                                                         <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
                                                         <td style={{ textAlign: 'right' }}>46.00</td>
                                                         <td style={{ textAlign: 'right' }}>200.00</td>

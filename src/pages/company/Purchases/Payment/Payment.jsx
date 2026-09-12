@@ -497,11 +497,8 @@ const Payment = () => {
                 setSelectedBillIds(prevIds => prevIds.includes(billId) ? prevIds : [...prevIds, billId]);
             }
             const newTotalAllocatedBase = calcAllocationsTotalBase(updated);
-            const totalLimitBase = parseFloat(amount || 0) + parseFloat(discountAmount || 0);
-            if (newTotalAllocatedBase > totalLimitBase) {
-                const cashNeededBase = Math.max(0, newTotalAllocatedBase - parseFloat(discountAmount || 0));
-                setAmount(parseFloat(cashNeededBase.toFixed(2)));
-            }
+            const cashNeededBase = Math.max(0, newTotalAllocatedBase - parseFloat(discountAmount || 0));
+            setAmount(parseFloat(cashNeededBase.toFixed(2)));
             return updated;
         });
     };

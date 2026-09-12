@@ -1075,7 +1075,23 @@ const SalesOrder = () => {
             const sId = val.split('-')[1];
             selectedService = allServices.find(x => String(x.id) === String(sId));
         }
-        if (!selectedProduct && !selectedService) return;
+        const pDisc = selectedProduct
+            ? ((selectedProduct.discount !== undefined && selectedProduct.discount !== null && selectedProduct.discount !== '' && !isNaN(parseFloat(selectedProduct.discount)))
+                ? parseFloat(selectedProduct.discount)
+                : ((selectedProduct.defaultDiscount !== undefined && selectedProduct.defaultDiscount !== null && !isNaN(parseFloat(selectedProduct.defaultDiscount)))
+                    ? parseFloat(selectedProduct.defaultDiscount)
+                    : 0))
+            : 0;
+        const rateVal = selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0);
+        const taxVal = selectedProduct
+            ? ((selectedProduct.taxRate !== undefined && selectedProduct.taxRate !== null && selectedProduct.taxRate !== '' && parseFloat(selectedProduct.taxRate) > 0)
+                ? parseFloat(selectedProduct.taxRate)
+                : ((selectedProduct.taxAccount && !isNaN(parseFloat(selectedProduct.taxAccount)) && parseFloat(selectedProduct.taxAccount) > 0) ? parseFloat(selectedProduct.taxAccount) : defaultVat))
+            : ((selectedService && selectedService.taxRate !== undefined && selectedService.taxRate !== null && selectedService.taxRate !== '' && parseFloat(selectedService.taxRate) > 0) ? parseFloat(selectedService.taxRate) : defaultVat);
+        const subtotal = 1 * rateVal;
+        const taxable = subtotal - pDisc;
+        const taxAmount = (taxable * taxVal) / 100;
+        const totalVal = taxable + taxAmount;
 
         const newItem = {
             id: Date.now(),
@@ -1084,15 +1100,11 @@ const SalesOrder = () => {
             warehouseId: selectedProduct ? (allWarehouses[0]?.id || '') : '',
             qty: 1,
             uomId: selectedProduct ? (selectedProduct.salesUomId || selectedProduct.uomId || '') : '',
-            rate: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0),
-            tax: selectedProduct
-                ? ((selectedProduct.taxRate !== undefined && selectedProduct.taxRate !== null && selectedProduct.taxRate !== '' && parseFloat(selectedProduct.taxRate) > 0)
-                    ? parseFloat(selectedProduct.taxRate)
-                    : ((selectedProduct.taxAccount && !isNaN(parseFloat(selectedProduct.taxAccount)) && parseFloat(selectedProduct.taxAccount) > 0) ? parseFloat(selectedProduct.taxAccount) : defaultVat))
-                : ((selectedService && selectedService.taxRate !== undefined && selectedService.taxRate !== null && selectedService.taxRate !== '' && parseFloat(selectedService.taxRate) > 0) ? parseFloat(selectedService.taxRate) : defaultVat),
-            discount: 0,
+            rate: rateVal,
+            tax: taxVal,
+            discount: pDisc,
             description: selectedProduct ? selectedProduct.name : selectedService?.name || '',
-            total: selectedProduct ? (selectedProduct.salePrice || 0) : (selectedService?.price || 0)
+            total: totalVal
         };
 
         setItems(prev => {
@@ -2024,11 +2036,17 @@ const SalesOrder = () => {
                                                                                 const pTax = (p.taxRate !== undefined && p.taxRate !== null && p.taxRate !== '' && parseFloat(p.taxRate) > 0)
                                                                                     ? parseFloat(p.taxRate)
                                                                                     : ((p.taxAccount && !isNaN(parseFloat(p.taxAccount)) && parseFloat(p.taxAccount) > 0) ? parseFloat(p.taxAccount) : defaultVat);
+                                                                                const pDisc = (p.discount !== undefined && p.discount !== null && p.discount !== '' && !isNaN(parseFloat(p.discount)))
+                                                                                    ? parseFloat(p.discount)
+                                                                                    : ((p.defaultDiscount !== undefined && p.defaultDiscount !== null && !isNaN(parseFloat(p.defaultDiscount)))
+                                                                                        ? parseFloat(p.defaultDiscount)
+                                                                                        : 0);
                                                                                 updateItem(item.id, {
                                                                                     productId: pId,
                                                                                     serviceId: '',
                                                                                     rate: p.salePrice || 0,
                                                                                     tax: pTax,
+                                                                                    discount: pDisc,
                                                                                     description: item.description || p.name,
                                                                                     uomId: p.salesUomId || p.uomId || ''
                                                                                 });
@@ -2045,6 +2063,7 @@ const SalesOrder = () => {
                                                                                     productId: '',
                                                                                     rate: s.price || 0,
                                                                                     tax: sTax,
+                                                                                    discount: 0,
                                                                                     description: item.description || s.name,
                                                                                     uomId: s.uomId || ''
                                                                                 });
@@ -2055,6 +2074,7 @@ const SalesOrder = () => {
                                                                                 serviceId: '',
                                                                                 rate: 0,
                                                                                 tax: defaultVat,
+                                                                                discount: 0,
                                                                                 description: '',
                                                                                 uomId: ''
                                                                             });

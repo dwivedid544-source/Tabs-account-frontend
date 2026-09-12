@@ -492,10 +492,10 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
                                         <span className="invoice-cea-kv-val">{document.date ? formatCeaDate(document.date) : '06-05-2026'}</span>
 
-                                        {document?.poNumber && (
+                                        {(document?.poNumber && typeof document.poNumber === 'string' && document.poNumber.trim()) && (
                                             <>
                                                 <span className="invoice-cea-kv-key">P.O. #</span>
-                                                <span className="invoice-cea-kv-val">{document.poNumber}</span>
+                                                <span className="invoice-cea-kv-val">{document.poNumber.trim()}</span>
                                             </>
                                         )}
 
@@ -539,7 +539,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                             </th>
                                         )}
                                         {showTax && (
-                                            <th style={{ width: '9%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                 {getTableHeader('tax', 'VAT')}
                                             </th>
                                         )}
@@ -586,7 +586,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                                 {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
                                                 {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
                                                 {showDiscount && <td style={{ textAlign: 'right' }}>{discDisplay}</td>}
-                                                {showTax && <td>{taxDisplay}</td>}
+                                                {showTax && <td style={{ textAlign: 'right' }}>{taxDisplay}</td>}
                                                 <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                             </tr>
                                         );
@@ -684,16 +684,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 <table className="invoice-cea-vat-table">
                                     <thead>
                                         <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                            <th style={{ width: '38%', textAlign: 'left', color: getContrastTextColor(themeColor) }}></th>
-                                            <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
-                                            <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
-                                            <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
+                                            <th style={{ width: '40%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
+                                            <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
+                                            <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {vatSummaryList.map((vat, i) => (
                                             <tr key={i}>
-                                                <td></td>
                                                 <td style={{ textAlign: 'left' }}>{parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(vat.rate !== undefined ? vat.rate : 23).toFixed(2))}%`}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
                                                 <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>

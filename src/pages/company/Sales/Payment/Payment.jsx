@@ -461,11 +461,8 @@ const Payment = () => {
                 setSelectedInvoiceIds(prevIds => prevIds.includes(invoiceId) ? prevIds : [...prevIds, invoiceId]);
             }
             const newTotalAllocatedBase = Object.values(updated).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-            const totalLimit = parseFloat(amountReceived || 0) + parseFloat(discountAmount || 0) - parseFloat(taxDeductedAmount || 0);
-            if (newTotalAllocatedBase > totalLimit) {
-                const cashNeeded = Math.max(0, newTotalAllocatedBase - parseFloat(discountAmount || 0) + parseFloat(taxDeductedAmount || 0));
-                setAmountReceived(cashNeeded.toFixed(2));
-            }
+            const cashNeeded = Math.max(0, newTotalAllocatedBase - parseFloat(discountAmount || 0) + parseFloat(taxDeductedAmount || 0));
+            setAmountReceived(cashNeeded.toFixed(2));
             return updated;
         });
     };
@@ -584,7 +581,13 @@ const Payment = () => {
             }
 
             const advanceVal = showAdvance ? parseFloat(advanceAmount || 0) : 0;
-            const totalAmount = parseFloat(amountReceived || 0) + advanceVal;
+            const totalAllocatedBase = selectedInvoiceIds.reduce((sum, id) => sum + (parseFloat(allocations[id]) || 0), 0);
+            const discountVal = parseFloat(discountAmount || 0);
+            const taxVal = parseFloat(taxDeductedAmount || 0);
+            const netCashForAllocations = selectedInvoiceIds.length > 0
+                ? Math.max(0, totalAllocatedBase - discountVal + taxVal)
+                : parseFloat(amountReceived || 0);
+            const totalAmount = parseFloat((netCashForAllocations + advanceVal).toFixed(2));
 
             if (totalAmount <= 0) {
                 toast.error('Please enter a valid received or advance amount');
@@ -597,7 +600,6 @@ const Payment = () => {
             }
 
             const companyId = GetCompanyId();
-            const discountVal = parseFloat(discountAmount || 0);
             const allocationsArray = Object.entries(allocations)
                 .filter(([invoiceId]) => selectedInvoiceIds.includes(parseInt(invoiceId)))
                 .map(([invoiceId, amountInBase], index) => {
@@ -975,7 +977,10 @@ const Payment = () => {
 
         const currentNotes = notes || '';
         const currentTerms = terms || '';
-        const unallocated = Math.max(0, parseFloat(amountReceived || 0) - totalAllocated);
+        const totalAllocatedSum = Object.values(allocations).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+        const advanceVal = showAdvance ? parseFloat(advanceAmount || 0) : 0;
+        const effectiveAmountReceived = totalAllocatedSum > 0 ? (totalAllocatedSum + advanceVal) : parseFloat(amountReceived || 0);
+        const unallocated = Math.max(0, effectiveAmountReceived - totalAllocatedSum);
 
         const receiptHTML = `
             <div id="payment-receipt-print" style="font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1e293b;background:#fff;padding:32px;max-width:720px;margin:0 auto;">
@@ -1007,7 +1012,7 @@ const Payment = () => {
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;">
                         <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Customer</div><div style="font-weight:500;">${customerName || '-'}</div></div>
                         <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Payment Mode</div><div style="font-weight:500;">${paymentMode || '-'}</div></div>
-                        <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Amount Received</div><div style="font-weight:600;">${formatCurrency(amountReceived || 0)}</div></div>
+                        <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Amount Received</div><div style="font-weight:600;">${formatCurrency(effectiveAmountReceived)}</div></div>
                         <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Reference No</div><div style="font-weight:500;">${reference || '-'}</div></div>
                         ${parseFloat(discountAmount || 0) > 0 ? `<div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Discount Given</div><div style="font-weight:500;">${formatCurrency(discountAmount)}</div></div>` : ''}
                     </div>
@@ -1032,8 +1037,8 @@ const Payment = () => {
                 </div>` : ''}
 
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;margin-bottom:18px;font-size:0.85rem;">
-                    <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Total Received</div><div style="font-weight:700;">${formatCurrency(amountReceived || 0)}</div></div>
-                    <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Total Allocated</div><div style="font-weight:700;color:#2563eb;">${formatCurrency(totalAllocated)}</div></div>
+                    <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Total Received</div><div style="font-weight:700;">${formatCurrency(effectiveAmountReceived)}</div></div>
+                    <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Total Allocated</div><div style="font-weight:700;color:#2563eb;">${formatCurrency(totalAllocatedSum)}</div></div>
                     <div><div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;">Unallocated</div><div style="font-weight:700;color:#334155;">${formatCurrency(unallocated)}</div></div>
                 </div>
 
@@ -1389,9 +1394,17 @@ const Payment = () => {
                                     const recRate = getSyncRate(recCurr, companySettings?.currency || 'INR') || 1.0;
                                     const isForeignRec = recCurr !== (companySettings?.currency || 'INR');
 
+                                    const allocatedTotal = (currentPayment?.allocations && currentPayment.allocations.length > 0)
+                                        ? currentPayment.allocations.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
+                                        : 0;
+                                    const explicitAdvance = parseFloat(currentPayment?.advanceAmount || 0);
+                                    const effectivePaymentAmount = allocatedTotal > 0
+                                        ? (allocatedTotal + explicitAdvance)
+                                        : parseFloat(currentPayment?.amount || 0);
+
                                     const amountText = isForeignRec
-                                        ? `${formatDocCurrency(currentPayment?.amount || 0, recCurr)} (${formatCurrency((currentPayment?.amount || 0) * recRate)})`
-                                        : formatCurrency(currentPayment?.amount || 0);
+                                        ? `${formatDocCurrency(effectivePaymentAmount, recCurr)} (${formatCurrency(effectivePaymentAmount * recRate)})`
+                                        : formatCurrency(effectivePaymentAmount);
 
                                     const discountText = currentPayment?.discountAmount > 0
                                         ? (isForeignRec
@@ -1410,11 +1423,11 @@ const Payment = () => {
                                             <div className="SalesPayment-receipt-amount-value">
                                                 {isForeignRec ? (
                                                     <>
-                                                        <div style={{ fontSize: '1.25rem', fontWeight: 'normal', color: '#64748b' }}>{formatDocCurrency(currentPayment?.amount || 0, recCurr)}</div>
-                                                        <div>{formatCurrency((currentPayment?.amount || 0) * recRate)}</div>
+                                                        <div style={{ fontSize: '1.25rem', fontWeight: 'normal', color: '#64748b' }}>{formatDocCurrency(effectivePaymentAmount, recCurr)}</div>
+                                                        <div>{formatCurrency(effectivePaymentAmount * recRate)}</div>
                                                     </>
                                                 ) : (
-                                                    formatCurrency(currentPayment?.amount || 0)
+                                                    formatCurrency(effectivePaymentAmount)
                                                 )}
                                             </div>
                                         </div>
@@ -2355,7 +2368,7 @@ const Payment = () => {
                     {!isViewMode && (
                         <div className="SalesPayment-modal-footer">
                             <div className="SalesPayment-footer-left">
-                                <button className="SalesPayment-btn-secondary">
+                                <button type="button" className="SalesPayment-btn-secondary" onClick={handlePrintReceipt}>
                                     <Printer size={16} /> Print Receipt
                                 </button>
                             </div>
