@@ -48,6 +48,7 @@ import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import InvoiceActionDropdown from './InvoiceActionDropdown';
+import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount } from './invoiceFinancials';
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -69,6 +70,8 @@ const getTintBg = (hexColor, alpha = 0.08) => {
     const b = parseInt(hex.substr(4, 2), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+const tol = 0.01;
 
 const hexToRgb = (hex) => {
     if (!hex) return [0, 74, 173];
@@ -2043,22 +2046,19 @@ const Invoice = () => {
                     updatedItem = { ...item, [field]: value };
                 }
 
-                const qty = parseFloat(updatedItem.qty) || 0;
-                const rate = parseFloat(updatedItem.rate) || 0;
-                const tax = parseFloat(updatedItem.tax) || 0;
-                const discVal = parseFloat(updatedItem.discount) || 0;
+                // Discount validation: percentage cannot exceed 100%
                 const discType = updatedItem.discountType || 'percentage';
-
-                const lineGross = qty * rate;
-                let itemDiscountAmt = 0;
-                if (discType === 'fixed' || discType === 'amount') {
-                    itemDiscountAmt = Math.min(lineGross, Math.max(0, discVal));
-                } else {
-                    itemDiscountAmt = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
+                const discVal = parseFloat(updatedItem.discount) || 0;
+                if ((discType === 'percentage' || !discType) && discVal > 100) {
+                    toast.error('Discount percentage cannot exceed 100%');
+                    updatedItem.discount = 100;
+                } else if (discVal < 0) {
+                    toast.error('Discount cannot be negative');
+                    updatedItem.discount = 0;
                 }
 
-                const taxable = Math.max(0, lineGross - itemDiscountAmt);
-                updatedItem.total = taxable;
+                const computedLine = computeInvoiceLine(updatedItem);
+                updatedItem.total = computedLine.net;
                 return updatedItem;
             }
             return item;
@@ -2066,63 +2066,31 @@ const Invoice = () => {
     };
 
     const calculateTotals = () => {
-        let subTotal = 0;
-        let totalDiscount = 0;
-        let totalTax = 0;
+        const otherChargesList = showOtherCharges ? otherCharges : [];
+        const financials = computeInvoiceFinancials(items, {
+            otherCharges: otherChargesList,
+            roundOff: 0,
+            paymentsReceived: 0
+        });
+
         const itemDiscountedAmounts = {};
-
-        items.forEach(item => {
-            const qty = parseFloat(item.qty) || 0;
-            const rate = parseFloat(item.rate) || 0;
-            const taxRate = parseFloat(item.tax) || 0;
-            const discVal = parseFloat(item.discount) || 0;
-            const discType = item.discountType || 'percentage';
-
-            const lineGross = qty * rate;
-            let itemDiscountAmt = 0;
-            if (discType === 'fixed' || discType === 'amount') {
-                itemDiscountAmt = Math.min(lineGross, Math.max(0, discVal));
-            } else {
-                itemDiscountAmt = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
-            }
-
-            const lineTaxable = Math.max(0, lineGross - itemDiscountAmt);
-            itemDiscountedAmounts[item.id] = lineTaxable;
-
-            subTotal += lineGross;
-            totalDiscount += itemDiscountAmt;
-
-            if (taxRate > 0) {
-                const lineTax = (lineTaxable * taxRate) / 100;
-                totalTax += lineTax;
+        financials.computedLines.forEach(line => {
+            if (line.id) {
+                itemDiscountedAmounts[line.id] = line.net;
             }
         });
 
-        const discountedTaxable = Math.max(0, subTotal - totalDiscount);
-
-        // Other charges total (added to Grand Total)
-        const otherChargesTotal = showOtherCharges
-            ? otherCharges.reduce((sum, c) => {
-                const val = parseFloat(c.value !== undefined ? c.value : c.amount) || 0;
-                const isPct = c.chargeType === 'percentage' || c.type === 'percentage';
-                const amt = isPct ? ((discountedTaxable + totalTax) * val) / 100 : val;
-                return sum + amt;
-            }, 0)
-            : 0;
-
-        const finalTotal = discountedTaxable + totalTax + otherChargesTotal;
-
         return {
-            subTotal,
-            discount: totalDiscount,
-            lineDiscountSum: totalDiscount,
+            subTotal: financials.subtotal,
+            discount: financials.discount,
+            lineDiscountSum: financials.discount,
             ovDiscountAmt: 0,
-            totalDiscount,
-            discountedTaxable,
-            tax: totalTax,
-            otherChargesTotal,
-            finalTotal,
-            total: finalTotal,
+            totalDiscount: financials.discount,
+            discountedTaxable: financials.taxableAmount,
+            tax: financials.vatTotal,
+            otherChargesTotal: financials.otherCharges,
+            finalTotal: financials.total,
+            total: financials.total,
             itemDiscountedAmounts
         };
     };
@@ -2179,34 +2147,77 @@ const Invoice = () => {
         const allItems = [];
         const allReceipts = [];
         const currencyTotals = {};
+        let combinedOtherCharges = 0;
+        let combinedRoundOff = 0;
 
         group.invoices.forEach(inv => {
             const items = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
             const curr = inv.currency || companySettings?.currency || 'EUR';
 
+            let cfData = {};
+            if (inv.customFields) {
+                try {
+                    cfData = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
+                } catch (e) {
+                    cfData = {};
+                }
+            }
+            const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
+
+            if (Array.isArray(cfData?._otherCharges)) {
+                combinedOtherCharges += cfData._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount || c.value || 0) || 0), 0);
+            }
+            combinedRoundOff += parseFloat(inv.roundOffAmount || 0) || 0;
+
+            const childFinancials = computeInvoiceFinancials(inv, { itemsMeta });
+
             if (!currencyTotals[curr]) {
                 currencyTotals[curr] = {
                     subtotal: 0,
+                    discountAmount: 0,
                     taxAmount: 0,
                     totalAmount: 0,
                     paidAmount: 0,
                     balanceAmount: 0
                 };
             }
-            currencyTotals[curr].subtotal += inv.subtotal || 0;
-            currencyTotals[curr].taxAmount += inv.taxAmount || 0;
-            currencyTotals[curr].totalAmount += inv.totalAmount || 0;
+            currencyTotals[curr].subtotal += childFinancials.subtotal;
+            currencyTotals[curr].discountAmount += childFinancials.discount;
+            currencyTotals[curr].taxAmount += childFinancials.vatTotal;
+            currencyTotals[curr].totalAmount += childFinancials.total;
             const effectivePaid = inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0));
             currencyTotals[curr].paidAmount += effectivePaid;
-            currencyTotals[curr].balanceAmount += inv.balanceAmount !== undefined ? inv.balanceAmount : 0;
+            currencyTotals[curr].balanceAmount += inv.balanceAmount !== undefined ? inv.balanceAmount : childFinancials.balanceDue;
 
-            items.forEach(item => {
+            items.forEach((item, idx) => {
+                const meta = itemsMeta[idx] || itemsMeta.find(m =>
+                    (m.productId && String(m.productId) === String(item.productId)) ||
+                    (m.serviceId && String(m.serviceId) === String(item.serviceId))
+                );
+
+                const itemQty = parseFloat(item.quantity !== undefined && item.quantity !== null ? item.quantity : (item.qty !== undefined && item.qty !== null ? item.qty : (meta?.quantity || 1))) || 0;
+                const itemRate = parseFloat(item.rate !== undefined && item.rate !== null ? item.rate : (item.price !== undefined && item.price !== null ? item.price : (meta?.rate || 0))) || 0;
+                const discType = meta?.discountType || item.discountType || 'percentage';
+                const discVal = meta?.discount !== undefined && meta?.discount !== null ? parseFloat(meta.discount) : (item.discountValue !== undefined && item.discountValue !== null ? parseFloat(item.discountValue) : (item.discount !== undefined ? parseFloat(item.discount) : 0));
+                const itemTax = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null && item.tax !== '' ? parseFloat(item.tax) : (meta?.taxRate || 0));
+
                 allItems.push({
                     ...item,
+                    quantity: itemQty,
+                    qty: itemQty,
+                    rate: itemRate,
+                    discount: discVal,
+                    discountType: discType,
+                    taxRate: itemTax,
+                    tax: itemTax,
+                    taxName: item.taxName || meta?.taxName || '',
+                    description: item.description || meta?.description || '',
+                    activity: meta?.itemName || item.activity || item.description || '',
                     currency: curr,
                     exchangeRate: inv.exchangeRate || 1.0,
                     docPaidAmount: inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0)),
-                    docNumber: inv.invoiceNumber
+                    docNumber: inv.invoiceNumber,
+                    docDate: inv.date
                 });
             });
 
@@ -2223,13 +2234,18 @@ const Invoice = () => {
         // Sort receipts by date ascending
         allReceipts.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        const combinedTotal = parseFloat(group.totalInvoiceAmount || 0);
-        const combinedPaid = parseFloat(group.totalPaidAmount || 0);
-        const rawCombinedBalance = group.balanceAmount !== undefined && group.balanceAmount !== null
-            ? parseFloat(group.balanceAmount)
-            : Math.max(0, combinedTotal - combinedPaid);
+        const receiptSum = allReceipts.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        const combinedPaid = Math.max(parseFloat(group.totalPaidAmount || 0), receiptSum);
+
+        const combinedFinancials = computeInvoiceFinancials(allItems, {
+            otherCharges: combinedOtherCharges,
+            roundOff: combinedRoundOff,
+            paymentsReceived: combinedPaid
+        });
+
+        const combinedTotal = combinedFinancials.total;
         const tol = 0.01;
-        const combinedBalance = rawCombinedBalance <= tol ? 0 : rawCombinedBalance;
+        const combinedBalance = combinedFinancials.balanceDue <= tol ? 0 : combinedFinancials.balanceDue;
         const isCombinedDuePassed = Boolean(group.latestDueDate && new Date(group.latestDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
         const combinedStatus = (() => {
             if (combinedBalance <= tol && (combinedTotal > 0 || combinedPaid > 0)) return 'Paid';
@@ -2263,9 +2279,13 @@ const Invoice = () => {
             shippingCountry: group.customer?.billingCountry,
             items: allItems,
             receipt: allReceipts,
-            subtotal: group.totalInvoiceAmount - (group.invoices.reduce((acc, inv) => acc + (inv.taxAmount || 0), 0)),
-            taxAmount: group.invoices.reduce((acc, inv) => acc + (inv.taxAmount || 0), 0),
-            totalAmount: combinedTotal,
+            subtotal: combinedFinancials.subtotal,
+            discountAmount: combinedFinancials.discount,
+            taxableAmount: combinedFinancials.taxableAmount,
+            taxAmount: combinedFinancials.vatTotal,
+            otherCharges: combinedFinancials.otherCharges,
+            roundOffAmount: combinedFinancials.roundOff,
+            totalAmount: combinedFinancials.total,
             paidAmount: combinedPaid,
             balanceAmount: combinedBalance,
             currencyTotals,
@@ -2313,12 +2333,25 @@ const Invoice = () => {
                 })
                 : [];
 
+            // Validate line item discounts: discount percentage cannot exceed 100%
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                const discVal = parseFloat(it.discount) || 0;
+                const discType = it.discountType || 'percentage';
+                if ((discType === 'percentage' || !discType) && discVal > 100) {
+                    toast.error(`Line item #${i + 1} discount percentage cannot exceed 100%`);
+                    setIsSaving(false);
+                    return;
+                }
+                if (discVal < 0) {
+                    toast.error(`Line item #${i + 1} discount cannot be negative`);
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
             const itemsDiscountMetaPayload = items.map(item => {
-                const itemQty = parseFloat(item.qty) || 0;
-                const itemRate = parseFloat(item.rate) || 0;
-                const discVal = parseFloat(item.discount) || 0;
-                const discType = item.discountType || 'percentage';
-                const itemTax = parseFloat(item.tax) || 0;
+                const line = computeInvoiceLine(item);
                 const resolvedName = item.productId
                     ? (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : '')
                     : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : '') : (item.description || ''));
@@ -2327,12 +2360,12 @@ const Invoice = () => {
                     serviceId: item.serviceId ? parseInt(item.serviceId) : null,
                     itemName: resolvedName || item.description || '',
                     description: item.description || resolvedName || '',
-                    quantity: itemQty,
-                    rate: itemRate,
-                    discount: discVal,
-                    discountType: discType,
-                    taxRate: itemTax,
-                    amount: totals.itemDiscountedAmounts?.[item.id] !== undefined ? totals.itemDiscountedAmounts[item.id] : (item.total || 0)
+                    quantity: line.qty,
+                    rate: line.rate,
+                    discount: line.discVal,
+                    discountType: line.discType,
+                    taxRate: line.taxRate,
+                    amount: line.net
                 };
             });
 
@@ -2386,20 +2419,23 @@ const Invoice = () => {
                     amount: adj.amount
                 })),
                 otherCharges: validOtherCharges,
-                items: items.map(item => ({
-                    productId: item.productId ? parseInt(item.productId) : null,
-                    serviceId: item.serviceId ? parseInt(item.serviceId) : null,
-                    warehouseId: (item.warehouseId && (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parseInt(item.warehouseId))))
-                        ? parseInt(item.warehouseId)
-                        : (allWarehouses.length > 0 ? allWarehouses[0].id : null),
-                    uomId: item.uomId ? parseInt(item.uomId) : null,
-                    description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => s.id === parseInt(item.serviceId))?.name : '') : '')),
-                    quantity: parseFloat(item.qty),
-                    rate: parseFloat(item.rate),
-                    discount: parseFloat(item.discount) || 0,
-                    discountType: item.discountType || 'percentage',
-                    taxRate: parseFloat(item.tax)
-                }))
+                items: items.map(item => {
+                    const line = computeInvoiceLine(item);
+                    return {
+                        productId: item.productId ? parseInt(item.productId) : null,
+                        serviceId: item.serviceId ? parseInt(item.serviceId) : null,
+                        warehouseId: (item.warehouseId && (allWarehouses.length === 0 || allWarehouses.some(w => w.id === parseInt(item.warehouseId))))
+                            ? parseInt(item.warehouseId)
+                            : (allWarehouses.length > 0 ? allWarehouses[0].id : null),
+                        uomId: item.uomId ? parseInt(item.uomId) : null,
+                        description: item.description || (item.productId ? (Array.isArray(allProducts) ? allProducts.find(p => p.id === parseInt(item.productId))?.name : '') : (item.serviceId ? (Array.isArray(allServices) ? allServices.find(s => s.id === parseInt(item.serviceId))?.name : '') : '')),
+                        quantity: line.qty,
+                        rate: line.rate,
+                        discount: line.discVal,
+                        discountType: line.discType,
+                        taxRate: line.taxRate
+                    };
+                })
             };
 
             let response;
@@ -2823,6 +2859,7 @@ const Invoice = () => {
 
     async function buildCeaPdfDoc(invInput) {
         if (!invInput) return null;
+        const tol = 0.01;
         let inv = invInput;
             const companyId = GetCompanyId();
             const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
@@ -2847,6 +2884,50 @@ const Invoice = () => {
                         console.warn('Could not fetch POS invoice details:', e);
                     }
                 }
+            } else if (isCombined && (!inv.items || inv.items.length === 0) && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
+                const allItems = [];
+                let combinedOtherCharges = 0;
+                let combinedRoundOff = 0;
+                let combinedPaid = 0;
+                inv.invoices.forEach(childInv => {
+                    const cItems = childInv.invoiceitem || childInv.posinvoiceitem || childInv.items || [];
+                    let cfData = {};
+                    try {
+                        cfData = typeof childInv.customFields === 'string' ? JSON.parse(childInv.customFields) : (childInv.customFields || {});
+                    } catch (e) { cfData = {}; }
+                    const cMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
+                    if (Array.isArray(cfData?._otherCharges)) {
+                        combinedOtherCharges += cfData._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount || c.value || 0) || 0), 0);
+                    }
+                    combinedRoundOff += parseFloat(childInv.roundOffAmount || 0) || 0;
+                    const childPaid = childInv.paidAmount !== undefined ? parseFloat(childInv.paidAmount) : (parseFloat(childInv.totalAmount || 0) - parseFloat(childInv.balanceAmount || 0));
+                    combinedPaid += (isNaN(childPaid) ? 0 : childPaid);
+
+                    cItems.forEach((it, idx) => {
+                        const meta = cMeta[idx] || cMeta.find(m => (m.productId && String(m.productId) === String(it.productId)) || (m.serviceId && String(m.serviceId) === String(it.serviceId)));
+                        const line = computeInvoiceLine(it, meta);
+                        allItems.push({
+                            ...it,
+                            ...line,
+                            quantity: line.qty,
+                            qty: line.qty,
+                            rate: line.rate,
+                            discount: line.discVal,
+                            discountType: line.discType,
+                            taxRate: line.taxRate,
+                            amount: line.net,
+                            activity: meta?.itemName || it.activity || it.name || it.description || '',
+                            description: it.description || meta?.description || ''
+                        });
+                    });
+                });
+                inv = {
+                    ...inv,
+                    items: allItems,
+                    otherCharges: combinedOtherCharges,
+                    roundOffAmount: combinedRoundOff,
+                    paidAmount: combinedPaid
+                };
             }
 
             const doc = new jsPDF('p', 'mm', 'a4');
@@ -2906,28 +2987,6 @@ const Invoice = () => {
             }
 
             // Calculations
-            const subtotalVal = inv.subtotal !== undefined && inv.subtotal !== null
-                ? parseFloat(inv.subtotal)
-                : lineItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
-
-            const lineDiscountsTotal = lineItems.reduce((sum, it) => sum + (parseFloat(it.discount || 0) || 0), 0);
-            const ovDiscountValue = parseFloat(inv.overallDiscount || 0);
-            const ovDiscountType = inv.overallDiscountType || 'percentage';
-            const netBeforeOv = Math.max(0, subtotalVal - lineDiscountsTotal);
-            let calculatedOvDiscountAmt = 0;
-            if (ovDiscountValue > 0) {
-                calculatedOvDiscountAmt = ovDiscountType === 'percentage'
-                    ? (netBeforeOv * Math.min(100, ovDiscountValue)) / 100
-                    : Math.min(netBeforeOv, ovDiscountValue);
-            }
-
-            let discountVal = parseFloat(inv.discountAmount || 0);
-            if (discountVal === 0 && (lineDiscountsTotal > 0 || calculatedOvDiscountAmt > 0)) {
-                discountVal = lineDiscountsTotal + calculatedOvDiscountAmt;
-            }
-            const taxableVal = Math.max(0, subtotalVal - discountVal);
-            const overallDiscountRatio = netBeforeOv > 0 ? (calculatedOvDiscountAmt / netBeforeOv) : 0;
-
             const targetCust = (customers && customers.find(c => String(c.id) === String(inv.customerId || inv.customer?.id))) || inv.customer || {};
             const billName = inv.billingName || targetCust.billingName || targetCust.name || 'Garv';
             const billAddr = inv.billingAddress || targetCust.billingAddress || targetCust.companyLocation || targetCust.address || targetCust.shippingAddress || '56 New cork road, Midleton, Co. Cork';
@@ -2950,78 +3009,6 @@ const Invoice = () => {
             }
             const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
 
-            // Group VAT categories and calculate line discounted amounts
-            const groups = {};
-            const processedItems = lineItems.map((item, idx) => {
-                const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
-                const actName = meta?.itemName
-                    || item.service?.name 
-                    || item.product?.name 
-                    || item.activity 
-                    || item.name 
-                    || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
-                    || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
-                    || item.description 
-                    || (item.serviceId ? 'Service' : 'Item');
-                const desc = item.description || meta?.description || item.service?.name || item.product?.name || actName || '';
-                const itemTax = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null ? parseFloat(item.tax) : 0);
-                const qty = item.quantity !== undefined && item.quantity !== null ? parseFloat(item.quantity) : (parseFloat(item.qty) || 1);
-                const rate = parseFloat(item.rate !== undefined && item.rate !== null ? item.rate : (item.price || 0));
-                const lineGross = qty * rate;
-
-                const discType = meta?.discountType || item.discountType || (item.discount > 0 && item.discount <= 100 && (Math.abs((lineGross * item.discount) / 100 - (item.discountAmount || 0)) < 0.01) ? 'percentage' : 'fixed');
-                const discVal = meta?.discount !== undefined ? parseFloat(meta.discount) : (item.discountValue !== undefined ? parseFloat(item.discountValue) : (parseFloat(item.discount || 0) || 0));
-
-                let itemDisc = 0;
-                if (discType === 'fixed' || discType === 'amount') {
-                    itemDisc = Math.min(lineGross, Math.max(0, discVal));
-                } else {
-                    itemDisc = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
-                }
-
-                const lineNetBeforeOv = Math.max(0, lineGross - itemDisc);
-                const lineDiscountedTaxable = lineNetBeforeOv * (1 - overallDiscountRatio);
-                const amt = (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount)))
-                    ? parseFloat(item.amount)
-                    : lineDiscountedTaxable;
-
-                const rateKey = itemTax.toFixed(2);
-                if (!groups[rateKey]) {
-                    groups[rateKey] = { rate: itemTax, vatAmount: 0, netAmount: 0 };
-                }
-                groups[rateKey].netAmount += amt;
-                if (itemTax > 0) {
-                    groups[rateKey].vatAmount += (amt * itemTax) / 100;
-                }
-
-                const isZeroTax = itemTax === 0;
-                const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(itemTax.toFixed(2))}%`);
-                const discText = discVal > 0
-                    ? (discType === 'percentage' ? `${discVal}%` : `-${Number(discVal).toFixed(2)}`)
-                    : '0%';
-
-                const uom = item.unit || item.uom || meta?.uom || meta?.unit || '';
-
-                return {
-                    actName,
-                    desc,
-                    taxDisplay,
-                    discText,
-                    qty,
-                    rate,
-                    amt,
-                    uom
-                };
-            });
-
-            const vatSummaryList = Object.values(groups).sort((a, b) => b.rate - a.rate);
-            const taxVal = inv.taxAmount !== undefined && inv.taxAmount !== null
-                ? parseFloat(inv.taxAmount)
-                : vatSummaryList.reduce((acc, v) => acc + (v.vatAmount || 0), 0);
-            const totalVal = inv.totalAmount !== undefined && inv.totalAmount !== null
-                ? parseFloat(inv.totalAmount)
-                : (taxableVal + taxVal);
-
             let paidVal = inv.paidAmount !== undefined && inv.paidAmount !== null
                 ? parseFloat(inv.paidAmount)
                 : 0;
@@ -3040,12 +3027,62 @@ const Invoice = () => {
                 }
             }
 
-            const rawBal = inv.balanceAmount !== undefined && inv.balanceAmount !== null
-                ? parseFloat(inv.balanceAmount)
-                : (totalVal - paidVal);
-            const calculatedBal = Math.max(0, isNaN(rawBal) ? Math.max(0, totalVal - paidVal) : rawBal);
-            const tol = 0.01;
-            const balanceVal = calculatedBal <= tol ? 0 : calculatedBal;
+            const explicitOtherCharges = Array.isArray(cfData?._otherCharges)
+                ? cfData._otherCharges
+                : (parseFloat(inv.otherCharges || 0) || 0);
+            const explicitRoundOff = parseFloat(inv.roundOffAmount || 0) || 0;
+
+            const financials = computeInvoiceFinancials(lineItems, {
+                itemsMeta,
+                otherCharges: explicitOtherCharges,
+                roundOff: explicitRoundOff,
+                paymentsReceived: paidVal
+            });
+
+            const subtotalVal = financials.subtotal;
+            const discountVal = financials.discount;
+            const taxableVal = financials.taxableAmount;
+            const taxVal = financials.vatTotal;
+            const totalVal = financials.total;
+            const balanceVal = financials.balanceDue;
+            const vatSummaryList = financials.vatSummaryList;
+
+            const processedItems = financials.computedLines.map((item, idx) => {
+                const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
+                const actName = meta?.itemName
+                    || item.service?.name 
+                    || item.product?.name 
+                    || item.activity 
+                    || item.name 
+                    || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
+                    || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
+                    || item.description 
+                    || (item.serviceId ? 'Service' : 'Item');
+                const desc = item.description || meta?.description || item.service?.name || item.product?.name || actName || '';
+                const itemTax = item.taxRate;
+                const qty = item.qty;
+                const rate = item.rate;
+                const amt = item.net;
+
+                const isZeroTax = itemTax === 0;
+                const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(itemTax.toFixed(2))}%`);
+                const discText = item.discVal > 0
+                    ? (item.discType === 'percentage' ? `${item.discVal}%` : `-${Number(item.discVal).toFixed(2)}`)
+                    : '0%';
+
+                const uom = item.unit || item.uom || meta?.uom || meta?.unit || '';
+
+                return {
+                    actName,
+                    desc,
+                    taxDisplay,
+                    discText,
+                    qty,
+                    rate,
+                    amt,
+                    uom
+                };
+            });
 
             const isDuePassedDate = Boolean(inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
             const rawStatus = String(inv.status || '').toUpperCase();
@@ -3204,13 +3241,13 @@ const Invoice = () => {
             const showTax = getInvoiceLabel('showTax') !== false;
 
             const cols = [
-                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 28, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 26, align: 'left', fontStyle: 'bold', getData: it => it.actName },
                 { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
                 ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
-                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
-                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
-                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
-                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 20, align: 'left', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 16, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
+                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
                 { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
             ];
 
@@ -3253,13 +3290,13 @@ const Invoice = () => {
                     textColor: contrastRgb,
                     fontStyle: 'bold',
                     fontSize: 8,
-                    cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 },
+                    cellPadding: { top: 2.8, bottom: 2.8, left: 3, right: 3 },
                     valign: 'middle'
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
                     fontSize: 8,
-                    cellPadding: { top: 3.5, bottom: 3.5, left: 2.5, right: 2.5 },
+                    cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
                     valign: 'middle',
                     overflow: 'linebreak',
                     lineHeight: 1.25
@@ -3276,7 +3313,7 @@ const Invoice = () => {
             });
 
             // --- 4. DIVIDER & TOTALS SECTION ---
-            let postTableY = doc.lastAutoTable.finalY + 3;
+            let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 3;
             if (postTableY > 215) {
                 doc.addPage();
                 postTableY = 20;
@@ -3312,6 +3349,12 @@ const Invoice = () => {
             printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
             printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2), false, true);
             printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+            if (financials.otherCharges > 0) {
+                printTotalLine('OTHER CHARGES', Number(financials.otherCharges).toFixed(2));
+            }
+            if (financials.roundOff !== 0) {
+                printTotalLine('ROUND OFF', Number(financials.roundOff).toFixed(2));
+            }
             printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
             printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
             if (parseFloat(paidVal) > 0) {
@@ -3423,7 +3466,7 @@ const Invoice = () => {
             });
 
             // --- 6. BANK DETAILS ROUNDED BOX ---
-            let bankY = doc.lastAutoTable.finalY + 5;
+            let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 25) + 5;
             if (bankY > 245) {
                 doc.addPage();
                 bankY = 20;
@@ -3435,7 +3478,7 @@ const Invoice = () => {
 
             // Left accent border bar
             doc.setFillColor(themeRgb[0], themeRgb[1], themeRgb[2]);
-            doc.rect(14, bankY, 2, 24).fill();
+            doc.rect(14, bankY, 2, 24, 'F');
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.5);
@@ -3447,9 +3490,9 @@ const Invoice = () => {
             doc.text(`Account: ${bankAccount}`, 18, bankY + 19);
 
             // Right Column
-            doc.text(`NSC (SORT CODE): ${bankSortCode}`, 108, bankY + 5.5);
-            doc.text(bankName, 108, bankY + 10);
-            doc.text(bankAddress, 108, bankY + 14.5);
+            doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 5.5);
+            doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 10);
+            doc.text(String(bankAddress || '97 Main Street, Midleton, Co. Cork'), 108, bankY + 14.5);
 
             // --- 7. FOOTER ---
             const pageCount = doc.internal.getNumberOfPages();
@@ -3481,7 +3524,7 @@ const Invoice = () => {
         } catch (error) {
             console.error('Error generating invoice PDF:', error);
             toast.dismiss('single-inv-pdf');
-            toast.error('Failed to generate PDF. Please try again.');
+            toast.error(error?.message ? `Failed to generate PDF: ${error.message}` : 'Failed to generate PDF. Please try again.');
         }
     };
 
@@ -5161,76 +5204,37 @@ const Invoice = () => {
                         }
                     ];
 
-                    const subtotalVal = selectedInvoice?.subtotal !== undefined && selectedInvoice?.subtotal !== null
-                        ? parseFloat(selectedInvoice.subtotal)
-                        : lineItems.reduce((acc, it) => acc + ((parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0)), 0);
-
-                    // Calculate line discounts total
-                    const lineDiscountsTotal = (rawItems || []).reduce((sum, it) => sum + (parseFloat(it.discount || 0) || 0), 0);
-
-                    // Calculate overall discount
-                    const ovDiscountValue = parseFloat(selectedInvoice?.overallDiscount || 0);
-                    const ovDiscountType = selectedInvoice?.overallDiscountType || 'percentage';
-                    let calculatedOvDiscountAmt = 0;
-                    const netBeforeOv = Math.max(0, subtotalVal - lineDiscountsTotal);
-                    if (ovDiscountValue > 0) {
-                        calculatedOvDiscountAmt = ovDiscountType === 'percentage'
-                            ? (netBeforeOv * Math.min(100, ovDiscountValue)) / 100
-                            : Math.min(netBeforeOv, ovDiscountValue);
-                    }
-
-                    // Combined discount
-                    let discountVal = parseFloat(selectedInvoice?.discountAmount || 0);
-                    if (discountVal === 0 && (lineDiscountsTotal > 0 || calculatedOvDiscountAmt > 0)) {
-                        discountVal = lineDiscountsTotal + calculatedOvDiscountAmt;
-                    }
-                    const taxableVal = Math.max(0, subtotalVal - discountVal);
-                    const overallDiscountRatio = netBeforeOv > 0 ? (calculatedOvDiscountAmt / netBeforeOv) : 0;
-
-                    const groups = {};
-                    lineItems.forEach(item => {
-                        const rate = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax !== undefined ? item.tax : defaultVat || 23)) || 0;
-                        const qty = parseFloat(item.quantity !== undefined ? item.quantity : (item.qty || 1));
-                        const unitRate = parseFloat(item.rate !== undefined ? item.rate : (item.price || 0));
-                        const itemDisc = parseFloat(item.discount || 0) || 0;
-                        const lineGross = qty * unitRate;
-                        const lineNetBeforeOv = Math.max(0, lineGross - itemDisc);
-                        const lineDiscountedTaxable = lineNetBeforeOv * (1 - overallDiscountRatio);
-                        const discountedAmt = (item.amount !== undefined && item.amount !== null && parseFloat(item.amount) <= lineGross + 0.01)
-                            ? parseFloat(item.amount)
-                            : lineDiscountedTaxable;
-
-                        const rateKey = rate.toFixed(2);
-                        if (!groups[rateKey]) {
-                            groups[rateKey] = { rate, vatAmount: 0, netAmount: 0 };
-                        }
-                        groups[rateKey].netAmount += discountedAmt;
-                        if (rate > 0) {
-                            groups[rateKey].vatAmount += (discountedAmt * rate) / 100;
-                        }
-                    });
-                    let vatSummaryList = Object.values(groups).sort((a, b) => b.rate - a.rate);
-                    if (vatSummaryList.length === 0 && (selectedInvoice?.taxAmount > 0 || selectedInvoice?.subtotal > 0)) {
-                        const tax = parseFloat(selectedInvoice?.taxAmount || 0);
-                        const calcRate = taxableVal > 0 ? (tax / taxableVal) * 100 : (defaultVat || 23);
-                        vatSummaryList = [{ rate: calcRate, vatAmount: tax, netAmount: taxableVal }];
-                    }
-
-                    const taxVal = selectedInvoice?.taxAmount !== undefined && selectedInvoice?.taxAmount !== null
-                        ? parseFloat(selectedInvoice.taxAmount)
-                        : vatSummaryList.reduce((acc, v) => acc + (v.vatAmount || 0), 0);
-
-                    const totalVal = selectedInvoice?.totalAmount !== undefined && selectedInvoice?.totalAmount !== null
-                        ? parseFloat(selectedInvoice.totalAmount)
-                        : (taxableVal + taxVal);
-
-                    const paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
+                    let paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
                         ? parseFloat(selectedInvoice.paidAmount)
                         : 0;
+                    if (isNaN(paidVal)) paidVal = 0;
+                    if (Array.isArray(selectedInvoice?.receipt) && selectedInvoice.receipt.length > 0) {
+                        const recSum = selectedInvoice.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                        if (recSum > paidVal) paidVal = recSum;
+                    } else if (Array.isArray(selectedInvoice?.allocations) && selectedInvoice.allocations.length > 0) {
+                        const allocSum = selectedInvoice.allocations.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
+                        if (allocSum > paidVal) paidVal = allocSum;
+                    }
 
-                    const balanceVal = selectedInvoice?.balanceAmount !== undefined && selectedInvoice?.balanceAmount !== null
-                        ? parseFloat(selectedInvoice.balanceAmount)
-                        : Math.max(0, totalVal - paidVal);
+                    const explicitOtherCharges = Array.isArray(previewCf?._otherCharges)
+                        ? previewCf._otherCharges
+                        : (parseFloat(selectedInvoice?.otherCharges || 0) || 0);
+                    const explicitRoundOff = parseFloat(selectedInvoice?.roundOffAmount || 0) || 0;
+
+                    const financials = computeInvoiceFinancials(lineItems, {
+                        itemsMeta: previewItemsMeta,
+                        otherCharges: explicitOtherCharges,
+                        roundOff: explicitRoundOff,
+                        paymentsReceived: paidVal
+                    });
+
+                    const subtotalVal = financials.subtotal;
+                    const discountVal = financials.discount;
+                    const taxableVal = financials.taxableAmount;
+                    const taxVal = financials.vatTotal;
+                    const totalVal = financials.total;
+                    const balanceVal = financials.balanceDue;
+                    const vatSummaryList = financials.vatSummaryList;
 
                     const isDuePassedDate = Boolean(selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
 
@@ -5346,20 +5350,20 @@ const Invoice = () => {
                                 <table className="invoice-cea-table">
                                     <thead>
                                         <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                            <th style={{ width: '18%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '16%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
                                             <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (
-                                                <th style={{ width: '6%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '6%', textAlign: 'center', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ width: '7%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
-                                                    {getTableHeader('quantity', 'QTY')}
+                                                <th style={{ width: '8%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('quantity', 'QUANTITY')}
                                                 </th>
                                             )}
                                             {showRate && (
@@ -5368,17 +5372,17 @@ const Invoice = () => {
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
                                             {showTax && (
-                                                <th style={{ width: '9%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
-                                                    {getTableHeader('tax', 'VAT')}
+                                                <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                    {getTableHeader('tax', 'TAX')}
                                                 </th>
                                             )}
                                             <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
-                                                {getTableHeader('price', 'AMOUNT')}
+                                                {getTableHeader('price', 'PRICE')}
                                             </th>
                                         </tr>
                                     </thead>
@@ -5395,40 +5399,28 @@ const Invoice = () => {
                                                 || item.description 
                                                 || (item.serviceId ? 'Service' : 'Item');
                                             const itemDesc = item.description || meta?.description || (item.product?.name ? item.product.name : (item.service?.name || ''));
-                                            const itemTax = (item.taxRate !== undefined && item.taxRate !== null) ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null ? parseFloat(item.tax) : (defaultVat || 23));
-                                            const itemQty = item.quantity !== undefined ? parseFloat(item.quantity) : (parseFloat(item.qty) || 1);
-                                            const itemRate = (item.rate !== undefined && item.rate !== null) ? parseFloat(item.rate) : (parseFloat(item.price) || 0);
-                                            const lineGross = itemQty * itemRate;
-
-                                            const discType = meta?.discountType || item.discountType || (item.discount > 0 && item.discount <= 100 && (Math.abs((lineGross * item.discount) / 100 - (item.discountAmount || 0)) < 0.01) ? 'percentage' : 'fixed');
-                                            const discVal = meta?.discount !== undefined ? parseFloat(meta.discount) : (item.discountValue !== undefined ? parseFloat(item.discountValue) : (parseFloat(item.discount || 0) || 0));
-
-                                            let itemDisc = 0;
-                                            if (discType === 'fixed' || discType === 'amount') {
-                                                itemDisc = Math.min(lineGross, Math.max(0, discVal));
-                                            } else {
-                                                itemDisc = (lineGross * Math.min(100, Math.max(0, discVal))) / 100;
-                                            }
-
+                                            const computedLine = financials.computedLines[idx] || computeInvoiceLine(item, meta);
+                                            const itemTax = computedLine.taxRate;
+                                            const itemQty = computedLine.qty;
+                                            const itemRate = computedLine.rate;
+                                            const itemDisc = computedLine.lineDiscount;
                                             const itemUom = item.uom?.name || item.uom || item.unit || 'Units';
-                                            const itemAmt = (item.amount !== undefined && item.amount !== null && !isNaN(parseFloat(item.amount)))
-                                                ? parseFloat(item.amount)
-                                                : Math.max(0, (lineGross - itemDisc) * (1 - overallDiscountRatio));
+                                            const itemAmt = computedLine.net;
                                             const isZeroTax = parseFloat(itemTax) === 0;
                                             const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(Number(itemTax).toFixed(2))}%`);
-                                            const discDisplay = discVal > 0
-                                                ? (discType === 'percentage' ? `${discVal}%` : `-${Number(discVal).toFixed(2)}`)
+                                            const discDisplay = computedLine.discVal > 0
+                                                ? (computedLine.discType === 'percentage' ? `${computedLine.discVal}%` : `-${Number(computedLine.discVal).toFixed(2)}`)
                                                 : '0%';
 
                                             return (
                                                 <tr key={idx}>
                                                     <td className="invoice-cea-activity-cell">{productName}</td>
                                                     <td className="invoice-cea-desc-cell">{itemDesc}</td>
-                                                    {showUom && <td>{itemUom}</td>}
+                                                    {showUom && <td style={{ textAlign: 'center' }}>{itemUom}</td>}
                                                     {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
                                                     {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
                                                     {showDiscount && <td style={{ textAlign: 'right' }}>{discDisplay}</td>}
-                                                    {showTax && <td>{taxDisplay}</td>}
+                                                    {showTax && <td style={{ textAlign: 'right' }}>{taxDisplay}</td>}
                                                     <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                                 </tr>
                                             );
@@ -5454,6 +5446,20 @@ const Invoice = () => {
 
                                         <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
                                         <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+
+                                        {financials.otherCharges > 0 && (
+                                            <>
+                                                <span className="invoice-cea-total-label">OTHER CHARGES</span>
+                                                <span className="invoice-cea-total-val">{Number(financials.otherCharges).toFixed(2)}</span>
+                                            </>
+                                        )}
+
+                                        {financials.roundOff !== 0 && (
+                                            <>
+                                                <span className="invoice-cea-total-label">ROUND OFF</span>
+                                                <span className="invoice-cea-total-val">{Number(financials.roundOff).toFixed(2)}</span>
+                                            </>
+                                        )}
 
                                         <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'VAT'}</span>
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
@@ -6003,10 +6009,14 @@ const Invoice = () => {
                                                 };
                                             }
                                             const rate = getSyncRate(inv.currency || 'USD', companySettings?.currency || 'EUR');
+                                            const invFin = computeInvoiceFinancials(inv);
+                                            const invTotal = (invFin.total > 0 || invFin.subtotal > 0) ? invFin.total : (parseFloat(inv.totalAmount || 0) || 0);
+                                            const invBalance = (invFin.balanceDue !== undefined && (invFin.total > 0 || invFin.subtotal > 0)) ? invFin.balanceDue : (parseFloat(inv.balanceAmount || 0) || 0);
+                                            const effectivePaid = (invFin.paidAmount !== undefined && (invFin.total > 0 || invFin.subtotal > 0)) ? invFin.paidAmount : (inv.paidAmount !== undefined ? parseFloat(inv.paidAmount) : (invTotal - invBalance));
+
                                             groupedMap[key].invoices.push(inv);
-                                            groupedMap[key].totalInvoiceAmount += inv.totalAmount * rate;
-                                            groupedMap[key].balanceAmount += (inv.balanceAmount || 0) * rate;
-                                            const effectivePaid = inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0));
+                                            groupedMap[key].totalInvoiceAmount += invTotal * rate;
+                                            groupedMap[key].balanceAmount += invBalance * rate;
                                             groupedMap[key].totalPaidAmount += effectivePaid * rate;
 
                                             const curr = inv.currency || companySettings?.currency || 'EUR';
@@ -7034,17 +7044,35 @@ const Invoice = () => {
                                                                 style={{ flex: 1, minWidth: '30px' }}
                                                                 value={item.discount}
                                                                 min="0"
+                                                                max={(item.discountType === 'percentage' || !item.discountType) ? 100 : undefined}
                                                                 placeholder="0"
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === '-' || e.key === 'e') e.preventDefault();
                                                                     if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
                                                                 }}
-                                                                onChange={(e) => updateItem(item.id, 'discount', e.target.value.replace(/-/g, ''))}
+                                                                onChange={(e) => {
+                                                                    const rawVal = e.target.value.replace(/-/g, '');
+                                                                    const isPct = item.discountType === 'percentage' || !item.discountType;
+                                                                    if (isPct && parseFloat(rawVal) > 100) {
+                                                                        toast.error('Discount percentage cannot exceed 100%');
+                                                                        updateItem(item.id, 'discount', 100);
+                                                                        return;
+                                                                    }
+                                                                    updateItem(item.id, 'discount', rawVal);
+                                                                }}
                                                             />
                                                             <select
                                                                 className="Invoice-compact-discount-type-select"
                                                                 value={item.discountType || 'percentage'}
-                                                                onChange={(e) => updateItem(item.id, 'discountType', e.target.value)}
+                                                                onChange={(e) => {
+                                                                    const newType = e.target.value;
+                                                                    if (newType === 'percentage' && parseFloat(item.discount) > 100) {
+                                                                        toast.error('Discount percentage cannot exceed 100%');
+                                                                        updateItem(item.id, { discountType: newType, discount: 100 });
+                                                                        return;
+                                                                    }
+                                                                    updateItem(item.id, 'discountType', newType);
+                                                                }}
                                                             >
                                                                 <option value="percentage">%</option>
                                                                 <option value="fixed">{formatDocCurrency(0, selectedCurrency).replace(/[0-9.,\s]/g, '') || '€'}</option>
