@@ -3862,9 +3862,9 @@ const PurchaseBill = () => {
                             {/* 2-Column Voucher Header Grid */}
                             <div className="PBILL-voucher-header-grid" style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'minmax(240px, 300px) minmax(240px, 300px)',
+                                gridTemplateColumns: '1fr 1fr',
                                 justifyContent: 'space-between',
-                                gap: '3rem',
+                                gap: '2rem',
                                 background: '#ffffff',
                                 padding: '18px 24px',
                                 borderRadius: '10px',
@@ -3971,7 +3971,7 @@ const PurchaseBill = () => {
                                 </div>
 
                                 {/* RIGHT COLUMN */}
-                                <div className="PBILL-header-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '300px' }}>
+                                <div className="PBILL-header-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
                                     {showSalespersonField && (
                                         <div className="PBILL-meta-col">
                                             <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>AGENT / SALESPERSON</label>
@@ -4014,15 +4014,32 @@ const PurchaseBill = () => {
                                     )}
 
                                     <div className="PBILL-meta-col">
-                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
+                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '6px', display: 'block', letterSpacing: '0.04em' }}>
                                             DUE DATE &amp; TERMS
                                         </label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '280px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
                                             <select
                                                 value={paymentTerm}
                                                 onChange={(e) => handlePaymentTermChange(e.target.value)}
-                                                className="PBILL-compact-select"
-                                                style={{ width: '100%', height: '34px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0 8px' }}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '36px',
+                                                    fontSize: '0.825rem',
+                                                    fontWeight: '500',
+                                                    color: '#334155',
+                                                    borderRadius: '6px',
+                                                    border: '1.5px solid #cbd5e1',
+                                                    backgroundColor: '#fff',
+                                                    padding: '0 32px 0 10px',
+                                                    appearance: 'none',
+                                                    WebkitAppearance: 'none',
+                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                                                    backgroundRepeat: 'no-repeat',
+                                                    backgroundPosition: 'right 10px center',
+                                                    backgroundSize: '12px',
+                                                    boxSizing: 'border-box',
+                                                    cursor: 'pointer'
+                                                }}
                                                 title="Select payment terms or due date offset"
                                             >
                                                 <option value="0">Due upon receipt (0 days)</option>
@@ -4035,7 +4052,7 @@ const PurchaseBill = () => {
                                                 type="date"
                                                 value={billMeta.dueDate}
                                                 onChange={(e) => handleCustomDueDateChange(e.target.value)}
-                                                style={{ width: '100%' }}
+                                                style={{ width: '100%', height: '36px', fontSize: '0.825rem', boxSizing: 'border-box' }}
                                                 className="PBILL-compact-input"
                                             />
                                         </div>
