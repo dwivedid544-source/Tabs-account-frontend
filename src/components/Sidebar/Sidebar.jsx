@@ -81,6 +81,19 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 icon: Home
             },
             {
+                label: 'Sales',
+                icon: ShoppingCart,
+                moduleName: 'Sales',
+                subItems: [
+                    { path: '/company/sales/quotation', label: 'Quotation', perm: 'view sales quotation' },
+                    { path: '/company/sales/order', label: 'Sales Order', perm: 'view sales order' },
+                    { path: '/company/sales/challan', label: 'Delivery Challan', perm: 'view delivery challan' },
+                    { path: '/company/sales/invoice', label: 'Invoice', perm: 'view sales invoice' },
+                    { path: '/company/sales/payment', label: 'Payment', perm: 'view sales payment' },
+                    { path: '/company/sales/return', label: 'Sales Return', perm: 'view sales return' },
+                ]
+            },
+            {
                 label: 'Accounts',
                 icon: Calculator,
                 moduleName: 'Account',
@@ -120,19 +133,7 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                     { path: '/company/inventory/adjustment', label: 'Inventory Adjustment', perm: 'view inventory adjustment' },
                 ]
             },
-            {
-                label: 'Sales',
-                icon: ShoppingCart,
-                moduleName: 'Sales',
-                subItems: [
-                    { path: '/company/sales/quotation', label: 'Quotation', perm: 'view sales quotation' },
-                    { path: '/company/sales/order', label: 'Sales Order', perm: 'view sales order' },
-                    { path: '/company/sales/challan', label: 'Delivery Challan', perm: 'view delivery challan' },
-                    { path: '/company/sales/invoice', label: 'Invoice', perm: 'view sales invoice' },
-                    { path: '/company/sales/payment', label: 'Payment', perm: 'view sales payment' },
-                    { path: '/company/sales/return', label: 'Sales Return', perm: 'view sales return' },
-                ]
-            },
+
             {
                 label: 'Purchases',
                 icon: Truck,

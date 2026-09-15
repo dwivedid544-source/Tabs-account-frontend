@@ -48,7 +48,8 @@ import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import InvoiceActionDropdown from './InvoiceActionDropdown';
-import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount } from './invoiceFinancials';
+import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount, resolveInvoicePaymentHistory, buildCombinedPaymentHistory } from './invoiceFinancials';
+export { resolveInvoicePaymentHistory, buildCombinedPaymentHistory };
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -140,6 +141,8 @@ const safeSavePdf = (doc, fileName) => {
         }
     }
 };
+
+// resolveInvoicePaymentHistory and buildCombinedPaymentHistory are imported and exported from invoiceFinancials.js
 
 const Invoice = () => {
     const { companySettings, formatCurrency, getInvoiceLabel, getTableHeader, getDocumentTitle, getExchangeRateFor, getSyncRate } = useContext(CompanyContext);
@@ -985,10 +988,16 @@ const Invoice = () => {
 
     // Initial Fetch
     useEffect(() => {
-        fetchData();
-        fetchDropdowns();
-        fetchCompanyDetails();
-        fetchAccounts();
+        let isMounted = true;
+        const init = async () => {
+            await fetchData();
+            if (!isMounted) return;
+            fetchCompanyDetails();
+            fetchAccounts();
+            fetchDropdowns();
+        };
+        init();
+        return () => { isMounted = false; };
     }, []);
 
     // Handle Deep Link from Navigation State
@@ -1031,7 +1040,7 @@ const Invoice = () => {
                     if (targetId) {
                         if (invoiceType === 'POS_INVOICE') {
                             try {
-                                response = await posService.getPOSInvoiceById(targetId, companyId);
+                                response = await posService.getPOSInvoiceById(targetId, companyId, { headers: { 'X-No-Toast': 'true' } });
                                 if (response && response.success && response.data) {
                                     setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
                                     setViewMode(true);
@@ -1042,7 +1051,7 @@ const Invoice = () => {
 
                         if (!found) {
                             try {
-                                response = await salesInvoiceService.getById(targetId, companyId);
+                                response = await salesInvoiceService.getById(targetId, companyId, { headers: { 'X-No-Toast': 'true' } });
                                 if (response.data && response.data.success) {
                                     if (location.state?.isEdit || location.state?.autoEdit) {
                                         handleEdit({ ...response.data.data, type: 'TAX_INVOICE' });
@@ -1057,7 +1066,7 @@ const Invoice = () => {
 
                         if (!found && invoiceType !== 'POS_INVOICE') {
                             try {
-                                response = await posService.getPOSInvoiceById(targetId, companyId);
+                                response = await posService.getPOSInvoiceById(targetId, companyId, { headers: { 'X-No-Toast': 'true' } });
                                 if (response && response.success && response.data) {
                                     setSelectedInvoice({ ...response.data, type: 'POS_INVOICE' });
                                     setViewMode(true);
@@ -1073,7 +1082,7 @@ const Invoice = () => {
                             const list = res.data?.data || res.data || [];
                             const match = list.find(inv => String(inv.invoiceNumber).trim().toLowerCase() === String(targetInvoiceNumber).trim().toLowerCase());
                             if (match) {
-                                const detailRes = await salesInvoiceService.getById(match.id, companyId);
+                                const detailRes = await salesInvoiceService.getById(match.id, companyId, { headers: { 'X-No-Toast': 'true' } });
                                 if (detailRes.data && detailRes.data.success) {
                                     setSelectedInvoice({ ...detailRes.data.data, type: match.type || 'TAX_INVOICE' });
                                 } else {
@@ -1093,7 +1102,7 @@ const Invoice = () => {
                     const currentSourceName = location.state?.sourceName;
                     const currentReturnState = location.state?.returnState;
                     const currentFromReport = location.state?.fromReport;
-                    navigate(location.pathname, { 
+                    navigate({ pathname: location.pathname, search: '' }, { 
                         replace: true, 
                         state: { 
                             from: currentFrom,
@@ -1139,8 +1148,8 @@ const Invoice = () => {
                     terms: data.terms || '',
                     termsInvoice: data.termsInvoice || '',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
-                    template: data.invoiceTemplate || 'New York',
-                    color: data.invoiceColor || '#1e293b'
+                    template: data.invoiceTemplate || 'Light Gray',
+                    color: data.invoiceColor || '#dedede'
                 });
                 setNotes(data.notes || '');
                 setTerms(data.termsInvoice || data.terms || '');
@@ -1205,8 +1214,12 @@ const Invoice = () => {
     const fetchDropdowns = async () => {
         try {
             const companyId = GetCompanyId();
-            const [custRes, prodRes, whRes, servRes, orderRes, challanRes, uomRes] = await Promise.all([
-                customerService.getAll(companyId),
+            if (!companyId) return;
+
+            const custRes = await customerService.getAll(companyId);
+            if (custRes.data?.success) setCustomers(custRes.data.data);
+
+            const [prodRes, whRes, servRes, orderRes, challanRes, uomRes] = await Promise.all([
                 productService.getAll(companyId),
                 warehouseService.getAll(companyId),
                 servicesService.getAll(companyId),
@@ -2144,116 +2157,7 @@ const Invoice = () => {
 
     const handleCombinedView = (group) => {
         setOriginRoute(null);
-        const allItems = [];
-        const allReceipts = [];
-        const currencyTotals = {};
-        let combinedOtherCharges = 0;
-        let combinedRoundOff = 0;
-
-        group.invoices.forEach(inv => {
-            const items = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
-            const curr = inv.currency || companySettings?.currency || 'EUR';
-
-            let cfData = {};
-            if (inv.customFields) {
-                try {
-                    cfData = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
-                } catch (e) {
-                    cfData = {};
-                }
-            }
-            const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
-
-            if (Array.isArray(cfData?._otherCharges)) {
-                combinedOtherCharges += cfData._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount || c.value || 0) || 0), 0);
-            }
-            combinedRoundOff += parseFloat(inv.roundOffAmount || 0) || 0;
-
-            const childFinancials = computeInvoiceFinancials(inv, { itemsMeta });
-
-            if (!currencyTotals[curr]) {
-                currencyTotals[curr] = {
-                    subtotal: 0,
-                    discountAmount: 0,
-                    taxAmount: 0,
-                    totalAmount: 0,
-                    paidAmount: 0,
-                    balanceAmount: 0
-                };
-            }
-            currencyTotals[curr].subtotal += childFinancials.subtotal;
-            currencyTotals[curr].discountAmount += childFinancials.discount;
-            currencyTotals[curr].taxAmount += childFinancials.vatTotal;
-            currencyTotals[curr].totalAmount += childFinancials.total;
-            const effectivePaid = inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0));
-            currencyTotals[curr].paidAmount += effectivePaid;
-            currencyTotals[curr].balanceAmount += inv.balanceAmount !== undefined ? inv.balanceAmount : childFinancials.balanceDue;
-
-            items.forEach((item, idx) => {
-                const meta = itemsMeta[idx] || itemsMeta.find(m =>
-                    (m.productId && String(m.productId) === String(item.productId)) ||
-                    (m.serviceId && String(m.serviceId) === String(item.serviceId))
-                );
-
-                const itemQty = parseFloat(item.quantity !== undefined && item.quantity !== null ? item.quantity : (item.qty !== undefined && item.qty !== null ? item.qty : (meta?.quantity || 1))) || 0;
-                const itemRate = parseFloat(item.rate !== undefined && item.rate !== null ? item.rate : (item.price !== undefined && item.price !== null ? item.price : (meta?.rate || 0))) || 0;
-                const discType = meta?.discountType || item.discountType || 'percentage';
-                const discVal = meta?.discount !== undefined && meta?.discount !== null ? parseFloat(meta.discount) : (item.discountValue !== undefined && item.discountValue !== null ? parseFloat(item.discountValue) : (item.discount !== undefined ? parseFloat(item.discount) : 0));
-                const itemTax = item.taxRate !== undefined && item.taxRate !== null && item.taxRate !== '' ? parseFloat(item.taxRate) : (item.tax !== undefined && item.tax !== null && item.tax !== '' ? parseFloat(item.tax) : (meta?.taxRate || 0));
-
-                allItems.push({
-                    ...item,
-                    quantity: itemQty,
-                    qty: itemQty,
-                    rate: itemRate,
-                    discount: discVal,
-                    discountType: discType,
-                    taxRate: itemTax,
-                    tax: itemTax,
-                    taxName: item.taxName || meta?.taxName || '',
-                    description: item.description || meta?.description || '',
-                    activity: meta?.itemName || item.activity || item.description || '',
-                    currency: curr,
-                    exchangeRate: inv.exchangeRate || 1.0,
-                    docPaidAmount: inv.paidAmount !== undefined ? inv.paidAmount : (inv.totalAmount - (inv.balanceAmount || 0)),
-                    docNumber: inv.invoiceNumber,
-                    docDate: inv.date
-                });
-            });
-
-            if (inv.receipt && inv.receipt.length > 0) {
-                inv.receipt.forEach(rec => {
-                    allReceipts.push({
-                        ...rec,
-                        invoiceCurrency: curr
-                    });
-                });
-            }
-        });
-
-        // Sort receipts by date ascending
-        allReceipts.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        const receiptSum = allReceipts.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-        const combinedPaid = Math.max(parseFloat(group.totalPaidAmount || 0), receiptSum);
-
-        const combinedFinancials = computeInvoiceFinancials(allItems, {
-            otherCharges: combinedOtherCharges,
-            roundOff: combinedRoundOff,
-            paymentsReceived: combinedPaid
-        });
-
-        const combinedTotal = combinedFinancials.total;
-        const tol = 0.01;
-        const combinedBalance = combinedFinancials.balanceDue <= tol ? 0 : combinedFinancials.balanceDue;
-        const isCombinedDuePassed = Boolean(group.latestDueDate && new Date(group.latestDueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
-        const combinedStatus = (() => {
-            if (combinedBalance <= tol && (combinedTotal > 0 || combinedPaid > 0)) return 'Paid';
-            if (combinedBalance <= tol && combinedTotal === 0) return 'Paid';
-            if (combinedBalance > tol && isCombinedDuePassed) return 'Overdue';
-            if (combinedPaid > tol && combinedBalance > tol) return 'Partial';
-            return 'Unpaid';
-        })();
+        const childInvoices = group.invoices || [];
 
         const combinedInvoice = {
             id: `combined-${group.id}`,
@@ -2262,7 +2166,7 @@ const Invoice = () => {
             dueDate: group.latestDueDate,
             type: 'COMBINED',
             isCombined: true,
-            invoices: group.invoices || [],
+            invoices: childInvoices,
             customer: group.customer,
             customerId: group.customer?.id || (typeof group.id === 'string' && group.id.startsWith('CUST-') ? parseInt(group.id.replace('CUST-', '')) : null),
             billingName: group.customer?.name,
@@ -2277,21 +2181,29 @@ const Invoice = () => {
             shippingState: group.customer?.billingState,
             shippingZipCode: group.customer?.billingZipCode,
             shippingCountry: group.customer?.billingCountry,
-            items: allItems,
-            receipt: allReceipts,
-            subtotal: combinedFinancials.subtotal,
-            discountAmount: combinedFinancials.discount,
-            taxableAmount: combinedFinancials.taxableAmount,
-            taxAmount: combinedFinancials.vatTotal,
-            otherCharges: combinedFinancials.otherCharges,
-            roundOffAmount: combinedFinancials.roundOff,
-            totalAmount: combinedFinancials.total,
-            paidAmount: combinedPaid,
-            balanceAmount: combinedBalance,
-            currencyTotals,
-            notes: `Overall summary for ${group.customer?.name} - includes ${group.invoices.length} invoices.`,
-            status: combinedStatus
+            currency: childInvoices[0]?.currency || companySettings?.currency || 'EUR',
+            notes: `Overall summary for ${group.customer?.name} - includes ${childInvoices.length} invoices.`
         };
+
+        const financials = computeInvoiceFinancials(combinedInvoice);
+
+        combinedInvoice.subtotal = financials.subtotal;
+        combinedInvoice.discountAmount = financials.discount;
+        combinedInvoice.taxableAmount = financials.taxableAmount;
+        combinedInvoice.taxAmount = financials.vatTotal;
+        combinedInvoice.otherCharges = financials.otherCharges;
+        combinedInvoice.roundOffAmount = financials.roundOff;
+        combinedInvoice.totalAmount = financials.total;
+        combinedInvoice.paidAmount = financials.paidAmount;
+        combinedInvoice.balanceAmount = financials.balanceDue;
+        combinedInvoice.items = financials.computedLines;
+        combinedInvoice.invoiceitem = financials.computedLines;
+        combinedInvoice.vatSummaryList = financials.vatSummaryList;
+        combinedInvoice.receipt = financials.paymentHistory;
+        combinedInvoice.allocations = financials.allAllocations || [];
+        combinedInvoice.paymentHistory = financials.paymentHistory;
+        combinedInvoice.status = financials.status;
+
         setSelectedInvoice(combinedInvoice);
         setViewMode(true);
     };
@@ -2792,6 +2704,9 @@ const Invoice = () => {
                 setShowDeleteModal(false);
                 setInvoiceToDelete(null);
                 setDeletePassword('');
+                setSelectedInvoice(null);
+                deepLinkHandledRef.current = null;
+                navigate({ pathname: location.pathname, search: '' }, { replace: true, state: {} });
                 toast.success('Combined invoice and associated invoices deleted successfully');
                 fetchData();
                 if (viewMode) setViewMode(false);
@@ -2801,6 +2716,9 @@ const Invoice = () => {
                 setShowDeleteModal(false);
                 setInvoiceToDelete(null);
                 setDeletePassword('');
+                setSelectedInvoice(null);
+                deepLinkHandledRef.current = null;
+                navigate({ pathname: location.pathname, search: '' }, { replace: true, state: {} });
                 toast.success('Invoice deleted successfully');
                 fetchData();
                 if (viewMode) setViewMode(false);
@@ -2810,6 +2728,9 @@ const Invoice = () => {
                 setShowDeleteModal(false);
                 setInvoiceToDelete(null);
                 setDeletePassword('');
+                setSelectedInvoice(null);
+                deepLinkHandledRef.current = null;
+                navigate({ pathname: location.pathname, search: '' }, { replace: true, state: {} });
                 toast.success('Invoice deleted successfully');
                 fetchData();
                 if (viewMode) setViewMode(false);
@@ -3009,34 +2930,15 @@ const Invoice = () => {
             }
             const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
 
-            let paidVal = inv.paidAmount !== undefined && inv.paidAmount !== null
-                ? parseFloat(inv.paidAmount)
-                : 0;
-            if (isNaN(paidVal)) paidVal = 0;
-
-            // Also inspect receipt payments if present
-            if (Array.isArray(inv.receipt) && inv.receipt.length > 0) {
-                const receiptSum = inv.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-                if (receiptSum > paidVal) {
-                    paidVal = receiptSum;
-                }
-            } else if (Array.isArray(inv.allocations) && inv.allocations.length > 0) {
-                const allocSum = inv.allocations.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
-                if (allocSum > paidVal) {
-                    paidVal = allocSum;
-                }
-            }
-
             const explicitOtherCharges = Array.isArray(cfData?._otherCharges)
                 ? cfData._otherCharges
                 : (parseFloat(inv.otherCharges || 0) || 0);
             const explicitRoundOff = parseFloat(inv.roundOffAmount || 0) || 0;
 
-            const financials = computeInvoiceFinancials(lineItems, {
+            const financials = computeInvoiceFinancials(inv, {
                 itemsMeta,
                 otherCharges: explicitOtherCharges,
-                roundOff: explicitRoundOff,
-                paymentsReceived: paidVal
+                roundOff: explicitRoundOff
             });
 
             const subtotalVal = financials.subtotal;
@@ -3044,6 +2946,7 @@ const Invoice = () => {
             const taxableVal = financials.taxableAmount;
             const taxVal = financials.vatTotal;
             const totalVal = financials.total;
+            const paidVal = financials.paidAmount;
             const balanceVal = financials.balanceDue;
             const vatSummaryList = financials.vatSummaryList;
 
@@ -3207,7 +3110,7 @@ const Invoice = () => {
             }
 
             // Right Metadata Grid
-            const metaKeyX = 142;
+            const metaKeyX = 118;
             const metaValX = 196;
             const metaRows = [
                 { key: getInvoiceLabel('number') || 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
@@ -3217,22 +3120,30 @@ const Invoice = () => {
                 { key: getInvoiceLabel('dueDate') || 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
             ];
 
-            let metaY = midY + 6;
+            let metaY = midY + 5;
             metaRows.forEach((m) => {
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
                 doc.setTextColor(100, 116, 139);
                 doc.text(m.key, metaKeyX, metaY);
 
+                const keyW = doc.getTextWidth(m.key);
+                const maxValW = (metaValX - metaKeyX) - keyW - 3;
+
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(8.5);
+                let valFontSize = 8.5;
+                doc.setFontSize(valFontSize);
+                while (doc.getTextWidth(m.val) > maxValW && valFontSize > 6) {
+                    valFontSize -= 0.5;
+                    doc.setFontSize(valFontSize);
+                }
                 doc.setTextColor(15, 23, 42);
                 doc.text(m.val, metaValX, metaY, { align: 'right' });
-                metaY += 5;
+                metaY += 4.6;
             });
 
             // --- 3. ITEMS TABLE ---
-            const tableStartY = Math.max(billY + 4, metaY + 4);
+            const tableStartY = Math.max(billY + 3, metaY + 3);
 
             const showUom = getInvoiceLabel('showUom') === true;
             const showQty = getInvoiceLabel('showQty') !== false;
@@ -3244,11 +3155,11 @@ const Invoice = () => {
                 { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 26, align: 'left', fontStyle: 'bold', getData: it => it.actName },
                 { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
                 ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
-                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 16, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
-                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
-                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
-                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
-                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
+                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 17, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
             ];
 
             const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
@@ -3281,25 +3192,25 @@ const Invoice = () => {
                 styles: {
                     overflow: 'linebreak',
                     valign: 'middle',
-                    fontSize: 8,
+                    fontSize: 7.8,
                     lineColor: [226, 232, 240],
                     lineWidth: { bottom: 0.1 }
                 },
                 headStyles: {
-                    fillColor: themeRgb,
-                    textColor: contrastRgb,
+                    fillColor: [222, 222, 222],
+                    textColor: [85, 85, 85],
                     fontStyle: 'bold',
-                    fontSize: 8,
-                    cellPadding: { top: 2.8, bottom: 2.8, left: 3, right: 3 },
+                    fontSize: 7.8,
+                    cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
                     valign: 'middle'
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
-                    fontSize: 8,
-                    cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
+                    fontSize: 7.8,
+                    cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
                     valign: 'middle',
                     overflow: 'linebreak',
-                    lineHeight: 1.25
+                    lineHeight: 1.2
                 },
                 columnStyles: columnStyles,
                 didParseCell: (data) => {
@@ -3313,8 +3224,8 @@ const Invoice = () => {
             });
 
             // --- 4. DIVIDER & TOTALS SECTION ---
-            let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 3;
-            if (postTableY > 215) {
+            let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 2.5;
+            if (postTableY + 45 > 275) {
                 doc.addPage();
                 postTableY = 20;
             }
@@ -3323,15 +3234,14 @@ const Invoice = () => {
             doc.line(14, postTableY, 196, postTableY);
             doc.setLineDashPattern([], 0);
 
-            postTableY += 5;
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
+            doc.setFontSize(8);
             doc.setTextColor(100, 116, 139);
             doc.text('We appreciate your business.', 14, postTableY + 4);
 
-            const totLabelX = 142;
+            const totLabelX = 138;
             const totValX = 196;
-            let totY = postTableY + 1;
+            let totY = postTableY + 4;
 
             const printTotalLine = (label, val, isBold = false, isDiscount = false) => {
                 doc.setFont('helvetica', isBold ? 'bold' : 'normal');
@@ -3343,7 +3253,7 @@ const Invoice = () => {
                 }
                 doc.text(label, totLabelX, totY);
                 doc.text(val, totValX, totY, { align: 'right' });
-                totY += 4.5;
+                totY += 4.0;
             };
 
             printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
@@ -3367,50 +3277,34 @@ const Invoice = () => {
             doc.line(14, totY + 1, 196, totY + 1);
             doc.setLineDashPattern([], 0);
 
-            totY += 6;
+            totY += 5;
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8.5);
             doc.setTextColor(71, 85, 105);
-            doc.text('BALANCE DUE', 142, totY);
+            doc.text('BALANCE DUE', totLabelX, totY);
 
             doc.setFontSize(10.5);
             doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
             doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
 
-            // Status Badge Pill
+            // Status Clean Text Display (Unboxed matching client specification)
             totY += 4.5;
             const isStatusPaid = currentStatus === 'PAID' || currentStatus === 'COMPLETED' || currentStatus === 'FULLY PAID';
-            const badgeBg = isStatusPaid ? [220, 252, 231]
-                : currentStatus === 'OVERDUE' ? [254, 226, 226]
-                : currentStatus === 'PARTIAL' ? [255, 237, 213]
-                : currentStatus === 'CANCELLED' ? [241, 245, 249]
-                : [254, 226, 226];
-            const badgeBorder = isStatusPaid ? [134, 239, 172]
-                : currentStatus === 'OVERDUE' ? [252, 165, 165]
-                : currentStatus === 'PARTIAL' ? [253, 186, 116]
-                : currentStatus === 'CANCELLED' ? [203, 213, 225]
-                : [252, 165, 165];
-            const badgeText = isStatusPaid ? [21, 128, 61]
+            const statusTextColor = isStatusPaid ? [22, 163, 74] // #16a34a
                 : currentStatus === 'OVERDUE' ? [220, 38, 38]
-                : currentStatus === 'PARTIAL' ? [194, 65, 12]
-                : currentStatus === 'CANCELLED' ? [71, 85, 105]
+                : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? [234, 88, 12]
+                : currentStatus === 'CANCELLED' ? [100, 116, 139]
                 : [220, 38, 38];
 
-            const badgeWidth = 24;
-            const badgeHeight = 5.5;
-            const badgeX = totValX - badgeWidth;
-            doc.setFillColor(badgeBg[0], badgeBg[1], badgeBg[2]);
-            doc.setDrawColor(badgeBorder[0], badgeBorder[1], badgeBorder[2]);
-            doc.roundedRect(badgeX, totY, badgeWidth, badgeHeight, 2.5, 2.5, 'FD');
-
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
-            doc.setTextColor(badgeText[0], badgeText[1], badgeText[2]);
-            doc.text(currentStatus, badgeX + badgeWidth / 2, totY + 3.8, { align: 'center' });
+            doc.setFontSize(10.5);
+            doc.setTextColor(statusTextColor[0], statusTextColor[1], statusTextColor[2]);
+            doc.text(currentStatus, totValX, totY, { align: 'right' });
 
             // --- 5. VAT SUMMARY TABLE ---
-            let vatSectionY = totY + 10;
-            if (vatSectionY > 220) {
+            let vatSectionY = totY + 5.5;
+            const vatEstHeight = 8 + (vatSummaryList.length * 5);
+            if (vatSectionY + vatEstHeight > 275) {
                 doc.addPage();
                 vatSectionY = 20;
             }
@@ -3439,16 +3333,16 @@ const Invoice = () => {
                 body: vatTableBody,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: themeRgb,
-                    textColor: contrastRgb,
+                    fillColor: [222, 222, 222],
+                    textColor: [85, 85, 85],
                     fontStyle: 'bold',
-                    fontSize: 7.5,
-                    cellPadding: { top: 2, bottom: 2, left: 2.5, right: 2.5 }
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
-                    fontSize: 7.5,
-                    cellPadding: { top: 2, bottom: 2, left: 2.5, right: 2.5 }
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
                 },
                 columnStyles: {
                     0: { cellWidth: 70, halign: 'left' },
@@ -3466,33 +3360,108 @@ const Invoice = () => {
             });
 
             // --- 6. BANK DETAILS ROUNDED BOX ---
-            let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 25) + 5;
-            if (bankY > 245) {
+            let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
+            if (bankY + 21 > 275) {
                 doc.addPage();
                 bankY = 20;
             }
 
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
-            doc.roundedRect(14, bankY, 182, 24, 2, 2, 'FD');
+            doc.roundedRect(14, bankY, 182, 20, 2, 2, 'FD');
 
             // Left accent border bar
             doc.setFillColor(themeRgb[0], themeRgb[1], themeRgb[2]);
-            doc.rect(14, bankY, 2, 24, 'F');
+            doc.rect(14, bankY, 2, 20, 'F');
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
+            doc.setFontSize(7.2);
             doc.setTextColor(71, 85, 105);
             // Left Column
-            doc.text(`Name: ${bankAccountName}`, 18, bankY + 5.5);
-            doc.text(`IBAN: ${bankIban}`, 18, bankY + 10);
-            doc.text(`BIC: ${bankBic}`, 18, bankY + 14.5);
-            doc.text(`Account: ${bankAccount}`, 18, bankY + 19);
+            doc.text(`Name: ${bankAccountName}`, 18, bankY + 4.5);
+            doc.text(`IBAN: ${bankIban}`, 18, bankY + 8.5);
+            doc.text(`BIC: ${bankBic}`, 18, bankY + 12.5);
+            doc.text(`Account: ${bankAccount}`, 18, bankY + 16.5);
 
             // Right Column
-            doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 5.5);
-            doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 10);
-            doc.text(String(bankAddress || '97 Main Street, Midleton, Co. Cork'), 108, bankY + 14.5);
+            doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 4.5);
+            doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 8.5);
+            doc.text(String(bankAddress || '97 Main Street, Midleton, Co. Cork'), 108, bankY + 12.5);
+
+            // --- 7. PAYMENT HISTORY TABLE ---
+            const sortedHistory = resolveInvoicePaymentHistory(inv);
+
+            if (sortedHistory.length > 0) {
+                let pmtSectionY = bankY + 20 + 3.5;
+                const pmtEstHeight = 8 + (sortedHistory.length * 5.2);
+                if (pmtSectionY + pmtEstHeight > 275) {
+                    doc.addPage();
+                    pmtSectionY = 20;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+                doc.text('PAYMENT HISTORY', 14, pmtSectionY);
+
+                const pmtTableHead = [[
+                    { content: 'Payment Date', styles: { halign: 'left' } },
+                    { content: 'Receipt Number', styles: { halign: 'left' } },
+                    { content: 'Payment Amount', styles: { halign: 'right' } },
+                    { content: 'Payment Method', styles: { halign: 'center' } },
+                    { content: 'Balance After Payment', styles: { halign: 'right' } }
+                ]];
+
+                const pmtTableBody = sortedHistory.map(p => {
+                    const d = p.date ? new Date(p.date) : null;
+                    const dateStr = d && !isNaN(d.getTime())
+                        ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+                        : '-';
+                    const amtStr = `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    const balAfterStr = (p.balanceAfterPayment !== undefined && p.balanceAfterPayment !== null)
+                        ? `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.balanceAfterPayment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '-';
+                    return [
+                        dateStr,
+                        p.receiptNumber || '-',
+                        amtStr,
+                        (p.paymentMode || 'BANK').toUpperCase(),
+                        balAfterStr
+                    ];
+                });
+
+                safeAutoTable(doc, {
+                    startY: pmtSectionY + 2,
+                    head: pmtTableHead,
+                    body: pmtTableBody,
+                    theme: 'plain',
+                    headStyles: {
+                        fillColor: [222, 222, 222],
+                        textColor: [85, 85, 85],
+                        fontStyle: 'bold',
+                        fontSize: 7.2,
+                        cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                    },
+                    bodyStyles: {
+                        textColor: [15, 23, 42],
+                        fontSize: 7.2,
+                        cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 32, halign: 'left' },
+                        1: { cellWidth: 38, halign: 'left' },
+                        2: { cellWidth: 38, halign: 'right' },
+                        3: { cellWidth: 34, halign: 'center' },
+                        4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+                    },
+                    didParseCell: (data) => {
+                        if (data.column.index === 0 || data.column.index === 1) data.cell.styles.halign = 'left';
+                        if (data.column.index === 2 || data.column.index === 4) data.cell.styles.halign = 'right';
+                        if (data.column.index === 3) data.cell.styles.halign = 'center';
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+            }
 
             // --- 7. FOOTER ---
             const pageCount = doc.internal.getNumberOfPages();
@@ -3677,7 +3646,7 @@ const Invoice = () => {
                     'Total Amount': tot,
                     'Paid Amount': paid,
                     'Balance Due': bal,
-                    'Status': inv.status || 'UNPAID',
+                    'Status': inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID'),
                     'Payment Date': paymentDateDisplay,
                     'Currency': inv.currency || companySettings?.currency || 'EUR'
                 };
@@ -3775,6 +3744,8 @@ const Invoice = () => {
                     dueDateDisplay = isNaN(d.getTime()) ? String(inv.dueDate).slice(0, 10) : d.toLocaleDateString();
                 }
 
+                const displayStatus = inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID');
+
                 return [
                     inv.invoiceNumber || 'N/A',
                     inv.poNumber || '-',
@@ -3786,8 +3757,8 @@ const Invoice = () => {
                     `${invCurr} ${Number(paid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                     `${invCurr} ${Number(bal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                     inv.paymentDate && (paid > 0 || inv.status === 'PAID')
-                        ? `${inv.status || 'PAID'} (${new Date(inv.paymentDate).toLocaleDateString()})`
-                        : (inv.status || 'UNPAID')
+                        ? `${displayStatus} (${new Date(inv.paymentDate).toLocaleDateString()})`
+                        : displayStatus
                 ];
             });
 
@@ -5018,24 +4989,11 @@ const Invoice = () => {
 
     // --- RENDER FULL PAGE VIEW IF IN VIEW MODE ---
     if (viewMode && selectedInvoice) {
-        const viewTotal = parseFloat(selectedInvoice.totalAmount || 0);
-        const viewPaid = selectedInvoice.paidAmount !== undefined && selectedInvoice.paidAmount !== null
-            ? parseFloat(selectedInvoice.paidAmount)
-            : 0;
-        const viewBalance = selectedInvoice.balanceAmount !== undefined && selectedInvoice.balanceAmount !== null
-            ? parseFloat(selectedInvoice.balanceAmount)
-            : Math.max(0, viewTotal - viewPaid);
-        const viewDuePassed = Boolean(selectedInvoice.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
-        const viewStatus = (() => {
-            const raw = (selectedInvoice.status || '').toUpperCase();
-            if (raw === 'CANCELLED') return 'CANCELLED';
-            const tol = 0.01;
-            if (viewBalance <= tol && (viewTotal > 0 || viewPaid > 0)) return 'PAID';
-            if (viewBalance > tol && viewDuePassed) return 'OVERDUE';
-            if (viewPaid > tol && viewBalance > tol) return 'PARTIAL';
-            if (viewBalance <= tol && viewTotal === 0) return 'PAID';
-            return 'UNPAID';
-        })();
+        const viewFin = computeInvoiceFinancials(selectedInvoice);
+        const viewTotal = viewFin.totalAmount;
+        const viewPaid = viewFin.paymentsReceived;
+        const viewBalance = viewFin.balanceDue;
+        const viewStatus = viewFin.paymentStatus;
 
         return (
             <div className="Invoice-invoice-full-page-view">
@@ -5096,7 +5054,7 @@ const Invoice = () => {
                         </div>
 
                         {/* Primary Action */}
-                        {selectedInvoice.balanceAmount > 0 && hasPermission('create sales payment') ? (
+                        {viewBalance > 0 && hasPermission('create sales payment') ? (
                             <button
                                 type="button"
                                 className="Invoice-btn-primary-detail payment"
@@ -5150,7 +5108,14 @@ const Invoice = () => {
                 {(() => {
                     const companyDetails = selectedInvoice?.company || companySettings || {};
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
-                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#004aad';
+                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
+                    const isLightColor = (color) => {
+                        if (!color) return false;
+                        const c = color.toLowerCase();
+                        return c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0';
+                    };
+                    const headingColor = isLightColor(themeColor) ? '#1e293b' : themeColor;
+                    const textHighlightColor = isLightColor(themeColor) ? '#111827' : themeColor;
                     const showHeader = getInvoiceLabel('showHeader') !== false;
                     const showFooter = getInvoiceLabel('showFooter') !== false;
                     const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
@@ -5193,7 +5158,7 @@ const Invoice = () => {
                         }
                     }
                     const previewItemsMeta = Array.isArray(previewCf?._itemsDiscountMeta) ? previewCf._itemsDiscountMeta : [];
-                    const lineItems = rawItems.length > 0 ? rawItems : [
+                    const initialLineItems = rawItems.length > 0 ? rawItems : [
                         {
                             activity: 'Services',
                             description: billAddr || '56 New cork road, Midleton, Co. Cork',
@@ -5204,49 +5169,24 @@ const Invoice = () => {
                         }
                     ];
 
-                    let paidVal = selectedInvoice?.paidAmount !== undefined && selectedInvoice?.paidAmount !== null
-                        ? parseFloat(selectedInvoice.paidAmount)
-                        : 0;
-                    if (isNaN(paidVal)) paidVal = 0;
-                    if (Array.isArray(selectedInvoice?.receipt) && selectedInvoice.receipt.length > 0) {
-                        const recSum = selectedInvoice.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-                        if (recSum > paidVal) paidVal = recSum;
-                    } else if (Array.isArray(selectedInvoice?.allocations) && selectedInvoice.allocations.length > 0) {
-                        const allocSum = selectedInvoice.allocations.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
-                        if (allocSum > paidVal) paidVal = allocSum;
-                    }
-
-                    const explicitOtherCharges = Array.isArray(previewCf?._otherCharges)
-                        ? previewCf._otherCharges
-                        : (parseFloat(selectedInvoice?.otherCharges || 0) || 0);
-                    const explicitRoundOff = parseFloat(selectedInvoice?.roundOffAmount || 0) || 0;
-
-                    const financials = computeInvoiceFinancials(lineItems, {
-                        itemsMeta: previewItemsMeta,
-                        otherCharges: explicitOtherCharges,
-                        roundOff: explicitRoundOff,
-                        paymentsReceived: paidVal
-                    });
+                    const financials = computeInvoiceFinancials(selectedInvoice);
 
                     const subtotalVal = financials.subtotal;
                     const discountVal = financials.discount;
                     const taxableVal = financials.taxableAmount;
                     const taxVal = financials.vatTotal;
                     const totalVal = financials.total;
+                    const paidVal = financials.paidAmount;
                     const balanceVal = financials.balanceDue;
                     const vatSummaryList = financials.vatSummaryList;
+                    const lineItems = (financials.computedLines && financials.computedLines.length > 0) ? financials.computedLines : initialLineItems;
 
                     const isDuePassedDate = Boolean(selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
 
                     const currentStatus = (() => {
-                        const rawStatus = (selectedInvoice?.status || '').toUpperCase();
+                        const rawStatus = (selectedInvoice?.status || financials.status || '').toUpperCase();
                         if (rawStatus === 'CANCELLED') return 'CANCELLED';
-                        const tol = 0.01;
-                        if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
-                        if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
-                        if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
-                        if (balanceVal <= tol && totalVal === 0) return 'PAID';
-                        return 'UNPAID';
+                        return financials.status || 'UNPAID';
                     })();
 
                     const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
@@ -5309,7 +5249,7 @@ const Invoice = () => {
                                 {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
                                 <div className="invoice-cea-middle">
                                     <div className="invoice-cea-middle-left">
-                                        <div className="invoice-cea-doc-heading" style={{ color: themeColor || '#1e293b' }}>
+                                        <div className="invoice-cea-doc-heading" style={{ color: headingColor }}>
                                             {selectedInvoice?.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (companyDetails?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE'))}
                                         </div>
                                         <div className="invoice-cea-bill-label">{getInvoiceLabel('billTo') || 'BILL TO'}</div>
@@ -5349,39 +5289,39 @@ const Invoice = () => {
                                 {/* 3. ITEMS TABLE */}
                                 <table className="invoice-cea-table">
                                     <thead>
-                                        <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                            <th style={{ width: '16%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                        <tr style={{ backgroundColor: '#dedede' }}>
+                                            <th style={{ width: '16%', textAlign: 'left', color: '#555555' }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: '#555555' }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (
-                                                <th style={{ width: '6%', textAlign: 'center', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '6%', textAlign: 'center', color: '#555555' }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ width: '8%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '8%', textAlign: 'right', color: '#555555' }}>
                                                     {getTableHeader('quantity', 'QUANTITY')}
                                                 </th>
                                             )}
                                             {showRate && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
                                                     {getTableHeader('rate', 'RATE')}
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
                                             {showTax && (
-                                                <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                                <th style={{ width: '9%', textAlign: 'right', color: '#555555' }}>
                                                     {getTableHeader('tax', 'TAX')}
                                                 </th>
                                             )}
-                                            <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
                                                 {getTableHeader('price', 'PRICE')}
                                             </th>
                                         </tr>
@@ -5429,7 +5369,7 @@ const Invoice = () => {
                                 </table>
 
                                 {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                                <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
+                                <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                                 <div className="invoice-cea-subtotal-section">
                                     <div className="invoice-cea-appreciation">
@@ -5465,7 +5405,7 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
 
                                         <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
-                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: themeColor || '#111827' }}>{Number(totalVal).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: textHighlightColor }}>{Number(totalVal).toFixed(2)}</span>
 
                                         {parseFloat(paidVal) > 0 && (
                                             <>
@@ -5477,45 +5417,31 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                                <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
+                                <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                                 <div className="invoice-cea-balance-section">
                                     <div className="invoice-cea-balance-box">
                                         <div className="invoice-cea-balance-line">
                                             <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                            <span className="invoice-cea-balance-amount" style={{ color: themeColor || '#111827' }}>
+                                            <span className="invoice-cea-balance-amount" style={{ color: textHighlightColor }}>
                                                 {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                             </span>
                                         </div>
-                                        <div className="invoice-cea-status-display" style={{ marginTop: '5px', textAlign: 'right' }}>
+                                        <div className="invoice-cea-status-display" style={{ marginTop: '4px', textAlign: 'right' }}>
                                             <span
-                                                className={`invoice-cea-status-badge status-${(currentStatus || '').toLowerCase()}`}
+                                                className="invoice-cea-paid-indicator"
                                                 style={{
-                                                    display: 'inline-block',
-                                                    padding: '3px 14px',
-                                                    borderRadius: '9999px',
-                                                    fontSize: '12px',
+                                                    display: 'block',
+                                                    fontSize: '17px',
                                                     fontWeight: '800',
-                                                    letterSpacing: '0.06em',
+                                                    letterSpacing: '0.05em',
                                                     textTransform: 'uppercase',
-                                                    backgroundColor: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#dcfce7'
-                                                        : currentStatus === 'OVERDUE' ? '#fee2e2'
-                                                        : currentStatus === 'PARTIAL' ? '#ffedd5'
-                                                        : currentStatus === 'CANCELLED' ? '#f1f5f9'
-                                                        : '#fee2e2',
-                                                    color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#15803d'
+                                                    lineHeight: '1.2',
+                                                    color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#16a34a'
                                                         : currentStatus === 'OVERDUE' ? '#dc2626'
-                                                        : currentStatus === 'PARTIAL' ? '#c2410c'
-                                                        : currentStatus === 'CANCELLED' ? '#475569'
-                                                        : '#dc2626',
-                                                    border: `1.5px solid ${
-                                                        currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#86efac'
-                                                        : currentStatus === 'OVERDUE' ? '#fca5a5'
-                                                        : currentStatus === 'PARTIAL' ? '#fdba74'
-                                                        : currentStatus === 'CANCELLED' ? '#cbd5e1'
-                                                        : '#fca5a5'
-                                                    }`,
-                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                                        : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? '#ea580c'
+                                                        : currentStatus === 'CANCELLED' ? '#64748b'
+                                                        : '#dc2626'
                                                 }}
                                             >
                                                 {currentStatus}
@@ -5526,14 +5452,14 @@ const Invoice = () => {
 
                                 {/* 6. VAT SUMMARY */}
                                 <div className="invoice-cea-vat-section">
-                                    <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827' }}>VAT SUMMARY</div>
+                                    <div className="invoice-cea-vat-title" style={{ color: textHighlightColor }}>VAT SUMMARY</div>
                                     <table className="invoice-cea-vat-table">
                                         <thead>
-                                            <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                                <th style={{ width: '38%', textAlign: 'left', color: getContrastTextColor(themeColor) }}></th>
-                                                <th style={{ width: '22%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
+                                            <tr style={{ backgroundColor: '#dedede' }}>
+                                                <th style={{ width: '38%', textAlign: 'left', color: '#555555' }}></th>
+                                                <th style={{ width: '22%', textAlign: 'left', color: '#555555' }}>RATE</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: '#555555' }}>VAT</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: '#555555' }}>NET</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -5565,6 +5491,74 @@ const Invoice = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* PAYMENT HISTORY SECTION */}
+                                {(() => {
+                                    const sortedPaymentHistory = resolveInvoicePaymentHistory(selectedInvoice);
+
+                                    if (sortedPaymentHistory.length === 0) return null;
+
+                                    const curr = selectedInvoice?.currency || companyDetails.currency || 'EUR';
+                                    const sym = curr === 'EUR' ? '€' : (curr === 'GBP' ? '£' : (curr === 'USD' ? '$' : (curr === 'INR' ? '₹' : `${curr} `)));
+
+                                    const formatMoney = (val) => {
+                                        return `${sym}${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                    };
+
+                                    const formatDateDmy = (dateVal) => {
+                                        if (!dateVal) return '-';
+                                        const d = new Date(dateVal);
+                                        if (isNaN(d.getTime())) return String(dateVal);
+                                        const day = String(d.getDate()).padStart(2, '0');
+                                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                                        const year = d.getFullYear();
+                                        return `${day}/${month}/${year}`;
+                                    };
+
+                                    return (
+                                        <div className="invoice-cea-payment-history-section" style={{ marginTop: '24px', marginBottom: '20px' }}>
+                                            <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                                Payment History
+                                            </div>
+                                            <table className="invoice-cea-vat-table invoice-cea-payment-history-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                                <thead>
+                                                    <tr style={{ backgroundColor: '#dedede' }}>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Payment Date</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Receipt Number</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Payment Amount</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: '#555555', fontWeight: '600' }}>Payment Method</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Balance After Payment</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sortedPaymentHistory.map((pmt, pIdx) => {
+                                                        const pmtDate = formatDateDmy(pmt.date);
+                                                        const rcvNo = pmt.receiptNumber || '-';
+                                                        const amt = formatMoney(pmt.amount || 0);
+                                                        const mode = (pmt.paymentMode || 'BANK').toUpperCase();
+                                                        const balAfter = (pmt.balanceAfterPayment !== undefined && pmt.balanceAfterPayment !== null)
+                                                            ? formatMoney(pmt.balanceAfterPayment)
+                                                            : '-';
+
+                                                        return (
+                                                            <tr key={pIdx} style={{ borderBottom: '1px solid #e2e8f0', background: pIdx % 2 === 1 ? '#f8fafc' : '#ffffff' }}>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'left', color: '#334155' }}>{pmtDate}</td>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'left', fontWeight: '600', color: '#0f172a' }}>{rcvNo}</td>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{amt}</td>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                                                                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', border: '1px solid #cbd5e1', fontSize: '11px', fontWeight: '600', color: '#475569' }}>
+                                                                        {mode}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: themeColor || '#0f172a' }}>{balAfter}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* 8. PAGE FOOTER */}
                                 {showFooter && (
@@ -5933,7 +5927,7 @@ const Invoice = () => {
                                                                         userSelect: 'none'
                                                                     }}
                                                                 >
-                                                                    {inv.status || 'UNPAID'}
+                                                                    {inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID')}
                                                                 </span>
                                                                 {inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && (
                                                                     <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: '600' }}>
@@ -6167,7 +6161,7 @@ const Invoice = () => {
                                                                             userSelect: 'none'
                                                                         }}
                                                                     >
-                                                                        {singleInv.status || 'UNPAID'}
+                                                                        {singleInv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (singleInv.status || 'UNPAID')}
                                                                     </span>
                                                                 );
                                                             }
@@ -6324,7 +6318,7 @@ const Invoice = () => {
                                                                                                         userSelect: 'none'
                                                                                                     }}
                                                                                                 >
-                                                                                                    {si.status || 'UNPAID'}
+                                                                                                    {si.status === 'PARTIAL' ? 'PARTIALLY PAID' : (si.status || 'UNPAID')}
                                                                                                 </span>
                                                                                                 {si.paymentDate && (si.paidAmount > 0 || si.status === 'PAID' || si.status === 'PARTIAL') && (
                                                                                                     <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', whiteSpace: 'nowrap' }}>

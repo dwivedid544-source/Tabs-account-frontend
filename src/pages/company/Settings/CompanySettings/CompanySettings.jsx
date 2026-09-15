@@ -240,8 +240,8 @@ const CompanySettings = () => {
 
     // Invoice Settings State
     const [invoiceSettings, setInvoiceSettings] = useState({
-        template: 'Standard VAT (CEA)',
-        color: '#004aad',
+        template: 'Light Gray',
+        color: '#dedede',
         showQr: true,
         logo: null,
         logoPreview: null
@@ -440,8 +440,8 @@ const CompanySettings = () => {
     });
 
     const colors = [
-        '#004aad', '#4b5563', '#6366f1', '#ef4444', '#f59e0b', '#eab308', '#475569',
-        '#06b6d4', '#8b5cf6', '#1e293b', '#0f172a', '#3b82f6', '#10b981', '#f43f5e', '#000000'
+        '#dedede', '#475569', '#1e293b', '#004aad', '#3b82f6', '#06b6d4', '#10b981',
+        '#f59e0b', '#eab308', '#ef4444', '#f43f5e', '#8b5cf6', '#6366f1', '#4b5563', '#0f172a', '#000000'
     ];
 
     const currencies = [
@@ -452,8 +452,7 @@ const CompanySettings = () => {
     ];
 
     const availableTemplates = Array.from(new Set([
-        'Light Grey',
-        'Standard VAT (CEA)',
+        'Light Gray',
         ...Object.keys(savedTemplates || {}),
         invoiceSettings.template
     ].filter(Boolean)));
@@ -533,9 +532,12 @@ const CompanySettings = () => {
                     setHasDeletionPassword(Boolean(data.hasInvoiceDeletionPassword));
                 }
 
+                let fetchedTpl = data.invoiceTemplate || 'Light Gray';
+                if (fetchedTpl === 'Light Grey' || fetchedTpl === 'Standard VAT (CEA)') fetchedTpl = 'Light Gray';
+                const isLightTpl = fetchedTpl.toLowerCase().includes('light gr') || fetchedTpl === 'Standard VAT (CEA)';
                 setInvoiceSettings({
-                    template: data.invoiceTemplate || 'Standard VAT (CEA)',
-                    color: data.invoiceColor || '#004aad',
+                    template: fetchedTpl,
+                    color: (data.invoiceColor && data.invoiceColor !== '#000000') ? data.invoiceColor : (isLightTpl ? '#dedede' : '#475569'),
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     logo: null,
                     logoPreview: resolveLogoUrl(data.invoiceLogo) || null
@@ -802,11 +804,14 @@ const CompanySettings = () => {
 
         // Load new template if it exists in savedTemplates
         const targetConfig = updatedTemplates[newTpl];
+        const isLightGrayTpl = newTpl === 'Light Gray' || newTpl === 'Light Grey' || newTpl === 'Standard VAT (CEA)';
+        const defaultTplColor = isLightGrayTpl ? '#dedede' : undefined;
+
         if (targetConfig) {
             setInvoiceSettings(prev => ({
                 ...prev,
                 template: newTpl,
-                color: targetConfig.color || (newTpl === 'Light Grey' || newTpl === 'Standard VAT (CEA)' ? '#475569' : prev.color),
+                color: targetConfig.color || defaultTplColor || prev.color,
                 showQr: targetConfig.showQr !== undefined ? targetConfig.showQr : prev.showQr
             }));
             if (targetConfig.labels) {
@@ -816,7 +821,6 @@ const CompanySettings = () => {
                 setTableHeaders(targetConfig.tableHeaders);
             }
         } else {
-            const defaultTplColor = (newTpl === 'Light Grey' || newTpl === 'Standard VAT (CEA)') ? '#475569' : undefined;
             setInvoiceSettings(prev => ({ 
                 ...prev, 
                 template: newTpl,
@@ -864,14 +868,14 @@ const CompanySettings = () => {
     };
 
     const handleDeleteTemplate = (tplNameToDelete) => {
-        if (tplNameToDelete === 'Standard VAT (CEA)') {
-            toast.error('Cannot delete default template.');
+        if (tplNameToDelete === 'Light Gray' || tplNameToDelete === 'Light Grey' || tplNameToDelete === 'Standard VAT (CEA)') {
+            toast.error(`${tplNameToDelete} is a default template and cannot be deleted.`);
             return;
         }
         const updated = { ...savedTemplates };
         delete updated[tplNameToDelete];
         setSavedTemplates(updated);
-        handleTemplateChange('Standard VAT (CEA)');
+        handleTemplateChange('Light Gray');
         toast.success(`Template "${tplNameToDelete}" deleted.`);
     };
 
@@ -1646,7 +1650,7 @@ const CompanySettings = () => {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                             <label style={{ margin: 0, fontWeight: '600' }}>Invoice Template</label>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                {invoiceSettings.template !== 'Standard VAT (CEA)' && invoiceSettings.template !== 'Light Grey' && (
+                                                {invoiceSettings.template !== 'Light Gray' && invoiceSettings.template !== 'Light Grey' && invoiceSettings.template !== 'Standard VAT (CEA)' && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDeleteTemplate(invoiceSettings.template)}
@@ -1726,10 +1730,20 @@ const CompanySettings = () => {
                                                 <div
                                                     key={c}
                                                     className={`color-swatch ${invoiceSettings.color === c ? 'active' : ''}`}
-                                                    style={{ backgroundColor: c }}
+                                                    style={{
+                                                        backgroundColor: c,
+                                                        border: c.toLowerCase() === '#dedede' ? '1px solid #94a3b8' : undefined
+                                                    }}
                                                     onClick={() => setInvoiceSettings({ ...invoiceSettings, color: c })}
+                                                    title={c.toLowerCase() === '#dedede' ? 'Light Gray (#dedede)' : c}
                                                 >
-                                                    {invoiceSettings.color === c && <Check size={14} className="color-swatch-check" />}
+                                                    {invoiceSettings.color === c && (
+                                                        <Check
+                                                            size={14}
+                                                            className="color-swatch-check"
+                                                            style={{ color: c.toLowerCase() === '#dedede' ? '#1e293b' : undefined }}
+                                                        />
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -1972,131 +1986,142 @@ const CompanySettings = () => {
                                     </div>
 
                                     {/* 3. ITEMS TABLE */}
-                                    <table className="invoice-cea-table">
-                                        <thead>
-                                            <tr style={{ backgroundColor: invoiceSettings.color || '#dedede' }}>
-                                                <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                    {tableHeaders.item || 'ACTIVITY'}
-                                                </th>
-                                                {invoiceLabels.showWarehouse !== false && (
-                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.warehouse || 'DESCRIPTION'}
-                                                    </th>
-                                                )}
+                                    {(() => {
+                                        const isLightGrayTemplate = (invoiceSettings.template || '').toLowerCase().includes('light gr') || invoiceSettings.template === 'Standard VAT (CEA)';
+                                        const isLightHeader = (invoiceSettings.color || '').toLowerCase() === '#dedede' || isLightGrayTemplate;
+                                        const headerBgColor = isLightGrayTemplate ? '#dedede' : (invoiceSettings.color || '#dedede');
+                                        const headerTextColor = isLightHeader ? '#555555' : getContrastTextColor(headerBgColor);
+
+                                        return (
+                                            <>
+                                                <table className="invoice-cea-table">
+                                                    <thead>
+                                                        <tr style={{ backgroundColor: headerBgColor }}>
+                                                            <th style={{ textAlign: 'left', color: headerTextColor }}>
+                                                                {tableHeaders.item || 'ACTIVITY'}
+                                                            </th>
+                                                            {invoiceLabels.showWarehouse !== false && (
+                                                                <th style={{ textAlign: 'left', color: headerTextColor }}>
+                                                                    {tableHeaders.warehouse || 'DESCRIPTION'}
+                                                                </th>
+                                                            )}
+                                                            {invoiceLabels.showUom === true && (
+                                                                <th style={{ textAlign: 'center', color: headerTextColor }}>
+                                                                    {tableHeaders.uom || 'UOM'}
+                                                                </th>
+                                                            )}
+                                                            {invoiceLabels.showQty !== false && (
+                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                    {tableHeaders.quantity || 'QUANTITY'}
+                                                                </th>
+                                                            )}
+                                                            {invoiceLabels.showRate !== false && (
+                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                    {tableHeaders.rate || 'RATE'}
+                                                                </th>
+                                                            )}
+                                                            {invoiceLabels.showDiscount !== false && (
+                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                    {tableHeaders.discount || 'DISCOUNT'}
+                                                                </th>
+                                                            )}
+                                                            {invoiceLabels.showTax !== false && (
+                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                    {tableHeaders.tax || 'TAX'}
+                                                                </th>
+                                                            )}
+                                                            <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                {tableHeaders.price || 'PRICE'}
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td className="invoice-cea-activity-cell">Services</td>
+                                                            {invoiceLabels.showWarehouse !== false && <td className="invoice-cea-desc-cell">Services</td>}
+                                                            {invoiceLabels.showUom === true && <td>Units</td>}
+                                                            {invoiceLabels.showQty !== false && <td style={{ textAlign: 'right' }}>1</td>}
+                                                            {invoiceLabels.showRate !== false && <td style={{ textAlign: 'right' }}>2000.00</td>}
+                                                            {invoiceLabels.showDiscount !== false && <td style={{ textAlign: 'right' }}>0%</td>}
+                                                            {invoiceLabels.showTax !== false && <td style={{ textAlign: 'right' }}>23%</td>}
+                                                            <td style={{ textAlign: 'right' }}>2000.00</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+
+                                                {/* 4. DOTTED DIVIDER 1 & TOTALS */}
+                                                <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
+
+                                                <div className="invoice-cea-subtotal-section">
+                                                    <div className="invoice-cea-appreciation">
+                                                        We appreciate your business.
+                                                    </div>
+                                                    <div className="invoice-cea-totals-grid">
+                                                        <span className="invoice-cea-total-label">{invoiceLabels.subTotal || 'SUBTOTAL'}</span>
+                                                        <span className="invoice-cea-total-val">2000.00</span>
+
+                                                        {invoiceLabels.showDiscount !== false && (
+                                                            <>
+                                                                <span className="invoice-cea-total-label">{tableHeaders.discount || 'DISCOUNT'}</span>
+                                                                <span className="invoice-cea-total-val">0.00</span>
+                                                            </>
+                                                        )}
+
+                                                        <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                                        <span className="invoice-cea-total-val">2000.00</span>
+
+                                                        {invoiceLabels.showTax !== false && (
+                                                            <>
+                                                                <span className="invoice-cea-total-label">{invoiceLabels.tax || 'TAX'}</span>
+                                                                <span className="invoice-cea-total-val">460.00</span>
+                                                            </>
+                                                        )}
+
+                                                        <span className="invoice-cea-total-label">{invoiceLabels.total || 'TOTAL'}</span>
+                                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>2460.00</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
+                                                <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
+
+                                                <div className="invoice-cea-balance-section">
+                                                    <div className="invoice-cea-balance-box">
+                                                        <div className="invoice-cea-balance-line">
+                                                            <span className="invoice-cea-balance-label">BALANCE DUE</span>
+                                                            <span className="invoice-cea-balance-amount" style={{ color: '#111827', fontWeight: '800' }}>EUR 2460.00</span>
+                                                        </div>
+                                                        <div className="invoice-cea-paid-indicator" style={{ color: '#dc2626', fontWeight: '800', fontSize: '18px', letterSpacing: '0.05em' }}>
+                                                            UNPAID
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* 6. VAT SUMMARY */}
                                                 {invoiceLabels.showTax !== false && (
-                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.tax || 'TAX'}
-                                                    </th>
+                                                    <div className="invoice-cea-vat-section">
+                                                        <div className="invoice-cea-vat-title" style={{ color: '#111827', fontWeight: '700' }}>VAT SUMMARY</div>
+                                                        <table className="invoice-cea-vat-table">
+                                                            <thead>
+                                                                <tr style={{ backgroundColor: headerBgColor }}>
+                                                                    <th style={{ width: '40%', textAlign: 'left', color: headerTextColor }}>RATE</th>
+                                                                    <th style={{ width: '30%', textAlign: 'right', color: headerTextColor }}>VAT</th>
+                                                                    <th style={{ width: '30%', textAlign: 'right', color: headerTextColor }}>NET</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
+                                                                    <td style={{ textAlign: 'right' }}>460.00</td>
+                                                                    <td style={{ textAlign: 'right' }}>2000.00</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 )}
-                                                {invoiceLabels.showUom === true && (
-                                                    <th style={{ textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.uom || 'UOM'}
-                                                    </th>
-                                                )}
-                                                {invoiceLabels.showQty !== false && (
-                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.quantity || 'QTY'}
-                                                    </th>
-                                                )}
-                                                {invoiceLabels.showRate !== false && (
-                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.rate || 'RATE'}
-                                                    </th>
-                                                )}
-                                                {invoiceLabels.showDiscount === true && (
-                                                    <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                        {tableHeaders.discount || 'DISCOUNT'}
-                                                    </th>
-                                                )}
-                                                <th style={{ textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>
-                                                    {tableHeaders.price || 'AMOUNT'}
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td className="invoice-cea-activity-cell">Services</td>
-                                                {invoiceLabels.showWarehouse !== false && <td className="invoice-cea-desc-cell">56 New cork road, Midleton, Co. Cork</td>}
-                                                {invoiceLabels.showTax !== false && <td>Standard</td>}
-                                                {invoiceLabels.showUom === true && <td>Units</td>}
-                                                {invoiceLabels.showQty !== false && <td style={{ textAlign: 'right' }}>1</td>}
-                                                {invoiceLabels.showRate !== false && <td style={{ textAlign: 'right' }}>200.00</td>}
-                                                {invoiceLabels.showDiscount === true && <td style={{ textAlign: 'right' }}>0.00</td>}
-                                                <td style={{ textAlign: 'right' }}>200.00</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-
-                                    {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                                    <div className="invoice-cea-divider-dotted" style={{ borderColor: invoiceSettings.color || '#9ca3af', opacity: 0.5 }} />
-
-                                    <div className="invoice-cea-subtotal-section">
-                                        <div className="invoice-cea-appreciation">
-                                            We appreciate your business.
-                                        </div>
-                                        <div className="invoice-cea-totals-grid">
-                                            <span className="invoice-cea-total-label">{invoiceLabels.subTotal || 'SUBTOTAL'}</span>
-                                            <span className="invoice-cea-total-val">200.00</span>
-
-                                            {invoiceLabels.showDiscount === true && (
-                                                <>
-                                                    <span className="invoice-cea-total-label">{tableHeaders.discount || 'DISCOUNT'}</span>
-                                                    <span className="invoice-cea-total-val">0.00</span>
-                                                </>
-                                            )}
-
-                                            {invoiceLabels.showTax !== false && (
-                                                <>
-                                                    <span className="invoice-cea-total-label">{invoiceLabels.tax || 'TAX'}</span>
-                                                    <span className="invoice-cea-total-val">46.00</span>
-                                                </>
-                                            )}
-
-                                            <span className="invoice-cea-total-label">{invoiceLabels.total || 'TOTAL'}</span>
-                                            <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: invoiceSettings.color || '#111827' }}>246.00</span>
-
-                                            <span className="invoice-cea-total-label">PAYMENT</span>
-                                            <span className="invoice-cea-total-val">246.00</span>
-                                        </div>
-                                    </div>
-
-                                    {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                                    <div className="invoice-cea-divider-dotted" style={{ borderColor: invoiceSettings.color || '#9ca3af', opacity: 0.5 }} />
-
-                                    <div className="invoice-cea-balance-section">
-                                        <div className="invoice-cea-balance-box">
-                                            <div className="invoice-cea-balance-line">
-                                                <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                                <span className="invoice-cea-balance-amount" style={{ color: invoiceSettings.color || '#111827' }}>EUR 0.00</span>
-                                            </div>
-                                            <div className="invoice-cea-paid-indicator" style={{ color: invoiceSettings.color || '#16a34a' }}>
-                                                PAID
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 6. VAT SUMMARY */}
-                                    {invoiceLabels.showTax !== false && (
-                                        <div className="invoice-cea-vat-section">
-                                            <div className="invoice-cea-vat-title" style={{ color: invoiceSettings.color || '#111827' }}>VAT SUMMARY</div>
-                                            <table className="invoice-cea-vat-table">
-                                                <thead>
-                                                    <tr style={{ backgroundColor: invoiceSettings.color || '#dedede' }}>
-                                                        <th style={{ width: '40%', textAlign: 'left', color: getContrastTextColor(invoiceSettings.color) }}>RATE</th>
-                                                        <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>VAT</th>
-                                                        <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(invoiceSettings.color) }}>NET</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td style={{ textAlign: 'left' }}>VAT @ 23%</td>
-                                                        <td style={{ textAlign: 'right' }}>46.00</td>
-                                                        <td style={{ textAlign: 'right' }}>200.00</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
+                                            </>
+                                        );
+                                    })()}
 
                                     {/* 7. BANK DETAILS BOX */}
                                     {invoiceLabels.showFooter !== false && (

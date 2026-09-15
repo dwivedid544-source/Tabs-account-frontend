@@ -2249,6 +2249,33 @@
    TEMPLATE SPECIFIC OVERRIDES
    ======================================== */
 
+/* Template: LIGHT GRAY (Default) */
+.template-lightgray .invoice-header-wrapper,
+.template-lightgrey .invoice-header-wrapper,
+.template-invoicelightgray .invoice-header-wrapper,
+.template-invoicelightgrey .invoice-header-wrapper {
+    background: #dedede;
+    color: #333333;
+    padding: 2rem;
+    border-bottom: 1px solid #d1d5db;
+}
+
+.template-lightgray .invoice-table-preview th,
+.template-lightgrey .invoice-table-preview th,
+.template-invoicelightgray .invoice-table-preview th,
+.template-invoicelightgrey .invoice-table-preview th {
+    background: #dedede !important;
+    color: #555555 !important;
+}
+
+.template-lightgray .invoice-final-total,
+.template-lightgrey .invoice-final-total,
+.template-invoicelightgray .invoice-final-total,
+.template-invoicelightgrey .invoice-final-total {
+    color: #111827;
+    border-top-color: #dedede;
+}
+
 /* Template: NEW YORK (Modern Accent) */
 .template-newyork .invoice-header-wrapper,
 .template-invoicenewyork .invoice-header-wrapper {
@@ -4557,8 +4584,43 @@
     border: none;
     line-height: 1.35;
 }
+ 
+/* 6. Payment History Table */
+.invoice-cea-payment-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
 
-/* 6. Bank Details Box */
+.invoice-cea-payment-history-table thead tr {
+    background-color: #dedede;
+    border: none;
+}
+
+.invoice-cea-payment-history-table th {
+    padding: 6px 10px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #555555;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: none;
+}
+
+.invoice-cea-payment-history-table tbody tr {
+    background: #ffffff;
+    border: none;
+}
+
+.invoice-cea-payment-history-table td {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #111827;
+    border: none;
+    line-height: 1.35;
+}
+
+/* 7. Bank Details Box */
 .invoice-cea-bank-box {
     background-color: #eaedf1;
     padding: 12px 18px;
@@ -4944,8 +5006,19 @@
     }
 
     .invoice-cea-table thead tr,
-    .invoice-cea-vat-table thead tr {
+    .invoice-cea-vat-table thead tr,
+    .invoice-cea-payment-history-section thead tr,
+    .invoice-cea-payment-history-table thead tr {
         background-color: #dedede !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .invoice-cea-table th,
+    .invoice-cea-vat-table th,
+    .invoice-cea-payment-history-section th,
+    .invoice-cea-payment-history-table th {
+        color: #555555 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
@@ -5492,16 +5565,14 @@
 }
 
 .Invoice-actions-dropdown-menu {
-    position: absolute;
-    top: calc(100% + 5px);
-    right: 0;
+    position: fixed;
     min-width: 205px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
     padding: 6px;
-    z-index: 99999;
+    z-index: 999999;
     text-align: left;
     display: flex;
     flex-direction: column;
@@ -5509,9 +5580,7 @@
 }
 
 .Invoice-actions-dropdown-menu.opens-up {
-    top: auto;
-    bottom: calc(100% + 5px);
-    box-shadow: 0 -10px 25px -5px rgba(15, 23, 42, 0.15), 0 -8px 10px -6px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 -10px 25px -5px rgba(15, 23, 42, 0.18), 0 -8px 10px -6px rgba(15, 23, 42, 0.1);
 }
 
 .Invoice-actions-dropdown-menu-detail {

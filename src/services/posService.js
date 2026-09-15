@@ -14,9 +14,9 @@ const posService = {
         const response = await axiosInstance.get(`/pos-invoices${queryString}`);
         return response.data;
     },
-    getPOSInvoiceById: async (id, companyId) => {
+    getPOSInvoiceById: async (id, companyId, options = {}) => {
         const query = companyId ? `?companyId=${companyId}` : '';
-        const response = await axiosInstance.get(`/pos-invoices/${id}${query}`);
+        const response = await axiosInstance.get(`/pos-invoices/${id}${query}`, options);
         return response.data;
     },
     getPublicPOSInvoiceById: async (id) => {

@@ -6,7 +6,7 @@ import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import './Invoice.css';
-import { computeInvoiceFinancials, computeInvoiceLine } from './invoiceFinancials';
+import { computeInvoiceFinancials, computeInvoiceLine, resolveInvoicePaymentHistory } from './invoiceFinancials';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
@@ -247,17 +247,21 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
         }
     }
     const publicItemsMeta = Array.isArray(cfObj?._itemsDiscountMeta) ? cfObj._itemsDiscountMeta : [];
-    const financials = computeInvoiceFinancials(rawItems, {
+    const financials = computeInvoiceFinancials(document, {
         itemsMeta: publicItemsMeta,
         otherCharges: otherChargesTotal,
         roundOff: parseFloat(document?.roundOffAmount || 0) || 0,
-        paymentsReceived: parseFloat(document?.paidAmount || 0) || 0
+        paymentsReceived: parseFloat(document?.paidAmount || 0) || undefined
     });
 
     const subtotalVal = financials.subtotal;
     const totalDiscountVal = financials.discount;
     const taxableVal = financials.taxableAmount;
     const vatSummaryList = financials.vatSummaryList;
+    const totalVal = financials.total;
+    const paidVal = financials.paidAmount;
+    const balanceVal = financials.balanceDue;
+    const currentStatus = (document?.status || '').toUpperCase() === 'CANCELLED' ? 'CANCELLED' : financials.status;
 
     const isFullyPaid = (document?.balanceAmount === 0 || (document?.paidAmount >= document?.totalAmount && document?.totalAmount > 0));
     const paymentReceivedDate = document?.paymentDate || document?.receipt?.[0]?.date || document?.allocations?.[0]?.receipt?.date;
@@ -335,34 +339,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         }
                     ];
 
-                    const totalVal = parseFloat(document?.totalAmount || 0);
-                    let paidVal = parseFloat(document?.paidAmount || 0);
-                    if (isNaN(paidVal)) paidVal = 0;
 
-                    if (Array.isArray(document?.receipt) && document.receipt.length > 0) {
-                        const receiptSum = document.receipt.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-                        if (receiptSum > paidVal) paidVal = receiptSum;
-                    }
-
-                    const rawBal = document?.balanceAmount !== undefined ? parseFloat(document.balanceAmount) : (totalVal - paidVal);
-                    const calculatedBal = Math.max(0, isNaN(rawBal) ? Math.max(0, totalVal - paidVal) : rawBal);
-                    const tol = 0.01;
-                    const balanceVal = calculatedBal <= tol ? 0 : calculatedBal;
-                    const isDuePassed = Boolean(document?.dueDate && new Date(document.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
-                    const rawStatus = String(document?.status || '').toUpperCase();
-
-                    const currentStatus = (() => {
-                        if (rawStatus === 'CANCELLED') return 'CANCELLED';
-                        if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
-                        if (balanceVal <= tol && totalVal === 0) return 'PAID';
-                        if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
-                        if (balanceVal > tol && isDuePassed) return 'OVERDUE';
-                        if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
-                        if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
-                        if (rawStatus === 'PARTIAL' && balanceVal > tol && paidVal > tol) return 'PARTIAL';
-                        if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
-                        return 'UNPAID';
-                    })();
 
                     const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
                     const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
@@ -372,7 +349,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     const bankName = companyDetails.bankName || 'Bank Of Ireland';
                     const bankAddress = companyDetails.bankAddress || '97 Main Street, Midleton, Co. Cork';
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
-                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#004aad';
+                    const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
+                    const isLightColor = (color) => {
+                        if (!color) return false;
+                        const c = color.toLowerCase();
+                        return c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0';
+                    };
+                    const headingColor = isLightColor(themeColor) ? '#1e293b' : themeColor;
+                    const textHighlightColor = isLightColor(themeColor) ? '#111827' : themeColor;
                     const showHeader = getInvoiceLabel('showHeader') !== false;
                     const showFooter = getInvoiceLabel('showFooter') !== false;
                     const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
@@ -433,7 +417,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
                             <div className="invoice-cea-middle">
                                 <div className="invoice-cea-middle-left">
-                                    <div className="invoice-cea-doc-heading" style={{ color: themeColor || '#1e293b' }}>
+                                    <div className="invoice-cea-doc-heading" style={{ color: headingColor }}>
                                         {type === 'pos' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (companySettings?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE'))}
                                     </div>
                                     <div className="invoice-cea-bill-label">{getInvoiceLabel('billTo') || 'BILL TO'}</div>
@@ -473,39 +457,39 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             {/* 3. ITEMS TABLE */}
                             <table className="invoice-cea-table">
                                 <thead>
-                                    <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                        <th style={{ width: '18%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                    <tr style={{ backgroundColor: '#dedede' }}>
+                                        <th style={{ width: '18%', textAlign: 'left', color: '#555555' }}>
                                             {getTableHeader('item', 'ACTIVITY')}
                                         </th>
-                                        <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                        <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: '#555555' }}>
                                             {getTableHeader('warehouse', 'DESCRIPTION')}
                                         </th>
                                         {showUom && (
-                                            <th style={{ width: '6%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '6%', textAlign: 'left', color: '#555555' }}>
                                                 {getTableHeader('uom', 'UOM')}
                                             </th>
                                         )}
                                         {showQty && (
-                                            <th style={{ width: '7%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '7%', textAlign: 'right', color: '#555555' }}>
                                                 {getTableHeader('quantity', 'QTY')}
                                             </th>
                                         )}
                                         {showRate && (
-                                            <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
                                                 {getTableHeader('rate', 'RATE')}
                                             </th>
                                         )}
                                         {showDiscount && (
-                                            <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '9%', textAlign: 'right', color: '#555555' }}>
                                                 {getTableHeader('discount', 'DISCOUNT')}
                                             </th>
                                         )}
                                         {showTax && (
-                                            <th style={{ width: '9%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                            <th style={{ width: '9%', textAlign: 'right', color: '#555555' }}>
                                                 {getTableHeader('tax', 'VAT')}
                                             </th>
                                         )}
-                                        <th style={{ width: '10%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>
+                                        <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
                                             {getTableHeader('price', 'AMOUNT')}
                                         </th>
                                     </tr>
@@ -545,7 +529,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </table>
 
                             {/* 4. DOTTED DIVIDER 1 & TOTALS */}
-                            <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
+                            <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                             <div className="invoice-cea-subtotal-section">
                                 <div className="invoice-cea-appreciation">
@@ -569,7 +553,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     </span>
 
                                     <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
-                                    <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: themeColor || '#111827' }}>{Number(totalVal).toFixed(2)}</span>
+                                    <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: textHighlightColor }}>{Number(totalVal).toFixed(2)}</span>
 
                                     {parseFloat(paidVal) > 0 && (
                                         <>
@@ -581,45 +565,30 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / PAID */}
-                            <div className="invoice-cea-divider-dotted" style={{ borderColor: themeColor || '#9ca3af', opacity: 0.5 }} />
+                            <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                             <div className="invoice-cea-balance-section">
                                 <div className="invoice-cea-balance-box">
                                     <div className="invoice-cea-balance-line">
                                         <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                        <span className="invoice-cea-balance-amount" style={{ color: themeColor || '#111827' }}>
+                                        <span className="invoice-cea-balance-amount" style={{ color: textHighlightColor }}>
                                             {document?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                         </span>
                                     </div>
-                                    <div className="invoice-cea-status-display" style={{ marginTop: '5px', textAlign: 'right' }}>
+                                    <div className="invoice-cea-status-display" style={{ marginTop: '4px', textAlign: 'right' }}>
                                         <span
-                                            className={`invoice-cea-status-badge status-${(currentStatus || '').toLowerCase()}`}
+                                            className="invoice-cea-paid-indicator"
                                             style={{
-                                                display: 'inline-block',
-                                                padding: '3px 14px',
-                                                borderRadius: '9999px',
-                                                fontSize: '12px',
-                                                fontWeight: '800',
-                                                letterSpacing: '0.06em',
-                                                textTransform: 'uppercase',
-                                                backgroundColor: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#dcfce7'
-                                                    : currentStatus === 'OVERDUE' ? '#fee2e2'
-                                                    : currentStatus === 'PARTIAL' ? '#ffedd5'
-                                                    : currentStatus === 'CANCELLED' ? '#f1f5f9'
-                                                    : '#fee2e2',
-                                                color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#15803d'
+                                                color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#16a34a'
                                                     : currentStatus === 'OVERDUE' ? '#dc2626'
-                                                    : currentStatus === 'PARTIAL' ? '#c2410c'
-                                                    : currentStatus === 'CANCELLED' ? '#475569'
+                                                    : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? '#ea580c'
+                                                    : currentStatus === 'CANCELLED' ? '#64748b'
                                                     : '#dc2626',
-                                                border: `1.5px solid ${
-                                                    currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#86efac'
-                                                    : currentStatus === 'OVERDUE' ? '#fca5a5'
-                                                    : currentStatus === 'PARTIAL' ? '#fdba74'
-                                                    : currentStatus === 'CANCELLED' ? '#cbd5e1'
-                                                    : '#fca5a5'
-                                                }`,
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                                display: 'block',
+                                                fontSize: '15px',
+                                                fontWeight: '800',
+                                                letterSpacing: '0.05em',
+                                                textTransform: 'uppercase'
                                             }}
                                         >
                                             {currentStatus}
@@ -630,13 +599,13 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
                             {/* 6. VAT SUMMARY */}
                             <div className="invoice-cea-vat-section">
-                                <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827' }}>VAT SUMMARY</div>
+                                <div className="invoice-cea-vat-title" style={{ color: textHighlightColor }}>VAT SUMMARY</div>
                                 <table className="invoice-cea-vat-table">
                                     <thead>
-                                        <tr style={{ backgroundColor: themeColor || '#dedede' }}>
-                                            <th style={{ width: '40%', textAlign: 'left', color: getContrastTextColor(themeColor) }}>RATE</th>
-                                            <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>VAT</th>
-                                            <th style={{ width: '30%', textAlign: 'right', color: getContrastTextColor(themeColor) }}>NET</th>
+                                        <tr style={{ backgroundColor: '#dedede' }}>
+                                            <th style={{ width: '40%', textAlign: 'left', color: '#555555' }}>RATE</th>
+                                            <th style={{ width: '30%', textAlign: 'right', color: '#555555' }}>VAT</th>
+                                            <th style={{ width: '30%', textAlign: 'right', color: '#555555' }}>NET</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -667,6 +636,74 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* PAYMENT HISTORY SECTION */}
+                            {(() => {
+                                const sortedPaymentHistory = resolveInvoicePaymentHistory(document);
+
+                                if (sortedPaymentHistory.length === 0) return null;
+
+                                const curr = document?.currency || companyDetails.currency || 'EUR';
+                                const sym = curr === 'EUR' ? '€' : (curr === 'GBP' ? '£' : (curr === 'USD' ? '$' : (curr === 'INR' ? '₹' : `${curr} `)));
+
+                                const formatMoney = (val) => {
+                                    return `${sym}${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                };
+
+                                const formatDateDmy = (dateVal) => {
+                                    if (!dateVal) return '-';
+                                    const d = new Date(dateVal);
+                                    if (isNaN(d.getTime())) return String(dateVal);
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const year = d.getFullYear();
+                                    return `${day}/${month}/${year}`;
+                                };
+
+                                return (
+                                    <div className="invoice-cea-payment-history-section" style={{ marginTop: '24px', marginBottom: '20px' }}>
+                                        <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                            Payment History
+                                        </div>
+                                        <table className="invoice-cea-vat-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                            <thead>
+                                                <tr style={{ backgroundColor: '#dedede' }}>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Payment Date</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Receipt Number</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Payment Amount</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#555555', fontWeight: '600' }}>Payment Method</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Balance After Payment</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {sortedPaymentHistory.map((pmt, pIdx) => {
+                                                    const pmtDate = formatDateDmy(pmt.date);
+                                                    const rcvNo = pmt.receiptNumber || '-';
+                                                    const amt = formatMoney(pmt.amount || 0);
+                                                    const mode = (pmt.paymentMode || 'BANK').toUpperCase();
+                                                    const balAfter = (pmt.balanceAfterPayment !== undefined && pmt.balanceAfterPayment !== null)
+                                                        ? formatMoney(pmt.balanceAfterPayment)
+                                                        : '-';
+
+                                                    return (
+                                                        <tr key={pIdx} style={{ borderBottom: '1px solid #e2e8f0', background: pIdx % 2 === 1 ? '#f8fafc' : '#ffffff' }}>
+                                                            <td style={{ padding: '9px 12px', textAlign: 'left', color: '#334155' }}>{pmtDate}</td>
+                                                            <td style={{ padding: '9px 12px', textAlign: 'left', fontWeight: '600', color: '#0f172a' }}>{rcvNo}</td>
+                                                            <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{amt}</td>
+                                                            <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                                                                <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', border: '1px solid #cbd5e1', fontSize: '11px', fontWeight: '600', color: '#475569' }}>
+                                                                    {mode}
+                                                                </span>
+                              </td>
+                                                            <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: themeColor || '#0f172a' }}>{balAfter}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+                            })()}
 
                             {/* 8. PAGE FOOTER */}
                             {showFooter && (

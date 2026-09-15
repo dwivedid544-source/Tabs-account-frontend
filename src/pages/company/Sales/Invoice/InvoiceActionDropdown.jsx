@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
     ChevronDown, Pencil, CreditCard, RotateCcw,
     Mail, Download, Printer, Shield, Trash2, FileSpreadsheet
@@ -24,33 +25,54 @@ const InvoiceActionDropdown = ({
     setViewMode
 }) => {
     const containerRef = useRef(null);
-    const [opensUpward, setOpensUpward] = useState(false);
+    const btnRef = useRef(null);
+    const [menuStyle, setMenuStyle] = useState({});
 
+    // Compute fixed position from button rect whenever open
     useEffect(() => {
-        if (isOpen && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
+        if (!isOpen || !btnRef.current) return;
+
+        const calc = () => {
+            const rect = btnRef.current.getBoundingClientRect();
+            const menuWidth = variant === 'detail' ? 215 : 205;
             const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < 320 && rect.top > 320) {
-                setOpensUpward(true);
-            } else {
-                setOpensUpward(false);
-            }
-        }
-    }, [isOpen]);
+            const opensUp = spaceBelow < 320 && rect.top > 320;
+
+            setMenuStyle({
+                position: 'fixed',
+                zIndex: 999999,
+                minWidth: `${menuWidth}px`,
+                right: `${window.innerWidth - rect.right}px`,
+                ...(opensUp
+                    ? { bottom: `${window.innerHeight - rect.top + 5}px`, top: 'auto' }
+                    : { top: `${rect.bottom + 5}px`, bottom: 'auto' }
+                ),
+            });
+        };
+
+        calc();
+        window.addEventListener('scroll', calc, true);
+        window.addEventListener('resize', calc);
+        return () => {
+            window.removeEventListener('scroll', calc, true);
+            window.removeEventListener('resize', calc);
+        };
+    }, [isOpen, variant]);
 
     useEffect(() => {
         if (!isOpen) return;
 
         const handleClickOutside = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) {
+            if (
+                containerRef.current && !containerRef.current.contains(e.target) &&
+                !document.getElementById('invoice-action-portal')?.contains(e.target)
+            ) {
                 onClose?.();
             }
         };
 
         const handleKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                onClose?.();
-            }
+            if (e.key === 'Escape') onClose?.();
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -123,28 +145,13 @@ const InvoiceActionDropdown = ({
         }
     };
 
-    return (
-        <div className={`Invoice-actions-container ${variant === 'detail' ? 'Invoice-actions-container-detail' : ''}`} ref={containerRef}>
-            <button
-                type="button"
-                className={variant === 'detail' ? 'Invoice-detail-actions-trigger-btn' : 'Invoice-actions-trigger-btn'}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle?.();
-                }}
-                aria-haspopup="true"
-                aria-expanded={isOpen}
-                title="Invoice Actions"
-            >
-                <span>Actions</span>
-                <ChevronDown size={variant === 'detail' ? 16 : 14} className={`Invoice-dropdown-chevron ${isOpen ? 'rotate' : ''}`} />
-            </button>
-
-            {isOpen && (
-                <div
-                    className={`Invoice-actions-dropdown-menu ${opensUpward ? 'opens-up' : 'opens-down'} ${variant === 'detail' ? 'Invoice-actions-dropdown-menu-detail' : ''}`}
-                    onClick={(e) => e.stopPropagation()}
-                >
+    const dropdownMenu = isOpen ? ReactDOM.createPortal(
+        <div
+            id="invoice-action-portal"
+            className={`Invoice-actions-dropdown-menu ${variant === 'detail' ? 'Invoice-actions-dropdown-menu-detail' : ''}`}
+            style={menuStyle}
+            onClick={(e) => e.stopPropagation()}
+        >
                     {/* Edit Invoice */}
                     {canEdit && (
                         <button
@@ -274,8 +281,28 @@ const InvoiceActionDropdown = ({
                             </button>
                         </>
                     )}
-                </div>
-            )}
+                </div>,
+        document.body
+    ) : null;
+
+    return (
+        <div className={`Invoice-actions-container ${variant === 'detail' ? 'Invoice-actions-container-detail' : ''}`} ref={containerRef}>
+            <button
+                type="button"
+                ref={btnRef}
+                className={variant === 'detail' ? 'Invoice-detail-actions-trigger-btn' : 'Invoice-actions-trigger-btn'}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle?.();
+                }}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                title="Invoice Actions"
+            >
+                <span>Actions</span>
+                <ChevronDown size={variant === 'detail' ? 16 : 14} className={`Invoice-dropdown-chevron ${isOpen ? 'rotate' : ''}`} />
+            </button>
+            {dropdownMenu}
         </div>
     );
 };

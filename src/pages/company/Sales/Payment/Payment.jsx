@@ -966,12 +966,15 @@ const Payment = () => {
             .filter(([, val]) => parseFloat(val) > 0)
             .map(([invId, val]) => {
                 const inv = customerInvoices.find(i => String(i.id) === String(invId));
+                const balBefore = inv ? (inv.balanceAmount !== undefined ? inv.balanceAmount : inv.totalAmount) : 0;
+                const balAfter = Math.max(0, balBefore - parseFloat(val));
                 return `
                     <tr>
                         <td>${inv?.invoiceNumber || invId}</td>
                         <td>${inv?.date ? new Date(inv.date).toLocaleDateString() : '-'}</td>
                         <td style="text-align:right">${formatCurrency(inv?.totalAmount || 0)}</td>
                         <td style="text-align:right">${formatCurrency(parseFloat(val))}</td>
+                        <td style="text-align:right;font-weight:700;color:#dc2626;">${formatCurrency(balAfter)}</td>
                     </tr>`;
             }).join('');
 
@@ -1028,6 +1031,7 @@ const Payment = () => {
                                 <th style="padding:8px 12px;text-align:left;font-size:0.78rem;">Date</th>
                                 <th style="padding:8px 12px;text-align:right;font-size:0.78rem;">Total Amount</th>
                                 <th style="padding:8px 12px;text-align:right;font-size:0.78rem;">Allocated</th>
+                                <th style="padding:8px 12px;text-align:right;font-size:0.78rem;">Balance Due</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1507,14 +1511,19 @@ const Payment = () => {
                                                                     )}
                                                                 </td>
                                                                 <td className="text-right font-bold text-red-500">
-                                                                    {isInvForeign ? (
-                                                                        <>
-                                                                            <div>{formatDocCurrency(alloc.invoice?.balanceAmount || 0, invCurr)}</div>
-                                                                            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>({formatCurrency((alloc.invoice?.balanceAmount || 0) * invRate)})</div>
-                                                                        </>
-                                                                    ) : (
-                                                                        formatCurrency(alloc.invoice?.balanceAmount || 0)
-                                                                    )}
+                                                                    {(() => {
+                                                                        const histBal = (alloc.balanceAfterPayment !== undefined && alloc.balanceAfterPayment !== null)
+                                                                            ? alloc.balanceAfterPayment
+                                                                            : (alloc.invoice?.balanceAmount || 0);
+                                                                        return isInvForeign ? (
+                                                                            <>
+                                                                                <div>{formatDocCurrency(histBal, invCurr)}</div>
+                                                                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>({formatCurrency(histBal * invRate)})</div>
+                                                                            </>
+                                                                        ) : (
+                                                                            formatCurrency(histBal)
+                                                                        );
+                                                                    })()}
                                                                 </td>
                                                             </tr>
                                                         );
@@ -1551,14 +1560,19 @@ const Payment = () => {
                                                                     )}
                                                                 </td>
                                                                 <td className="text-right font-bold text-red-500">
-                                                                    {isInvForeign ? (
-                                                                        <>
-                                                                            <div>{formatDocCurrency(currentPayment?.invoice?.balanceAmount || 0, invCurr)}</div>
-                                                                            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>({formatCurrency((currentPayment?.invoice?.balanceAmount || 0) * invRate)})</div>
-                                                                        </>
-                                                                    ) : (
-                                                                        formatCurrency(currentPayment?.invoice?.balanceAmount || 0)
-                                                                    )}
+                                                                    {(() => {
+                                                                        const histBal = (currentPayment?.balanceAfterPayment !== undefined && currentPayment?.balanceAfterPayment !== null)
+                                                                            ? currentPayment.balanceAfterPayment
+                                                                            : (currentPayment?.invoice?.balanceAmount || 0);
+                                                                        return isInvForeign ? (
+                                                                            <>
+                                                                                <div>{formatDocCurrency(histBal, invCurr)}</div>
+                                                                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>({formatCurrency(histBal * invRate)})</div>
+                                                                            </>
+                                                                        ) : (
+                                                                            formatCurrency(histBal)
+                                                                        );
+                                                                    })()}
                                                                 </td>
                                                             </tr>
                                                         );

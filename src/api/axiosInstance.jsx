@@ -73,8 +73,9 @@ axiosInstance.interceptors.response.use(
                 toast.error(msg || 'Your company plan has expired. Please contact super admin to renew your plan.');
                 window.location.href = '/login';
             } else if (error.response && error.response.data && error.response.data.message) {
-                // Show backend error message for legitimate business errors (skip token error popups)
-                if (msg !== 'Invalid or expired token' && msg !== 'Access token required') {
+                // Show backend error message for legitimate business errors (skip token error popups and silent lookups)
+                const noToast = error.config?.headers?.['X-No-Toast'] || error.config?.headers?.['x-no-toast'];
+                if (msg !== 'Invalid or expired token' && msg !== 'Access token required' && !noToast) {
                     toast.error(error.response.data.message, {
                         duration: 5000,
                         style: {

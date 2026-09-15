@@ -5,9 +5,9 @@ const salesInvoiceService = {
         const query = companyId ? `?companyId=${companyId}` : '';
         return axios.get(`/sales-invoices${query}`);
     },
-    getById: (id, companyId) => {
+    getById: (id, companyId, options = {}) => {
         const query = companyId ? `?companyId=${companyId}` : '';
-        return axios.get(`/sales-invoices/${id}${query}`);
+        return axios.get(`/sales-invoices/${id}${query}`, options);
     },
     getPublicById: (id) => axios.get(`/sales-invoices/public/${id}`),
     create: (data, allowDuplicate = false) => axios.post(`/sales-invoices${allowDuplicate ? '?allowDuplicate=true' : ''}`, data),
