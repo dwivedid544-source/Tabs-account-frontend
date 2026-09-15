@@ -140,29 +140,32 @@
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: none;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: white;
     transition: all 0.2s;
 }
 
-.Customers-btn-view {
-    background-color: #f59e0b;
+.Customers-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Customers-btn-edit {
-    background-color: #00bcd4;
-}
-
+.Customers-btn-view,
+.Customers-btn-edit,
 .Customers-btn-delete {
-    background-color: #f53d5d;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
 .Customers-action-btn:hover {
-    opacity: 0.85;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
     transform: translateY(-1px);
 }
 

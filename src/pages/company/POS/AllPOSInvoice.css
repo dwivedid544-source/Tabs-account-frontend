@@ -283,29 +283,31 @@
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
+    background: #f1f5f9;
+    color: #475569;
     transition: all 0.2s;
 }
 
-.posinv-view-btn {
+.posinv-action-btn svg {
+    stroke: currentColor;
+    display: block;
+}
+
+.posinv-action-btn:hover,
+.posinv-view-btn:hover,
+.posinv-void-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+.posinv-view-btn,
+.posinv-edit-btn,
+.posinv-void-btn {
     background: #f1f5f9;
     color: #475569;
-}
-
-.posinv-view-btn:hover {
-    background: #334155;
-    color: #1e293b;
-}
-
-.posinv-void-btn {
-    background: #fef2f2;
-    color: #ef4444;
-}
-
-.posinv-void-btn:hover {
-    background: #334155;
-    color: #dc2626;
 }
 
 /* View Mode / Receipt Detail */

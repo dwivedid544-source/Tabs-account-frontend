@@ -141,35 +141,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
-.Zirak-Services-btn-view {
-    background-color: #f59e0b;
+.Zirak-Services-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Zirak-Services-btn-view:hover {
-    background-color: #334155;
-}
-
-.Zirak-Services-btn-edit {
-    background-color: #06b6d4;
-}
-
-.Zirak-Services-btn-edit:hover {
-    background-color: #334155;
-}
-
+.Zirak-Services-btn-view,
+.Zirak-Services-btn-edit,
 .Zirak-Services-btn-delete {
-    background-color: #ef4444;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
+.Zirak-Services-action-btn:hover,
+.Zirak-Services-btn-view:hover,
+.Zirak-Services-btn-edit:hover,
 .Zirak-Services-btn-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .Zirak-Services-pagination-row {

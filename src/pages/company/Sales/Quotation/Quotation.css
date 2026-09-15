@@ -250,34 +250,38 @@
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.Quotation-quotation-action-btn.Quotation-view {
-    background-color: #f59e0b;
+.Quotation-quotation-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Quotation-quotation-action-btn.Quotation-view:hover {
-    background-color: #334155;
+.Quotation-quotation-action-btn:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
-.Quotation-quotation-action-btn.Quotation-edit {
-    background-color: #22d3ee;
-}
-
-.Quotation-quotation-action-btn.Quotation-edit:hover {
-    background-color: #334155;
-}
-
+.Quotation-quotation-action-btn.Quotation-view,
+.Quotation-quotation-action-btn.Quotation-edit,
 .Quotation-quotation-action-btn.Quotation-delete {
-    background-color: #f43f5e;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.Quotation-quotation-action-btn.Quotation-view:hover,
+.Quotation-quotation-action-btn.Quotation-edit:hover,
 .Quotation-quotation-action-btn.Quotation-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .Quotation-modal-overlay {

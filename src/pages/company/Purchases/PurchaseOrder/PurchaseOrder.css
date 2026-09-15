@@ -310,41 +310,33 @@
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.PurchaseOrder-action-btn.view {
-    background-color: #f59e0b;
-    /* Orange */
-}
-
-.PurchaseOrder-action-btn.view:hover {
-    background-color: #334155;
-}
-
-.PurchaseOrder-action-btn.edit {
-    background-color: #06b6d4;
-    /* Cyan */
-}
-
-.PurchaseOrder-action-btn.edit:hover {
-    background-color: #334155;
-}
-
+.PurchaseOrder-action-btn.view,
+.PurchaseOrder-action-btn.edit,
 .PurchaseOrder-action-btn.delete {
-    background-color: #f43f5e;
-    /* Red/Pink */
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.PurchaseOrder-action-btn:hover,
+.PurchaseOrder-action-btn.view:hover,
+.PurchaseOrder-action-btn.edit:hover,
 .PurchaseOrder-action-btn.delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .PurchaseOrder-action-btn svg {
     display: block;
+    stroke: currentColor;
 }
 
 

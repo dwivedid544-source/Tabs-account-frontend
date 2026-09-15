@@ -62,6 +62,20 @@ const getContrastTextColor = (hexColor) => {
     return (yiq >= 170) ? '#1e293b' : '#ffffff';
 };
 
+const isLightColor = (color) => {
+    if (!color) return true;
+    const c = color.toLowerCase().trim();
+    if (c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0') return true;
+    const hex = c.replace('#', '');
+    if (hex.length !== 6) return false;
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    const toLinear = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    return lum > 0.5;
+};
+
 const getTintBg = (hexColor, alpha = 0.08) => {
     if (!hexColor) return '#f8fafc';
     const hex = hexColor.replace('#', '');
@@ -3064,14 +3078,18 @@ const Invoice = () => {
             }
 
             // --- 2. MIDDLE (Left: INVOICE & BILL TO, Right: METADATA GRID) ---
-            const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#004aad';
+            const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#dedede';
+            const _isLight = isLightColor(themeColorHex);
             const themeRgb = hexToRgb(themeColorHex);
             const contrastRgb = getContrastTextColor(themeColorHex) === '#ffffff' ? [255, 255, 255] : [30, 41, 59];
+            const _combinedTitleRgb = _isLight ? [30, 41, 59] : themeRgb;
+            const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
+            const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
 
             let midY = Math.max(50, compY + 3);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(13);
-            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
             doc.text(inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (comp?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE')), 14, midY);
 
             doc.setFont('helvetica', 'bold');
@@ -3197,8 +3215,8 @@ const Invoice = () => {
                     lineWidth: { bottom: 0.1 }
                 },
                 headStyles: {
-                    fillColor: [222, 222, 222],
-                    textColor: [85, 85, 85],
+                    fillColor: tableHeaderBgRgb,
+                    textColor: tableHeaderTextRgb,
                     fontStyle: 'bold',
                     fontSize: 7.8,
                     cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
@@ -3284,7 +3302,7 @@ const Invoice = () => {
             doc.text('BALANCE DUE', totLabelX, totY);
 
             doc.setFontSize(10.5);
-            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.setTextColor(17, 24, 39);
             doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
 
             // Status Clean Text Display (Unboxed matching client specification)
@@ -3311,7 +3329,7 @@ const Invoice = () => {
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
             doc.text('VAT SUMMARY', 14, vatSectionY);
 
             const vatTableHead = [[
@@ -3333,8 +3351,8 @@ const Invoice = () => {
                 body: vatTableBody,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: [222, 222, 222],
-                    textColor: [85, 85, 85],
+                    fillColor: tableHeaderBgRgb,
+                    textColor: tableHeaderTextRgb,
                     fontStyle: 'bold',
                     fontSize: 7.2,
                     cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
@@ -3401,7 +3419,7 @@ const Invoice = () => {
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(8);
-                doc.setTextColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+                doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
                 doc.text('PAYMENT HISTORY', 14, pmtSectionY);
 
                 const pmtTableHead = [[
@@ -3436,8 +3454,8 @@ const Invoice = () => {
                     body: pmtTableBody,
                     theme: 'plain',
                     headStyles: {
-                        fillColor: [222, 222, 222],
-                        textColor: [85, 85, 85],
+                        fillColor: tableHeaderBgRgb,
+                        textColor: tableHeaderTextRgb,
                         fontStyle: 'bold',
                         fontSize: 7.2,
                         cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
@@ -5039,7 +5057,7 @@ const Invoice = () => {
                         <ArrowLeft size={18} /> Back to Invoices
                     </button>
                     <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        {/* <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status:</span>
                             <span
                                 className="Invoice-invoice-status-pill"
@@ -5051,7 +5069,7 @@ const Invoice = () => {
                             >
                                 {viewStatus}
                             </span>
-                        </div>
+                        </div> */}
 
                         {/* Primary Action */}
                         {viewBalance > 0 && hasPermission('create sales payment') ? (
@@ -5110,12 +5128,23 @@ const Invoice = () => {
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
                     const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
                     const isLightColor = (color) => {
-                        if (!color) return false;
-                        const c = color.toLowerCase();
-                        return c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0';
+                        if (!color) return true;
+                        const c = color.toLowerCase().trim();
+                        if (c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0') return true;
+                        const hex = c.replace('#', '');
+                        if (hex.length !== 6) return false;
+                        const r = parseInt(hex.substring(0, 2), 16) / 255;
+                        const g = parseInt(hex.substring(2, 4), 16) / 255;
+                        const b = parseInt(hex.substring(4, 6), 16) / 255;
+                        const toLinear = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                        const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+                        return lum > 0.5;
                     };
-                    const headingColor = isLightColor(themeColor) ? '#1e293b' : themeColor;
-                    const textHighlightColor = isLightColor(themeColor) ? '#111827' : themeColor;
+                    const _isLight = isLightColor(themeColor);
+                    const headingColor = _isLight ? '#1e293b' : themeColor;
+                    const textHighlightColor = _isLight ? '#111827' : themeColor;
+                    const tableHeaderBg = _isLight ? '#dedede' : themeColor;
+                    const tableHeaderText = _isLight ? '#555555' : '#ffffff';
                     const showHeader = getInvoiceLabel('showHeader') !== false;
                     const showFooter = getInvoiceLabel('showFooter') !== false;
                     const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
@@ -5289,39 +5318,39 @@ const Invoice = () => {
                                 {/* 3. ITEMS TABLE */}
                                 <table className="invoice-cea-table">
                                     <thead>
-                                        <tr style={{ backgroundColor: '#dedede' }}>
-                                            <th style={{ width: '16%', textAlign: 'left', color: '#555555' }}>
+                                        <tr style={{ backgroundColor: tableHeaderBg }}>
+                                            <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: '#555555' }}>
+                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: tableHeaderText }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (
-                                                <th style={{ width: '6%', textAlign: 'center', color: '#555555' }}>
+                                                <th style={{ width: '6%', textAlign: 'center', color: tableHeaderText }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ width: '8%', textAlign: 'right', color: '#555555' }}>
+                                                <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText }}>
                                                     {getTableHeader('quantity', 'QUANTITY')}
                                                 </th>
                                             )}
                                             {showRate && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
                                                     {getTableHeader('rate', 'RATE')}
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
                                             {showTax && (
-                                                <th style={{ width: '9%', textAlign: 'right', color: '#555555' }}>
+                                                <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText }}>
                                                     {getTableHeader('tax', 'TAX')}
                                                 </th>
                                             )}
-                                            <th style={{ width: '10%', textAlign: 'right', color: '#555555' }}>
+                                            <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
                                                 {getTableHeader('price', 'PRICE')}
                                             </th>
                                         </tr>
@@ -5405,7 +5434,7 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
 
                                         <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
-                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: textHighlightColor }}>{Number(totalVal).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                         {parseFloat(paidVal) > 0 && (
                                             <>
@@ -5423,7 +5452,7 @@ const Invoice = () => {
                                     <div className="invoice-cea-balance-box">
                                         <div className="invoice-cea-balance-line">
                                             <span className="invoice-cea-balance-label">BALANCE DUE</span>
-                                            <span className="invoice-cea-balance-amount" style={{ color: textHighlightColor }}>
+                                            <span className="invoice-cea-balance-amount" style={{ color: '#111827' }}>
                                                 {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                             </span>
                                         </div>
@@ -5452,14 +5481,14 @@ const Invoice = () => {
 
                                 {/* 6. VAT SUMMARY */}
                                 <div className="invoice-cea-vat-section">
-                                    <div className="invoice-cea-vat-title" style={{ color: textHighlightColor }}>VAT SUMMARY</div>
+                                    <div className="invoice-cea-vat-title" style={{ color: headingColor }}>VAT SUMMARY</div>
                                     <table className="invoice-cea-vat-table">
                                         <thead>
-                                            <tr style={{ backgroundColor: '#dedede' }}>
-                                                <th style={{ width: '38%', textAlign: 'left', color: '#555555' }}></th>
-                                                <th style={{ width: '22%', textAlign: 'left', color: '#555555' }}>RATE</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: '#555555' }}>VAT</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: '#555555' }}>NET</th>
+                                            <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '38%', textAlign: 'left', color: tableHeaderText }}></th>
+                                                <th style={{ width: '22%', textAlign: 'left', color: tableHeaderText }}>RATE</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText }}>VAT</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText }}>NET</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -5517,17 +5546,17 @@ const Invoice = () => {
 
                                     return (
                                         <div className="invoice-cea-payment-history-section" style={{ marginTop: '24px', marginBottom: '20px' }}>
-                                            <div className="invoice-cea-vat-title" style={{ color: themeColor || '#111827', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                            <div className="invoice-cea-vat-title" style={{ color: headingColor, fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                                                 Payment History
                                             </div>
                                             <table className="invoice-cea-vat-table invoice-cea-payment-history-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                                 <thead>
-                                                    <tr style={{ backgroundColor: '#dedede' }}>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Payment Date</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555555', fontWeight: '600' }}>Receipt Number</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Payment Amount</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: '#555555', fontWeight: '600' }}>Payment Method</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555555', fontWeight: '600' }}>Balance After Payment</th>
+                                                    <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600' }}>Payment Date</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600' }}>Receipt Number</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600' }}>Payment Amount</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: tableHeaderText, fontWeight: '600' }}>Payment Method</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600' }}>Balance After Payment</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -5550,7 +5579,7 @@ const Invoice = () => {
                                                                         {mode}
                                                                     </span>
                                                                 </td>
-                                                                <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: themeColor || '#0f172a' }}>{balAfter}</td>
+                                                                <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>{balAfter}</td>
                                                             </tr>
                                                         );
                                                     })}

@@ -732,70 +732,44 @@
 }
 
 .Zirak-DC-challan-action-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--border);
-    background: white;
-    color: var(--text-muted);
+    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #475569;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s;
+}
+
+.Zirak-DC-challan-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
 .Zirak-DC-challan-action-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
-.Zirak-DC-challan-action-btn.Zirak-DC-view:hover {
-    background: #334155;
-    color: var(--primary);
-    border-color: var(--primary-light);
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-edit:hover {
-    background: #334155;
-    color: var(--success);
-    border-color: var(--success-light);
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-delete:hover {
-    background: #334155;
-    color: var(--danger);
-    border-color: #fecaca;
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-view {
-    background-color: #f59e0b;
-    color: white;
-    border: none;
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-view:hover {
-    background-color: #334155;
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-edit {
-    background-color: #22d3ee;
-    color: white;
-    border: none;
-}
-
-.Zirak-DC-challan-action-btn.Zirak-DC-edit:hover {
-    background-color: #334155;
-}
-
+.Zirak-DC-challan-action-btn.Zirak-DC-view,
+.Zirak-DC-challan-action-btn.Zirak-DC-edit,
 .Zirak-DC-challan-action-btn.Zirak-DC-delete {
-    background-color: #f43f5e;
-    color: white;
-    border: none;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.Zirak-DC-challan-action-btn.Zirak-DC-view:hover,
+.Zirak-DC-challan-action-btn.Zirak-DC-edit:hover,
 .Zirak-DC-challan-action-btn.Zirak-DC-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Items Table Premium Extensions */

@@ -140,29 +140,32 @@
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: none;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: white;
     transition: all 0.2s;
 }
 
-.Vendors-btn-view {
-    background-color: #f59e0b;
+.Vendors-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Vendors-btn-edit {
-    background-color: #00bcd4;
-}
-
+.Vendors-btn-view,
+.Vendors-btn-edit,
 .Vendors-btn-delete {
-    background-color: #f53d5d;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
 .Vendors-action-btn:hover {
-    opacity: 0.85;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
     transform: translateY(-1px);
 }
 

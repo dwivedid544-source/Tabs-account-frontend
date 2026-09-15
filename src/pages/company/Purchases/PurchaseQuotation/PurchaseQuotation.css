@@ -310,41 +310,33 @@
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.PurchaseQuotation-action-btn.view {
-    background-color: #f59e0b;
-    /* Orange */
-}
-
-.PurchaseQuotation-action-btn.view:hover {
-    background-color: #334155;
-}
-
-.PurchaseQuotation-action-btn.edit {
-    background-color: #06b6d4;
-    /* Cyan */
-}
-
-.PurchaseQuotation-action-btn.edit:hover {
-    background-color: #334155;
-}
-
+.PurchaseQuotation-action-btn.view,
+.PurchaseQuotation-action-btn.edit,
 .PurchaseQuotation-action-btn.delete {
-    background-color: #f43f5e;
-    /* Red/Pink */
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.PurchaseQuotation-action-btn:hover,
+.PurchaseQuotation-action-btn.view:hover,
+.PurchaseQuotation-action-btn.edit:hover,
 .PurchaseQuotation-action-btn.delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .PurchaseQuotation-action-btn svg {
     display: block;
+    stroke: currentColor;
 }
 
 

@@ -224,41 +224,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.PBILL-btn-icon.view {
-    background-color: #f59e0b;
-    /* Orange */
-}
-
-.PBILL-btn-icon.view:hover {
-    background-color: #334155;
-}
-
-.PBILL-btn-icon.edit {
-    background-color: #06b6d4;
-    /* Cyan */
-}
-
-.PBILL-btn-icon.edit:hover {
-    background-color: #334155;
-}
-
+.PBILL-btn-icon.view,
+.PBILL-btn-icon.edit,
 .PBILL-btn-icon.delete {
-    background-color: #f43f5e;
-    /* Red/Pink */
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.PBILL-btn-icon:hover,
+.PBILL-btn-icon.view:hover,
+.PBILL-btn-icon.edit:hover,
 .PBILL-btn-icon.delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .PBILL-btn-icon svg {
     display: block;
+    stroke: currentColor;
 }
 
 /* Generic Input Styles for Form */

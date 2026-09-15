@@ -189,29 +189,35 @@
 }
 
 .superplan-action-icon-btn {
-    padding: 6px;
+    width: 32px;
+    height: 32px;
     border-radius: 6px;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    background-color: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
 }
 
-.superplan-btn-edit {
-    background-color: #eab308;
-    color: white;
+.superplan-action-icon-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.superplan-btn-view {
-    background-color: #0ea5e9;
-    color: white;
-}
-
+.superplan-btn-edit,
+.superplan-btn-view,
 .superplan-btn-delete {
-    background-color: #ef4444;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.superplan-action-icon-btn:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Pagination */

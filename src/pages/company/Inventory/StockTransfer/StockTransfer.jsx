@@ -635,7 +635,7 @@ const StockTransfer = () => {
                                                         <Eye size={16} />
                                                     </button>
                                                     {hasPermission('edit stock transfer') && (
-                                                        <button className="Zirak-Transfer-action-btn Zirak-Transfer-btn-edit" style={{ backgroundColor: '#59d5e0', color: 'white' }} data-tooltip="Edit" onClick={() => handleEdit(t.id)}>
+                                                        <button className="Zirak-Transfer-action-btn Zirak-Transfer-btn-edit" data-tooltip="Edit" onClick={() => handleEdit(t.id)}>
                                                             <Pencil size={16} />
                                                         </button>
                                                     )}

@@ -329,40 +329,39 @@
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    border: none;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
-    color: white;
     transition: all 0.2s;
 }
 
-.SalesReturn-sales-return-action-btn.SalesReturn-view {
-    background-color: #f59e0b;
+.SalesReturn-sales-return-action-btn:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
-.SalesReturn-sales-return-action-btn.SalesReturn-view:hover {
-    background-color: #334155;
-}
-
-.SalesReturn-sales-return-action-btn.SalesReturn-edit {
-    background-color: #22d3ee;
-}
-
-.SalesReturn-sales-return-action-btn.SalesReturn-edit:hover {
-    background-color: #334155;
-}
-
+.SalesReturn-sales-return-action-btn.SalesReturn-view,
+.SalesReturn-sales-return-action-btn.SalesReturn-edit,
 .SalesReturn-sales-return-action-btn.SalesReturn-delete {
-    background-color: #f43f5e;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.SalesReturn-sales-return-action-btn.SalesReturn-view:hover,
+.SalesReturn-sales-return-action-btn.SalesReturn-edit:hover,
 .SalesReturn-sales-return-action-btn.SalesReturn-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .SalesReturn-sales-return-action-btn svg {
     width: 16px;
     height: 16px;
-    stroke: white;
+    stroke: currentColor;
     display: block;
 }
 

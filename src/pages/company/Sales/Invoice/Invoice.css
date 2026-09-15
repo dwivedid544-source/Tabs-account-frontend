@@ -246,10 +246,11 @@
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
-    color: white;
-    transition: opacity 0.2s;
+    background-color: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
     background-position: center;
     padding: 0;
 }
@@ -259,27 +260,25 @@
 .Invoice-btn-icon-delete svg {
     width: 16px;
     height: 16px;
-    stroke: white;
-    /* Force white stroke */
+    stroke: currentColor;
     stroke-width: 2.5;
     display: block;
 }
 
-.Invoice-btn-icon-view {
-    background-color: #f59e0b;
+.Invoice-btn-icon-view:hover,
+.Invoice-btn-icon-edit:hover,
+.Invoice-btn-icon-delete:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
-/* View - Orange */
-.Invoice-btn-icon-edit {
-    background-color: #22d3ee;
-}
-
-/* Edit - Cyan/Blue */
+.Invoice-btn-icon-view,
+.Invoice-btn-icon-edit,
 .Invoice-btn-icon-delete {
-    background-color: #f43f5e;
+    background-color: #f1f5f9;
+    color: #475569;
 }
-
-/* Delete - Pink/Red */
 
 .Invoice-btn-action.Invoice-copy {
     width: 32px;
@@ -865,22 +864,18 @@
     color: white;
 }
 
-.Invoice-invoice-action-btn.Invoice-view {
-    background-color: #f59e0b;
-    /* Orange */
-}
-
-.Invoice-invoice-action-btn.Invoice-view:hover {
-    background-color: #334155;
-}
-
+.Invoice-invoice-action-btn.Invoice-view,
 .Invoice-invoice-action-btn.Invoice-edit {
-    background-color: #22d3ee;
-    /* Cyan/Blue */
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.Invoice-invoice-action-btn.Invoice-view:hover,
 .Invoice-invoice-action-btn.Invoice-edit:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Shared Invoice Template Styles (Imported from CompanySettings) */

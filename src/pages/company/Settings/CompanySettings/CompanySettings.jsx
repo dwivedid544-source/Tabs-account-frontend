@@ -30,6 +30,20 @@ const getContrastTextColor = (hexColor) => {
     return (yiq >= 170) ? '#1e293b' : '#ffffff';
 };
 
+const isLightColor = (color) => {
+    if (!color) return true;
+    const c = color.toLowerCase().trim();
+    if (c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0') return true;
+    const hex = c.replace('#', '');
+    if (hex.length !== 6) return false;
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    const toLinear = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    return lum > 0.5;
+};
+
 const getTintBg = (hexColor, alpha = 0.08) => {
     if (!hexColor) return '#f8fafc';
     const hex = hexColor.replace('#', '');
@@ -1957,80 +1971,81 @@ const CompanySettings = () => {
                                     )}
 
                                     {/* 2. TITLE & BILL TO (Left) and METADATA (Right) */}
-                                    <div className="invoice-cea-middle">
-                                        <div className="invoice-cea-middle-left">
-                                            <div className="invoice-cea-doc-heading" style={{ color: invoiceSettings.color || '#1e293b' }}>
-                                                {invoiceLabels.number ? invoiceLabels.number.replace(/[:#]/g, '').trim().toUpperCase() : 'INVOICE'}
-                                            </div>
-                                            <div className="invoice-cea-bill-label">
-                                                {invoiceLabels.billTo || 'BILL TO'}
-                                            </div>
-                                            <div className="invoice-cea-client-name">Frank Sheridan</div>
-                                            <div className="invoice-cea-client-line">56 New cork road, Midleton, Co. Cork</div>
-                                        </div>
-                                        <div className="invoice-cea-middle-right">
-                                            <div className="invoice-cea-meta-grid">
-                                                <span className="invoice-cea-kv-key">{invoiceLabels.number || 'INVOICE'}</span>
-                                                <span className="invoice-cea-kv-val">1550</span>
-
-                                                <span className="invoice-cea-kv-key">{invoiceLabels.issue || 'DATE'}</span>
-                                                <span className="invoice-cea-kv-val">06-05-2026</span>
-
-                                                <span className="invoice-cea-kv-key">TERMS</span>
-                                                <span className="invoice-cea-kv-val">Net 7</span>
-
-                                                <span className="invoice-cea-kv-key">{invoiceLabels.dueDate || 'DUE DATE'}</span>
-                                                <span className="invoice-cea-kv-val">13-05-2026</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 3. ITEMS TABLE */}
                                     {(() => {
-                                        const isLightGrayTemplate = (invoiceSettings.template || '').toLowerCase().includes('light gr') || invoiceSettings.template === 'Standard VAT (CEA)';
-                                        const isLightHeader = (invoiceSettings.color || '').toLowerCase() === '#dedede' || isLightGrayTemplate;
-                                        const headerBgColor = isLightGrayTemplate ? '#dedede' : (invoiceSettings.color || '#dedede');
-                                        const headerTextColor = isLightHeader ? '#555555' : getContrastTextColor(headerBgColor);
+                                        const currentThemeColor = invoiceSettings.color || '#dedede';
+                                        const _isLight = isLightColor(currentThemeColor);
+                                        const headingColor = _isLight ? '#1e293b' : currentThemeColor;
+                                        const tableHeaderBg = _isLight ? '#dedede' : currentThemeColor;
+                                        const tableHeaderText = _isLight ? '#555555' : '#ffffff';
 
                                         return (
                                             <>
+                                                <div className="invoice-cea-middle">
+                                                    <div className="invoice-cea-middle-left">
+                                                        <div className="invoice-cea-doc-heading" style={{ color: headingColor }}>
+                                                            {invoiceLabels.number ? invoiceLabels.number.replace(/[:#]/g, '').trim().toUpperCase() : 'INVOICE'}
+                                                        </div>
+                                                        <div className="invoice-cea-bill-label">
+                                                            {invoiceLabels.billTo || 'BILL TO'}
+                                                        </div>
+                                                        <div className="invoice-cea-client-name">Frank Sheridan</div>
+                                                        <div className="invoice-cea-client-line">56 New cork road, Midleton, Co. Cork</div>
+                                                    </div>
+                                                    <div className="invoice-cea-middle-right">
+                                                        <div className="invoice-cea-meta-grid">
+                                                            <span className="invoice-cea-kv-key">{invoiceLabels.number || 'INVOICE'}</span>
+                                                            <span className="invoice-cea-kv-val">1550</span>
+
+                                                            <span className="invoice-cea-kv-key">{invoiceLabels.issue || 'DATE'}</span>
+                                                            <span className="invoice-cea-kv-val">06-05-2026</span>
+
+                                                            <span className="invoice-cea-kv-key">TERMS</span>
+                                                            <span className="invoice-cea-kv-val">Net 7</span>
+
+                                                            <span className="invoice-cea-kv-key">{invoiceLabels.dueDate || 'DUE DATE'}</span>
+                                                            <span className="invoice-cea-kv-val">13-05-2026</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* 3. ITEMS TABLE */}
                                                 <table className="invoice-cea-table">
                                                     <thead>
-                                                        <tr style={{ backgroundColor: headerBgColor }}>
-                                                            <th style={{ textAlign: 'left', color: headerTextColor }}>
+                                                        <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                            <th style={{ textAlign: 'left', color: tableHeaderText }}>
                                                                 {tableHeaders.item || 'ACTIVITY'}
                                                             </th>
                                                             {invoiceLabels.showWarehouse !== false && (
-                                                                <th style={{ textAlign: 'left', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'left', color: tableHeaderText }}>
                                                                     {tableHeaders.warehouse || 'DESCRIPTION'}
                                                                 </th>
                                                             )}
                                                             {invoiceLabels.showUom === true && (
-                                                                <th style={{ textAlign: 'center', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'center', color: tableHeaderText }}>
                                                                     {tableHeaders.uom || 'UOM'}
                                                                 </th>
                                                             )}
                                                             {invoiceLabels.showQty !== false && (
-                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'right', color: tableHeaderText }}>
                                                                     {tableHeaders.quantity || 'QUANTITY'}
                                                                 </th>
                                                             )}
                                                             {invoiceLabels.showRate !== false && (
-                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'right', color: tableHeaderText }}>
                                                                     {tableHeaders.rate || 'RATE'}
                                                                 </th>
                                                             )}
                                                             {invoiceLabels.showDiscount !== false && (
-                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'right', color: tableHeaderText }}>
                                                                     {tableHeaders.discount || 'DISCOUNT'}
                                                                 </th>
                                                             )}
                                                             {invoiceLabels.showTax !== false && (
-                                                                <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                                <th style={{ textAlign: 'right', color: tableHeaderText }}>
                                                                     {tableHeaders.tax || 'TAX'}
                                                                 </th>
                                                             )}
-                                                            <th style={{ textAlign: 'right', color: headerTextColor }}>
+                                                            <th style={{ textAlign: 'right', color: tableHeaderText }}>
                                                                 {tableHeaders.price || 'PRICE'}
                                                             </th>
                                                         </tr>
@@ -2100,13 +2115,13 @@ const CompanySettings = () => {
                                                 {/* 6. VAT SUMMARY */}
                                                 {invoiceLabels.showTax !== false && (
                                                     <div className="invoice-cea-vat-section">
-                                                        <div className="invoice-cea-vat-title" style={{ color: '#111827', fontWeight: '700' }}>VAT SUMMARY</div>
+                                                        <div className="invoice-cea-vat-title" style={{ color: headingColor, fontWeight: '700' }}>VAT SUMMARY</div>
                                                         <table className="invoice-cea-vat-table">
                                                             <thead>
-                                                                <tr style={{ backgroundColor: headerBgColor }}>
-                                                                    <th style={{ width: '40%', textAlign: 'left', color: headerTextColor }}>RATE</th>
-                                                                    <th style={{ width: '30%', textAlign: 'right', color: headerTextColor }}>VAT</th>
-                                                                    <th style={{ width: '30%', textAlign: 'right', color: headerTextColor }}>NET</th>
+                                                                <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                                    <th style={{ width: '40%', textAlign: 'left', color: tableHeaderText }}>RATE</th>
+                                                                    <th style={{ width: '30%', textAlign: 'right', color: tableHeaderText }}>VAT</th>
+                                                                    <th style={{ width: '30%', textAlign: 'right', color: tableHeaderText }}>NET</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -2119,28 +2134,28 @@ const CompanySettings = () => {
                                                         </table>
                                                     </div>
                                                 )}
+
+                                                {/* 7. BANK DETAILS BOX */}
+                                                {invoiceLabels.showFooter !== false && (
+                                                    <div className="invoice-cea-bank-box" style={{ borderLeft: `4px solid ${headingColor}`, background: getTintBg(currentThemeColor, 0.06) }}>
+                                                        <div className="invoice-cea-bank-grid">
+                                                            <div className="invoice-cea-bank-col">
+                                                                <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
+                                                                <div className="invoice-cea-bank-line">IBAN: {formData.iban || 'IE03BOFI90290116673832'}</div>
+                                                                <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
+                                                                <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
+                                                            </div>
+                                                            <div className="invoice-cea-bank-col">
+                                                                <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
+                                                                <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
+                                                                <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </>
                                         );
                                     })()}
-
-                                    {/* 7. BANK DETAILS BOX */}
-                                    {invoiceLabels.showFooter !== false && (
-                                        <div className="invoice-cea-bank-box" style={{ borderLeft: `4px solid ${invoiceSettings.color || '#1e293b'}`, background: getTintBg(invoiceSettings.color || '#1e293b', 0.06) }}>
-                                            <div className="invoice-cea-bank-grid">
-                                                <div className="invoice-cea-bank-col">
-                                                    <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
-                                                    <div className="invoice-cea-bank-line">IBAN: {formData.iban || 'IE03BOFI90290116673832'}</div>
-                                                    <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
-                                                    <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
-                                                </div>
-                                                <div className="invoice-cea-bank-col">
-                                                    <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
-                                                    <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
-                                                    <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
 
                                     {/* 8. PAGE FOOTER */}
                                     <div className="invoice-cea-page-footer">

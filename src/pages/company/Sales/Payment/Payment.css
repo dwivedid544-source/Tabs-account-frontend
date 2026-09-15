@@ -1260,40 +1260,34 @@
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.SalesPayment-payment-action-btn.SalesPayment-view {
-    background-color: #f59e0b;
-}
-
-.SalesPayment-payment-action-btn.SalesPayment-view:hover {
-    background-color: #334155;
-}
-
-.SalesPayment-payment-action-btn.SalesPayment-edit {
-    background-color: #3b82f6;
-}
-
-.SalesPayment-payment-action-btn.SalesPayment-edit:hover {
-    background-color: #334155;
-}
-
+.SalesPayment-payment-action-btn.SalesPayment-view,
+.SalesPayment-payment-action-btn.SalesPayment-edit,
 .SalesPayment-payment-action-btn.SalesPayment-delete {
-    background-color: #f43f5e;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
 }
 
+.SalesPayment-payment-action-btn:hover,
+.SalesPayment-payment-action-btn.SalesPayment-view:hover,
+.SalesPayment-payment-action-btn.SalesPayment-edit:hover,
 .SalesPayment-payment-action-btn.SalesPayment-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .SalesPayment-payment-action-btn svg {
     width: 16px;
     height: 16px;
-    stroke: white;
+    stroke: currentColor;
     display: block;
 }
 

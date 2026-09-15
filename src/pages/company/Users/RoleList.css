@@ -144,16 +144,23 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border: none;
-    color: white;
+    border: 1px solid #e2e8f0;
+    background-color: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
 }
 
-.RoleList-btn-edit {
-    background-color: #22d3ee;
+.RoleList-btn-edit svg,
+.RoleList-btn-delete svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.RoleList-btn-delete {
-    background-color: #f43f5e;
+.RoleList-btn-edit:hover,
+.RoleList-btn-delete:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Modal Specifics */

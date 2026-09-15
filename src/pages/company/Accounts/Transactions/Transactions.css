@@ -249,36 +249,35 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
     padding: 0;
     box-sizing: border-box;
     transition: all 0.2s ease-in-out;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
-.btn-view {
-    background-color: #ffb74d;
-    color: white;
+.action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.btn-view:hover {
-    background-color: #334155;
-    transform: translateY(-1px);
-}
-
-.btn-edit {
-    background-color: #e0e7ff;
-    color: #4f46e5;
-}
-
-.btn-edit:hover {
-    background-color: #334155;
-    transform: translateY(-1px);
-}
-
+.btn-view,
+.btn-edit,
 .btn-delete {
-    background-color: #f06292;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.action-btn:hover,
+.btn-view:hover,
+.btn-edit:hover,
+.btn-delete:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
 }
 
 /* STatus Badges */

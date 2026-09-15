@@ -164,35 +164,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
-.Zirak-Inventory-btn-view {
-    background-color: #f59e0b;
+.Zirak-Inventory-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Zirak-Inventory-btn-view:hover {
-    background-color: #334155;
-}
-
-.Zirak-Inventory-btn-edit {
-    background-color: #06b6d4;
-}
-
-.Zirak-Inventory-btn-edit:hover {
-    background-color: #334155;
-}
-
+.Zirak-Inventory-btn-view,
+.Zirak-Inventory-btn-edit,
 .Zirak-Inventory-btn-delete {
-    background-color: #ef4444;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
+.Zirak-Inventory-action-btn:hover,
+.Zirak-Inventory-btn-view:hover,
+.Zirak-Inventory-btn-edit:hover,
 .Zirak-Inventory-btn-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Pagination */

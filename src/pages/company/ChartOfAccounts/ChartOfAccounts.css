@@ -240,30 +240,29 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
-    color: white;
-    transition: opacity 0.2s;
+    background-color: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
 }
 
-.Charts-of-Account-btn-warning {
-    background-color: #f59e0b;
+.Charts-of-Account-action-btn-small svg {
+    stroke: currentColor;
+    display: block;
 }
 
-/* Orange */
-.Charts-of-Account-btn-info {
-    background-color: #22d3ee;
-}
-
-/* Cyan/Blue */
+.Charts-of-Account-btn-warning,
+.Charts-of-Account-btn-info,
 .Charts-of-Account-btn-danger {
-    background-color: #ef4444;
+    background-color: #f1f5f9;
+    color: #475569;
 }
-
-/* Red */
 
 .Charts-of-Account-action-btn-small:hover {
-    opacity: 0.8;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Grouped Accordion Styles */
@@ -920,32 +919,35 @@
 }
 
 .Charts-of-Account-card-action-btn {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: 4px;
+    border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
     cursor: pointer;
-    color: white;
-    transition: transform 0.1s;
+    background-color: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
+}
+
+.Charts-of-Account-card-action-btn svg {
+    stroke: currentColor;
+    display: block;
+}
+
+.Charts-of-Account-card-action-btn.view,
+.Charts-of-Account-card-action-btn.edit,
+.Charts-of-Account-card-action-btn.delete {
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
 .Charts-of-Account-card-action-btn:hover {
-    transform: scale(1.1);
-}
-
-.Charts-of-Account-card-action-btn.view {
-    background-color: #f59e0b;
-}
-
-.Charts-of-Account-card-action-btn.edit {
-    background-color: #22d3ee;
-}
-
-.Charts-of-Account-card-action-btn.delete {
-    background-color: #ef4444;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 @media (max-width: 768px) {

@@ -142,27 +142,33 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
-.Zirak-Transfer-btn-view {
-    background-color: #f59e0b;
+.Zirak-Transfer-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Zirak-Transfer-btn-view:hover {
-    background-color: #334155;
-}
-
+.Zirak-Transfer-btn-view,
+.Zirak-Transfer-btn-edit,
 .Zirak-Transfer-btn-delete {
-    background-color: #ef4444;
+    background-color: #f1f5f9;
+    color: #475569;
 }
 
+.Zirak-Transfer-action-btn:hover,
+.Zirak-Transfer-btn-view:hover,
+.Zirak-Transfer-btn-edit:hover,
 .Zirak-Transfer-btn-delete:hover {
-    background-color: #334155;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 /* Pagination */

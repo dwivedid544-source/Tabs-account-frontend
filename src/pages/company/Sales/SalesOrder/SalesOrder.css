@@ -508,34 +508,28 @@
 .SalesOrder-sales-order-action-btn {
     padding: 0.5rem;
     border-radius: 8px;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
     background: #f1f5f9;
-    color: #64748b;
+    color: #475569;
     transition: all 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-.SalesOrder-sales-order-action-btn:hover {
-    background: #334155;
-    color: #0f172a;
+.SalesOrder-sales-order-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.SalesOrder-sales-order-action-btn.SalesOrder-view:hover {
-    background: #334155;
-    color: #0284c7;
-}
-
-.SalesOrder-sales-order-action-btn.SalesOrder-edit:hover {
-    background: #334155;
-    color: #d97706;
-}
-
+.SalesOrder-sales-order-action-btn:hover,
+.SalesOrder-sales-order-action-btn.SalesOrder-view:hover,
+.SalesOrder-sales-order-action-btn.SalesOrder-edit:hover,
 .SalesOrder-sales-order-action-btn.SalesOrder-delete:hover {
-    background: #334155;
-    color: #dc2626;
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .SalesOrder-source-badge {

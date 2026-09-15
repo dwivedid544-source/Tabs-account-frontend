@@ -608,7 +608,7 @@ const InventoryAdjustment = () => {
                                                 <div className="Zirak-Adjustment-action-buttons">
                                                     <button className="Zirak-Adjustment-action-btn Zirak-Adjustment-btn-view" onClick={() => handleView(a)}><Eye size={16} /></button>
                                                     {hasPermission('edit inventory adjustment') && (
-                                                        <button className="Zirak-Adjustment-action-btn Zirak-Adjustment-btn-edit" style={{ backgroundColor: '#59d5e0', color: 'white' }} onClick={() => handleEdit(a.id)}><Pencil size={16} /></button>
+                                                        <button className="Zirak-Adjustment-action-btn Zirak-Adjustment-btn-edit" onClick={() => handleEdit(a.id)}><Pencil size={16} /></button>
                                                     )}
                                                     {hasPermission('delete inventory adjustment') && (
                                                         <button className="Zirak-Adjustment-action-btn Zirak-Adjustment-btn-delete" onClick={() => handleDeleteClick(a)}><Trash2 size={16} /></button>

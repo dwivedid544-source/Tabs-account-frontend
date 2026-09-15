@@ -555,29 +555,34 @@
 }
 
 .Voucher-action-btn {
-    background: none;
-    border: none;
-    padding: 4px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 6px;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 6px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    color: #475569;
+    transition: all 0.2s;
 }
 
-.Voucher-btn-view {
-    color: #f59e0b;
-    background: #fffbeb;
+.Voucher-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Voucher-btn-edit {
-    color: #3b82f6;
-    background: #eff6ff;
-}
-
+.Voucher-btn-view,
+.Voucher-btn-edit,
 .Voucher-btn-delete {
-    color: #ef4444;
-    background: #fef2f2;
+    color: #475569;
+    background: #f1f5f9;
+}
+
+.Voucher-action-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .Voucher-btn-add {

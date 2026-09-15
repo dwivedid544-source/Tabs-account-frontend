@@ -127,37 +127,36 @@
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: none;
+    border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
     transition: all 0.2s;
 }
 
-.Zirak-Warehouse-action-btn:hover {
-    opacity: 0.85;
-    transform: translateY(-1px);
+.Zirak-Warehouse-action-btn svg {
+    stroke: currentColor;
+    display: block;
 }
 
-.Zirak-Warehouse-btn-view {
-    color: #6366f1;
-    background-color: #e0e7ff;
-}
-
-.Zirak-Warehouse-btn-view:hover {
-    background-color: #334155;
-}
-
-.Zirak-Warehouse-btn-edit {
-    background-color: #00bcd4;
-    color: white;
-}
-
+.Zirak-Warehouse-btn-view,
+.Zirak-Warehouse-btn-edit,
 .Zirak-Warehouse-btn-delete {
-    background-color: #f53d5d;
-    color: white;
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.Zirak-Warehouse-action-btn:hover,
+.Zirak-Warehouse-btn-view:hover,
+.Zirak-Warehouse-btn-edit:hover,
+.Zirak-Warehouse-btn-delete:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
 }
 
 /* Pagination */

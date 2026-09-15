@@ -384,36 +384,7 @@ const Vendors = () => {
                             Import Excel
                         </button>
                     )}
-                    <button
-                        title="Recalculate all vendor balances from transaction history"
-                        style={{
-                            padding: '8px 14px',
-                            background: '#f8fafc',
-                            color: '#334155',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
-                        onClick={async () => {
-                            try {
-                                toast.loading('Recalculating balances...');
-                                const result = await vendorService.recalculateAllBalances();
-                                toast.dismiss();
-                                toast.success(result.message || 'Balances recalculated!');
-                                fetchData();
-                            } catch (err) {
-                                toast.dismiss();
-                                toast.error(err.message || 'Failed to recalculate balances');
-                            }
-                        }}
-                    >
-                        ⟳ Fix Balances
-                    </button>
+                
                     {hasPermission('create vendors') && (
                         <button className="Vendors-btn-add" onClick={openCreateModal}>
                             <Plus size={18} />
