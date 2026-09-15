@@ -131,24 +131,54 @@ const safeSavePdf = (doc, fileName) => {
     const rawName = (fileName || 'Invoice.pdf').replace(/[\\/:*?"<>|#]/g, '_');
     const finalName = rawName.endsWith('.pdf') ? rawName : `${rawName}.pdf`;
     try {
-        doc.save(finalName);
-    } catch (saveErr) {
-        console.warn('doc.save failed, trying Blob fallback:', saveErr);
-        try {
-            const pdfBlob = doc.output('blob');
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = finalName;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                try {
+        const arrayBuffer = doc.output('arraybuffer');
+        const uint8 = new Uint8Array(arrayBuffer);
+
+        // Sanitize any invalid PDF syntax such as '/Predictor null' -> '/Predictor 1   '
+        const needle = [47, 80, 114, 101, 100, 105, 99, 116, 111, 114, 32, 110, 117, 108, 108]; // '/Predictor null'
+        const repl = [47, 80, 114, 101, 100, 105, 99, 116, 111, 114, 32, 49, 32, 32, 32];     // '/Predictor 1   '
+        for (let i = 0; i <= uint8.length - needle.length; i++) {
+            let match = true;
+            for (let j = 0; j < needle.length; j++) {
+                if (uint8[i + j] !== needle[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                for (let j = 0; j < repl.length; j++) {
+                    uint8[i + j] = repl[j];
+                }
+                i += needle.length - 1;
+            }
+        }
+
+        const pdfBlob = new Blob([uint8], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+
+        // Trigger file download
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = finalName;
+        document.body.appendChild(a);
+        a.click();
+
+        // Also open in new browser tab so user can immediately view all content
+        window.open(url, '_blank');
+
+        setTimeout(() => {
+            try {
+                if (document.body.contains(a)) {
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                } catch {}
-            }, 60000);
+                }
+                URL.revokeObjectURL(url);
+            } catch {}
+        }, 60000);
+    } catch (saveErr) {
+        console.warn('Sanitized blob download failed, trying doc.save fallback:', saveErr);
+        try {
+            doc.save(finalName);
         } catch (blobErr) {
             console.error('All PDF download mechanisms failed:', blobErr);
             throw blobErr;
@@ -2800,7 +2830,7 @@ const Invoice = () => {
             const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
 
             if (!isCombined) {
-                if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0)) {
+                if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0 || inv.allocations === undefined)) {
                     try {
                         const res = await salesInvoiceService.getById(inv.id, companyId);
                         if (res?.data?.success) {
@@ -2880,44 +2910,39 @@ const Invoice = () => {
                 }
             ];
 
-            // Resolve company logo (base64 or URL) with timeout and fallback
-            let logoBase64 = ceaArchitectsLogoBase64;
-            const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo);
-            if (logoRaw && logoRaw !== tabAccountsLogo && typeof logoRaw === 'string') {
-                if (logoRaw.startsWith('data:image/')) {
-                    logoBase64 = logoRaw;
-                } else if (logoRaw.includes('cea-architects-logo')) {
-                    logoBase64 = ceaArchitectsLogoBase64;
-                } else {
-                    try {
-                        const fetched = await new Promise((resolve) => {
-                            const timer = setTimeout(() => resolve(null), 1500);
-                            const img = new Image();
-                            img.crossOrigin = 'Anonymous';
-                            img.onload = () => {
-                                clearTimeout(timer);
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = img.naturalWidth || img.width || 120;
-                                    canvas.height = img.naturalHeight || img.height || 60;
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0);
-                                    const dataUrl = canvas.toDataURL('image/png');
-                                    resolve(dataUrl.startsWith('data:image/') ? dataUrl : null);
-                                } catch (err) {
-                                    resolve(null);
-                                }
-                            };
-                            img.onerror = () => {
-                                clearTimeout(timer);
+            // Resolve company logo (flattened to JPEG on white background to prevent PNG alpha stream corruption)
+            let logoBase64 = null;
+            const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo) || ceaArchitectsLogoBase64;
+            if (logoRaw && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+                try {
+                    const fetched = await new Promise((resolve) => {
+                        const timer = setTimeout(() => resolve(null), 1500);
+                        const img = new Image();
+                        img.crossOrigin = 'Anonymous';
+                        img.onload = () => {
+                            clearTimeout(timer);
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.naturalWidth || img.width || 177;
+                                canvas.height = img.naturalHeight || img.height || 76;
+                                const ctx = canvas.getContext('2d');
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                resolve(canvas.toDataURL('image/jpeg', 0.95));
+                            } catch (err) {
                                 resolve(null);
-                            };
-                            img.src = logoRaw;
-                        });
-                        if (fetched) logoBase64 = fetched;
-                    } catch (e) {
-                        logoBase64 = ceaArchitectsLogoBase64;
-                    }
+                            }
+                        };
+                        img.onerror = () => {
+                            clearTimeout(timer);
+                            resolve(null);
+                        };
+                        img.src = logoRaw;
+                    });
+                    if (fetched) logoBase64 = fetched;
+                } catch (e) {
+                    console.warn('Could not flatten logo to JPEG:', e);
                 }
             }
 
@@ -3002,7 +3027,7 @@ const Invoice = () => {
             });
 
             const isDuePassedDate = Boolean(inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
-            const rawStatus = String(inv.status || '').toUpperCase();
+            const rawStatus = String(inv.status || financials.status || '').toUpperCase();
 
             const currentStatus = (() => {
                 if (rawStatus === 'CANCELLED') return 'CANCELLED';
@@ -3010,10 +3035,11 @@ const Invoice = () => {
                 if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
                 if (balanceVal <= tol && totalVal === 0) return 'PAID';
                 if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+                if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
+                if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
                 if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
-                if (paidVal > tol && balanceVal > tol) return 'PARTIAL';
                 if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
-                if (rawStatus === 'PARTIAL' && balanceVal > tol && paidVal > tol) return 'PARTIAL';
+                if (financials.status) return financials.status;
                 if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
                 return 'UNPAID';
             })();
@@ -3071,7 +3097,8 @@ const Invoice = () => {
                 try {
                     const logoWidth = 36;
                     const logoHeight = 36 / (177 / 76); // ~15.45mm
-                    doc.addImage(logoBase64, 'PNG', 196 - logoWidth, 12, logoWidth, logoHeight);
+                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
                 } catch (imgErr) {
                     console.warn('Could not add image to PDF:', imgErr);
                 }
@@ -3388,8 +3415,9 @@ const Invoice = () => {
             doc.setDrawColor(226, 232, 240);
             doc.roundedRect(14, bankY, 182, 20, 2, 2, 'FD');
 
-            // Left accent border bar
-            doc.setFillColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            // Left accent border bar (Clean neutral slate/gray bar, never blue)
+            const bankBarRgb = _isLight ? [148, 163, 184] : themeRgb;
+            doc.setFillColor(bankBarRgb[0], bankBarRgb[1], bankBarRgb[2]);
             doc.rect(14, bankY, 2, 20, 'F');
 
             doc.setFont('helvetica', 'normal');
@@ -3397,14 +3425,16 @@ const Invoice = () => {
             doc.setTextColor(71, 85, 105);
             // Left Column
             doc.text(`Name: ${bankAccountName}`, 18, bankY + 4.5);
-            doc.text(`IBAN: ${bankIban}`, 18, bankY + 8.5);
+            doc.text(`IBAN:${bankIban}`, 18, bankY + 8.5);
             doc.text(`BIC: ${bankBic}`, 18, bankY + 12.5);
             doc.text(`Account: ${bankAccount}`, 18, bankY + 16.5);
 
             // Right Column
             doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 4.5);
             doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 8.5);
-            doc.text(String(bankAddress || '97 Main Street, Midleton, Co. Cork'), 108, bankY + 12.5);
+            if (comp.bankAddress && comp.bankAddress !== '97 Main Street, Midleton, Co. Cork') {
+                doc.text(String(comp.bankAddress), 108, bankY + 12.5);
+            }
 
             // --- 7. PAYMENT HISTORY TABLE ---
             const sortedHistory = resolveInvoicePaymentHistory(inv);
@@ -5319,38 +5349,38 @@ const Invoice = () => {
                                 <table className="invoice-cea-table">
                                     <thead>
                                         <tr style={{ backgroundColor: tableHeaderBg }}>
-                                            <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText }}>
+                                            <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: tableHeaderText }}>
+                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (
-                                                <th style={{ width: '6%', textAlign: 'center', color: tableHeaderText }}>
+                                                <th style={{ width: '6%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText }}>
+                                                <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('quantity', 'QUANTITY')}
                                                 </th>
                                             )}
                                             {showRate && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('rate', 'RATE')}
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
+                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
                                             {showTax && (
-                                                <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText }}>
+                                                <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('tax', 'TAX')}
                                                 </th>
                                             )}
-                                            <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText }}>
+                                            <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('price', 'PRICE')}
                                             </th>
                                         </tr>
@@ -5433,7 +5463,7 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'VAT'}</span>
                                         <span className="invoice-cea-total-val">{Number(taxVal).toFixed(2)}</span>
 
-                                        <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
+                                        <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'TOTAL'}</span>
                                         <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                         {parseFloat(paidVal) > 0 && (
@@ -5485,10 +5515,10 @@ const Invoice = () => {
                                     <table className="invoice-cea-vat-table">
                                         <thead>
                                             <tr style={{ backgroundColor: tableHeaderBg }}>
-                                                <th style={{ width: '38%', textAlign: 'left', color: tableHeaderText }}></th>
-                                                <th style={{ width: '22%', textAlign: 'left', color: tableHeaderText }}>RATE</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText }}>VAT</th>
-                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText }}>NET</th>
+                                                <th style={{ width: '38%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}></th>
+                                                <th style={{ width: '22%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>RATE</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>VAT</th>
+                                                <th style={{ width: '20%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>NET</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -5505,7 +5535,7 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 7. BANK DETAILS BOX */}
-                                <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
+                                <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                     <div className="invoice-cea-bank-grid">
                                         <div className="invoice-cea-bank-col">
                                             <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
@@ -5552,11 +5582,11 @@ const Invoice = () => {
                                             <table className="invoice-cea-vat-table invoice-cea-payment-history-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                                 <thead>
                                                     <tr style={{ backgroundColor: tableHeaderBg }}>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600' }}>Payment Date</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600' }}>Receipt Number</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600' }}>Payment Amount</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: tableHeaderText, fontWeight: '600' }}>Payment Method</th>
-                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600' }}>Balance After Payment</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Payment Date</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Receipt Number</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Payment Amount</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Payment Method</th>
+                                                        <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Balance After Payment</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -5951,7 +5981,7 @@ const Invoice = () => {
                                                                 <span
                                                                     className="Invoice-invoice-status-pill"
                                                                     style={{
-                                                                        ...getStatusStyle(inv.status || 'UNPAID'),
+                                                                        ...getStatusStyle(inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID')),
                                                                         cursor: 'default',
                                                                         userSelect: 'none'
                                                                     }}
@@ -6179,24 +6209,20 @@ const Invoice = () => {
                                                                     statusVal = 'Fully Paid';
                                                                 }
                                                             }
-                                                            if (group.isSingle) {
-                                                                const singleInv = group.invoices[0];
-                                                                return (
-                                                                    <span
-                                                                        className="Invoice-invoice-status-pill"
-                                                                        style={{
-                                                                            ...getStatusStyle(singleInv.status || 'UNPAID'),
-                                                                            cursor: 'default',
-                                                                            userSelect: 'none'
-                                                                        }}
-                                                                    >
-                                                                        {singleInv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (singleInv.status || 'UNPAID')}
-                                                                    </span>
-                                                                );
-                                                            }
+                                                            const displayStatus = group.isSingle
+                                                                ? (group.invoices[0].status === 'PARTIAL' ? 'PARTIALLY PAID' : (group.invoices[0].status || 'UNPAID'))
+                                                                : statusVal;
+
                                                             return (
-                                                                <span className={`Invoice-invoice-status-pill ${getStatusClass(statusVal)}`}>
-                                                                    {statusVal}
+                                                                <span
+                                                                    className="Invoice-invoice-status-pill"
+                                                                    style={{
+                                                                        ...getStatusStyle(displayStatus),
+                                                                        cursor: 'default',
+                                                                        userSelect: 'none'
+                                                                    }}
+                                                                >
+                                                                    {displayStatus}
                                                                 </span>
                                                             );
                                                         })()}
@@ -6342,7 +6368,7 @@ const Invoice = () => {
                                                                                                 <span
                                                                                                     className="Invoice-invoice-status-pill"
                                                                                                     style={{
-                                                                                                        ...getStatusStyle(si.status || 'UNPAID'),
+                                                                                                        ...getStatusStyle(si.status === 'PARTIAL' ? 'PARTIALLY PAID' : (si.status || 'UNPAID')),
                                                                                                         cursor: 'default',
                                                                                                         userSelect: 'none'
                                                                                                     }}

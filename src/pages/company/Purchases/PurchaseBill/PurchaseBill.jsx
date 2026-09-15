@@ -39,7 +39,141 @@ import salespersonService from '../../../../services/salespersonService';
 import deliverypersonService from '../../../../services/deliverypersonService';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../../utils/excelService';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
+import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
+import ceaArchitectsLogoBase64 from '../../../../assets/ceaArchitectsLogoBase64';
+import { BASE_URL } from '../../../../api/axiosInstance';
+import { resolveLogoUrl, getCompanyLogoSrc } from '../../../../utils/logoUrl';
 
+const getContrastTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#ffffff';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 170) ? '#1e293b' : '#ffffff';
+};
+
+const isLightColor = (color) => {
+    if (!color) return true;
+    const c = color.toLowerCase().trim();
+    if (c === '#dedede' || c === '#ffffff' || c === '#f1f5f9' || c === '#e2e8f0') return true;
+    const hex = c.replace('#', '');
+    if (hex.length !== 6) return false;
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    const toLinear = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    return lum > 0.5;
+};
+
+const getTintBg = (hexColor, alpha = 0.08) => {
+    if (!hexColor) return '#f8fafc';
+    const hex = hexColor.replace('#', '');
+    if (hex.length !== 6) return '#f8fafc';
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const hexToRgb = (hex) => {
+    if (!hex) return [0, 74, 173];
+    const cleanHex = hex.replace('#', '');
+    if (cleanHex.length !== 6) return [0, 74, 173];
+    return [
+        parseInt(cleanHex.substr(0, 2), 16),
+        parseInt(cleanHex.substr(2, 2), 16),
+        parseInt(cleanHex.substr(4, 2), 16)
+    ];
+};
+
+const safeAutoTable = (doc, options) => {
+    if (typeof doc.autoTable === 'function') {
+        return doc.autoTable(options);
+    }
+    if (typeof autoTable === 'function') {
+        return autoTable(doc, options);
+    }
+    if (autoTable && typeof autoTable.default === 'function') {
+        return autoTable.default(doc, options);
+    }
+    throw new Error('PDF AutoTable generator is not available');
+};
+
+const safeSavePdf = (doc, fileName) => {
+    const rawName = (fileName || 'PurchaseBill.pdf').replace(/[\\/:*?"<>|#]/g, '_');
+    const finalName = rawName.endsWith('.pdf') ? rawName : `${rawName}.pdf`;
+    try {
+        const arrayBuffer = doc.output('arraybuffer');
+        const uint8 = new Uint8Array(arrayBuffer);
+
+        // Sanitize any invalid PDF syntax such as '/Predictor null' -> '/Predictor 1   '
+        const needle = [47, 80, 114, 101, 100, 105, 99, 116, 111, 114, 32, 110, 117, 108, 108]; // '/Predictor null'
+        const repl = [47, 80, 114, 101, 100, 105, 99, 116, 111, 114, 32, 49, 32, 32, 32];     // '/Predictor 1   '
+        for (let i = 0; i <= uint8.length - needle.length; i++) {
+            let match = true;
+            for (let j = 0; j < needle.length; j++) {
+                if (uint8[i + j] !== needle[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                for (let j = 0; j < repl.length; j++) {
+                    uint8[i + j] = repl[j];
+                }
+                i += needle.length - 1;
+            }
+        }
+
+        const pdfBlob = new Blob([uint8], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+
+        // Trigger file download
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = finalName;
+        document.body.appendChild(a);
+        a.click();
+
+        // Also open in new browser tab so user can immediately view all content
+        window.open(url, '_blank');
+
+        setTimeout(() => {
+            try {
+                if (document.body.contains(a)) {
+                    document.body.removeChild(a);
+                }
+                URL.revokeObjectURL(url);
+            } catch {}
+        }, 60000);
+    } catch (saveErr) {
+        console.warn('Sanitized PDF save failed, trying standard doc.save fallback:', saveErr);
+        try {
+            doc.save(finalName);
+        } catch (fallbackErr) {
+            console.error('All PDF download mechanisms failed:', fallbackErr);
+            toast.error('Failed to download PDF. Please use browser print.');
+        }
+    }
+};
+
+const formatCeaDate = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+};
 
 const ALL_CURRENCIES = [
     { code: 'EUR', name: 'EUR (€)' },
@@ -308,6 +442,21 @@ const PurchaseBill = () => {
     });
     const [vendorId, setVendorId] = useState('');
     const [selectedVendorCreditPeriod, setSelectedVendorCreditPeriod] = useState(0);
+    const [paymentTerm, setPaymentTerm] = useState('0');
+
+    const handlePaymentTermChange = (term) => {
+        setPaymentTerm(term);
+        if (term !== 'custom') {
+            const days = parseInt(term, 10) || 0;
+            const newDueDate = calculateDueDate(billMeta.date, days);
+            setBillMeta(prev => ({ ...prev, dueDate: newDueDate }));
+        }
+    };
+
+    const handleCustomDueDateChange = (newDate) => {
+        setPaymentTerm('custom');
+        setBillMeta(prev => ({ ...prev, dueDate: newDate }));
+    };
 
     const [items, setItems] = useState([
         { id: Date.now(), productId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, total: 0, description: '' }
@@ -1098,6 +1247,7 @@ const PurchaseBill = () => {
         setViewBill(null);
         setVendorId('');
         setSelectedVendorCreditPeriod(0);
+        setPaymentTerm('0');
         setSelectedCurrency(companySettings?.currency || 'EUR');
         setExchangeRate(1.0);
         setBillMeta({
@@ -1275,6 +1425,11 @@ const PurchaseBill = () => {
         const vendorObj = vendors.find(v => v.id == doc.vendorId);
         const creditDays = vendorObj?.creditPeriod || 0;
         setSelectedVendorCreditPeriod(creditDays);
+        if (creditDays === 0) setPaymentTerm('0');
+        else if (creditDays === 7) setPaymentTerm('7');
+        else if (creditDays === 30) setPaymentTerm('30');
+        else if (creditDays === 60) setPaymentTerm('60');
+        else setPaymentTerm('custom');
         const newDueDate = calculateDueDate(billMeta.date, creditDays);
         setBillMeta(prev => ({ ...prev, dueDate: newDueDate }));
         setNotes(doc.notes || '');
@@ -1518,7 +1673,13 @@ const PurchaseBill = () => {
                 setEditingId(id);
                 setVendorId(billToEdit.vendorId);
                 const vendorObj = vendors.find(v => v.id == billToEdit.vendorId);
-                setSelectedVendorCreditPeriod(vendorObj?.creditPeriod || 0);
+                const creditDays = vendorObj?.creditPeriod || 0;
+                setSelectedVendorCreditPeriod(creditDays);
+                if (creditDays === 0) setPaymentTerm('0');
+                else if (creditDays === 7) setPaymentTerm('7');
+                else if (creditDays === 30) setPaymentTerm('30');
+                else if (creditDays === 60) setPaymentTerm('60');
+                else setPaymentTerm('custom');
                 let fieldValues = {};
                 if (billToEdit.customFields) {
                     try {
@@ -1990,7 +2151,758 @@ const PurchaseBill = () => {
         { id: 'payment', label: 'Payment', icon: CreditCard, status: 'pending' },
     ];
 
+    async function buildPurchaseBillPdfDoc(billInput) {
+        if (!billInput) return null;
+        const tol = 0.01;
+        let bill = billInput;
+        const companyId = GetCompanyId();
+
+        // If items or full vendor details are missing, fetch them
+        if (!bill.items && !bill.purchasebillitem && !bill.bills) {
+            try {
+                const res = await purchaseBillService.getBillById(bill.id, companyId);
+                if (res?.data?.success && res.data.data) {
+                    bill = res.data.data;
+                } else if (res?.success && res.data) {
+                    bill = res.data;
+                }
+            } catch (e) {
+                console.warn('Could not fetch single purchase bill details:', e);
+            }
+        }
+
+        const comp = companySettings || companyDetails || {};
+        const currency = bill.currency || comp.currency || 'EUR';
+
+        // Resolve company logo (flattened to JPEG on white background to prevent PNG alpha stream corruption)
+        let logoBase64 = null;
+        const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo) || ceaArchitectsLogoBase64;
+        if (logoRaw && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+            try {
+                const fetched = await new Promise((resolve) => {
+                    const timer = setTimeout(() => resolve(null), 1500);
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => {
+                        clearTimeout(timer);
+                        try {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.naturalWidth || img.width || 177;
+                            canvas.height = img.naturalHeight || img.height || 76;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.95));
+                        } catch (err) {
+                            resolve(null);
+                        }
+                    };
+                    img.onerror = () => {
+                        clearTimeout(timer);
+                        resolve(null);
+                    };
+                    img.src = logoRaw;
+                });
+                if (fetched) logoBase64 = fetched;
+            } catch (e) {
+                console.warn('Could not flatten logo to JPEG:', e);
+            }
+        }
+
+        // Vendor details
+        const targetVendor = bill.vendor || (vendors && vendors.find(v => String(v.id) === String(bill.vendorId))) || {};
+        const vendorName = targetVendor.name || bill.billingName || 'Vendor';
+        const vendorAddr = targetVendor.address || bill.billingAddress || '';
+        const vendorCityStateZip = [
+            targetVendor.city || bill.billingCity,
+            targetVendor.state ? (targetVendor.state.includes('Co') ? targetVendor.state : `Co, ${targetVendor.state}`) : '',
+            targetVendor.zipCode || targetVendor.zip || bill.billingZipCode
+        ].filter(Boolean).join(' ');
+        const vendorPhone = targetVendor.phone || bill.billingPhone || '';
+        const vendorEmail = targetVendor.email || bill.billingEmail || '';
+        const vendorVat = targetVendor.taxNumber || targetVendor.vatNumber || targetVendor.gstin || '';
+
+        // Financial calculations
+        let cfData = {};
+        if (bill.customFields) {
+            try {
+                cfData = typeof bill.customFields === 'string' ? JSON.parse(bill.customFields) : bill.customFields;
+            } catch (e) {
+                cfData = {};
+            }
+        }
+
+        const rawItems = bill.purchasebillitem || bill.items || [];
+        const lineItems = rawItems.length > 0 ? rawItems : (bill.bills ? bill.bills.flatMap(b => b.purchasebillitem || b.items || []) : []);
+
+        const parsedOtherCharges = Array.isArray(cfData?._otherCharges) ? cfData._otherCharges : [];
+        const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+
+        const subtotalVal = (bill.subtotal !== undefined && bill.subtotal !== null)
+            ? parseFloat(bill.subtotal)
+            : (parseFloat(bill.totalAmount || 0) - parseFloat(bill.taxAmount || 0) + parseFloat(bill.discountAmount || 0) - otherChargesTotal);
+
+        const getOverallDiscountAmt = () => {
+            if (bill.overallDiscount > 0) {
+                if (bill.overallDiscountType === 'percentage') {
+                    const F = (parseFloat(bill.overallDiscount) || 0) / 100;
+                    if (F >= 1) return parseFloat(bill.discountAmount || 0);
+                    const sub = parseFloat(subtotalVal) || 0;
+                    const totDisc = parseFloat(bill.discountAmount || 0);
+                    const tax = parseFloat(bill.taxAmount || 0);
+                    return ((sub - totDisc + tax) * F) / (1 - F);
+                }
+                return parseFloat(bill.overallDiscount) || 0;
+            }
+            return 0;
+        };
+
+        const overallDiscountAmt = getOverallDiscountAmt();
+        const discountVal = parseFloat(bill.discountAmount || 0);
+        const taxableVal = Math.max(0, subtotalVal - discountVal);
+        const taxVal = parseFloat(bill.taxAmount || 0);
+        const totalVal = parseFloat(bill.totalAmount || 0);
+        const paidVal = parseFloat(bill.paidAmount || 0);
+        const balanceVal = bill.balanceAmount !== undefined ? parseFloat(bill.balanceAmount) : (totalVal - paidVal);
+
+        // Process line items
+        const processedItems = lineItems.map((item) => {
+            const actName = item.product?.name || item.itemName || item.name || 'Product';
+            const desc = item.description || (item.product?.name ? item.product.name : actName) || '';
+            const uom = item.uom?.unitName || (allUoms.find(u => u.id === item.uomId)?.unitName) || item.unit || '';
+            const qty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+            const rate = parseFloat(item.rate || 0);
+            const discVal = parseFloat(item.discount || 0);
+            const discText = discVal > 0 ? (item.discountType === 'percentage' ? `${discVal}%` : `-${discVal.toFixed(2)}`) : '0%';
+            const itemTax = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
+            const isZeroTax = itemTax === 0;
+            const taxDisplay = isZeroTax ? 'No VAT' : `${parseFloat(itemTax.toFixed(2))}%`;
+            const amt = parseFloat(item.amount !== undefined ? item.amount : (qty * rate));
+
+            return {
+                actName,
+                desc,
+                uom,
+                qty,
+                rate,
+                discText,
+                taxDisplay,
+                amt,
+                taxRate: itemTax
+            };
+        });
+
+        // Compute VAT summary
+        const vatSummaryMap = {};
+        processedItems.forEach(it => {
+            const r = it.taxRate !== undefined ? it.taxRate : 23;
+            if (!vatSummaryMap[r]) {
+                vatSummaryMap[r] = { rate: r, vatAmount: 0, netAmount: 0 };
+            }
+            const lineNet = it.amt || 0;
+            const lineVat = (lineNet * r) / 100;
+            vatSummaryMap[r].netAmount += lineNet;
+            vatSummaryMap[r].vatAmount += lineVat;
+        });
+        const vatSummaryList = Object.values(vatSummaryMap);
+        if (vatSummaryList.length === 0) {
+            vatSummaryList.push({ rate: 23, vatAmount: taxVal, netAmount: taxableVal });
+        }
+
+        const isDuePassedDate = Boolean(bill.dueDate && new Date(bill.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const rawStatus = String(bill.status || '').toUpperCase();
+
+        const currentStatus = (() => {
+            if (rawStatus === 'CANCELLED') return 'CANCELLED';
+            if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+            if (balanceVal <= tol && totalVal === 0) return 'PAID';
+            if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+            if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
+            if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
+            if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
+            if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+            if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
+            return 'UNPAID';
+        })();
+
+        // Bank details
+        const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
+        const bankIban = comp.iban || 'IE03BOFI90290116673832';
+        const bankBic = comp.bic || 'BOFIIE2D';
+        const bankAccount = comp.accountNumber || '16673832';
+        const bankSortCode = comp.sortCode || '902901';
+        const bankName = comp.bankName || 'Bank Of Ireland';
+        const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
+
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(17, 24, 39);
+        doc.text(comp.name || 'CEAC Ltd', 14, 18);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(55, 65, 81);
+        let compY = 22.5;
+        doc.text(comp.address || '17 South Mall', 14, compY);
+        compY += 4.2;
+
+        const compCityLine = (comp.city && comp.zip)
+            ? `${comp.city.replace(/,\s*$/, '')}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip || comp.zipCode || ''}`.trim()
+            : 'Cork, Co, Cork T12VCY2';
+        if (compCityLine) {
+            doc.text(compCityLine, 14, compY);
+            compY += 4.2;
+        }
+        doc.text(comp.phone || '+353214272000', 14, compY);
+        compY += 4.2;
+
+        doc.text(comp.email || 'accounts@ceaarchitects.com', 14, compY);
+        compY += 4.2;
+
+        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber || '4120278GH';
+        doc.text(`VAT ID: ${vatId}`, 14, compY);
+        compY += 4.2;
+
+        // Top Right Logo Image
+        if (logoBase64) {
+            try {
+                const logoWidth = 36;
+                const logoHeight = 36 / (177 / 76);
+                const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
+            } catch (imgErr) {
+                console.warn('Could not add image to PDF:', imgErr);
+            }
+        }
+
+        // --- 2. MIDDLE (Left: PURCHASE BILL & BILL FROM / VENDOR, Right: METADATA GRID) ---
+        const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#dedede';
+        const _isLight = isLightColor(themeColorHex);
+        const themeRgb = hexToRgb(themeColorHex);
+        const _combinedTitleRgb = _isLight ? [30, 41, 59] : themeRgb;
+        const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
+        const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
+
+        let midY = Math.max(50, compY + 3);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+        doc.text(bill.isStatement ? 'VENDOR STATEMENT' : 'PURCHASE BILL', 14, midY);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(136, 136, 136);
+        doc.text('BILL FROM / VENDOR', 14, midY + 6);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        doc.text(vendorName, 14, midY + 11);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(55, 65, 81);
+        let billY = midY + 15.5;
+        if (vendorAddr) {
+            doc.text(vendorAddr, 14, billY);
+            billY += 4.2;
+        }
+        if (vendorCityStateZip && vendorCityStateZip !== vendorAddr) {
+            doc.text(vendorCityStateZip, 14, billY);
+            billY += 4.2;
+        }
+        if (vendorPhone) {
+            doc.text(vendorPhone, 14, billY);
+            billY += 4.2;
+        }
+        if (vendorEmail) {
+            doc.text(vendorEmail, 14, billY);
+            billY += 4.2;
+        }
+        if (vendorVat) {
+            doc.text(`VAT ID: ${vendorVat}`, 14, billY);
+            billY += 4.2;
+        }
+
+        // Right Metadata Grid
+        const metaKeyX = 118;
+        const metaValX = 196;
+        const metaRows = [
+            { key: 'BILL #', val: String(bill.billNumber || 'N/A').replace(/^#/, '') },
+            { key: 'DATE', val: formatCeaDate(bill.date) },
+            ...(bill.manualReference && typeof bill.manualReference === 'string' && bill.manualReference.trim() ? [{ key: 'MANUAL REF', val: bill.manualReference.trim() }] : []),
+            { key: 'TERMS', val: bill.paymentTerms || 'Net 30' },
+            { key: 'DUE DATE', val: formatCeaDate(bill.dueDate || bill.date) },
+            ...(bill.purchaseorder?.orderNumber ? [{ key: 'P.O. #', val: bill.purchaseorder.orderNumber }] : []),
+            ...(bill.goodsreceiptnote?.grnNumber ? [{ key: 'G.R.N. #', val: bill.goodsreceiptnote.grnNumber }] : [])
+        ];
+
+        let metaY = midY + 5;
+        metaRows.forEach((m) => {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(m.key, metaKeyX, metaY);
+
+            const keyW = doc.getTextWidth(m.key);
+            const maxValW = (metaValX - metaKeyX) - keyW - 3;
+
+            doc.setFont('helvetica', 'bold');
+            let valFontSize = 8.5;
+            doc.setFontSize(valFontSize);
+            while (doc.getTextWidth(m.val) > maxValW && valFontSize > 6) {
+                valFontSize -= 0.5;
+                doc.setFontSize(valFontSize);
+            }
+            doc.setTextColor(15, 23, 42);
+            doc.text(m.val, metaValX, metaY, { align: 'right' });
+            metaY += 4.6;
+        });
+
+        // --- 3. ITEMS TABLE ---
+        const tableStartY = Math.max(billY + 3, metaY + 3);
+
+        const showUom = true;
+        const cols = [
+            { key: 'activity', header: 'ACTIVITY', fixedWidth: 26, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+            { key: 'description', header: 'DESCRIPTION', isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
+            ...(showUom ? [{ key: 'uom', header: 'UOM', fixedWidth: 14, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
+            { key: 'quantity', header: 'QUANTITY', fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => String(it.qty) },
+            { key: 'rate', header: 'RATE', fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) },
+            { key: 'discount', header: 'DISCOUNT', fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.discText },
+            { key: 'tax', header: 'TAX', fixedWidth: 17, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay },
+            { key: 'price', header: 'PRICE', fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+        ];
+
+        const totalPrintableWidth = 182;
+        const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
+        const flexWidth = Math.max(45, totalPrintableWidth - fixedWidthSum);
+
+        const tableHead = [
+            cols.map(c => ({
+                content: c.header,
+                styles: { halign: c.align }
+            }))
+        ];
+        const tableBody = processedItems.map(it => cols.map(c => c.getData(it)));
+
+        const columnStyles = {};
+        cols.forEach((c, idx) => {
+            columnStyles[idx] = {
+                cellWidth: c.isFlex ? flexWidth : c.fixedWidth,
+                halign: c.align,
+                valign: 'middle',
+                ...(c.fontStyle === 'bold' ? { fontStyle: 'bold' } : {})
+            };
+        });
+
+        safeAutoTable(doc, {
+            startY: tableStartY,
+            head: tableHead,
+            body: tableBody,
+            theme: 'plain',
+            styles: {
+                overflow: 'linebreak',
+                valign: 'middle',
+                fontSize: 7.8,
+                lineColor: [226, 232, 240],
+                lineWidth: { bottom: 0.1 }
+            },
+            headStyles: {
+                fillColor: tableHeaderBgRgb,
+                textColor: tableHeaderTextRgb,
+                fontStyle: 'bold',
+                fontSize: 7.8,
+                cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+                valign: 'middle'
+            },
+            bodyStyles: {
+                textColor: [15, 23, 42],
+                fontSize: 7.8,
+                cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+                valign: 'middle',
+                overflow: 'linebreak',
+                lineHeight: 1.2
+            },
+            columnStyles: columnStyles,
+            didParseCell: (data) => {
+                const col = cols[data.column.index];
+                if (col && col.align) {
+                    data.cell.styles.halign = col.align;
+                }
+            },
+            rowPageBreak: 'avoid',
+            margin: { left: 14, right: 14 }
+        });
+
+        // --- 4. DIVIDER & TOTALS SECTION ---
+        let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 2.5;
+        if (postTableY + 45 > 275) {
+            doc.addPage();
+            postTableY = 20;
+        }
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(14, postTableY, 196, postTableY);
+        doc.setLineDashPattern([], 0);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('We appreciate your business.', 14, postTableY + 4);
+
+        const totLabelX = 138;
+        const totValX = 196;
+        let totY = postTableY + 4;
+
+        const printTotalLine = (label, val, isBold = false, isDiscount = false) => {
+            doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+            doc.setFontSize(8);
+            if (isDiscount && discountVal > 0) {
+                doc.setTextColor(220, 38, 38);
+            } else {
+                doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
+            }
+            doc.text(label, totLabelX, totY);
+            doc.text(val, totValX, totY, { align: 'right' });
+            totY += 4.0;
+        };
+
+        printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
+        printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2), false, true);
+        printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+        if (otherChargesTotal > 0) {
+            printTotalLine('OTHER CHARGES', Number(otherChargesTotal).toFixed(2));
+        }
+        if (bill.roundOff !== undefined && bill.roundOff !== 0) {
+            printTotalLine('ROUND OFF', Number(bill.roundOff).toFixed(2));
+        }
+        printTotalLine('VAT', Number(taxVal).toFixed(2));
+        printTotalLine('TOTAL', Number(totalVal).toFixed(2), true);
+        if (paidVal > 0) {
+            printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
+        }
+
+        // Dotted divider before Balance Due
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(14, totY + 1, 196, totY + 1);
+        doc.setLineDashPattern([], 0);
+
+        totY += 5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text('BALANCE DUE', totLabelX, totY);
+
+        doc.setFontSize(10.5);
+        doc.setTextColor(17, 24, 39);
+        doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
+
+        // Status Clean Text Display (Unboxed)
+        totY += 4.5;
+        const isStatusPaid = currentStatus === 'PAID' || currentStatus === 'COMPLETED';
+        const statusTextColor = isStatusPaid ? [22, 163, 74]
+            : currentStatus === 'OVERDUE' ? [220, 38, 38]
+            : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? [234, 88, 12]
+            : currentStatus === 'CANCELLED' ? [100, 116, 139]
+            : [220, 38, 38];
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(statusTextColor[0], statusTextColor[1], statusTextColor[2]);
+        doc.text(currentStatus, totValX, totY, { align: 'right' });
+
+        // --- 5. VAT SUMMARY TABLE ---
+        let vatSectionY = totY + 5.5;
+        const vatEstHeight = 8 + (vatSummaryList.length * 5);
+        if (vatSectionY + vatEstHeight > 275) {
+            doc.addPage();
+            vatSectionY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+        doc.text('VAT SUMMARY', 14, vatSectionY);
+
+        const vatTableHead = [[
+            { content: '', styles: { halign: 'left' } },
+            { content: 'RATE', styles: { halign: 'left' } },
+            { content: 'VAT', styles: { halign: 'right' } },
+            { content: 'NET', styles: { halign: 'right' } }
+        ]];
+        const vatTableBody = vatSummaryList.map(v => [
+            '',
+            parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate !== undefined ? v.rate : 23).toFixed(2))}%`,
+            Number(v.vatAmount).toFixed(2),
+            Number(v.netAmount).toFixed(2)
+        ]);
+
+        safeAutoTable(doc, {
+            startY: vatSectionY + 2,
+            head: vatTableHead,
+            body: vatTableBody,
+            theme: 'plain',
+            headStyles: {
+                fillColor: tableHeaderBgRgb,
+                textColor: tableHeaderTextRgb,
+                fontStyle: 'bold',
+                fontSize: 7.2,
+                cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
+            },
+            bodyStyles: {
+                textColor: [15, 23, 42],
+                fontSize: 7.2,
+                cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
+            },
+            columnStyles: {
+                0: { cellWidth: 70, halign: 'left' },
+                1: { cellWidth: 40, halign: 'left' },
+                2: { cellWidth: 36, halign: 'right' },
+                3: { cellWidth: 36, halign: 'right' }
+            },
+            didParseCell: (data) => {
+                if (data.column.index === 0) data.cell.styles.halign = 'left';
+                if (data.column.index === 1) data.cell.styles.halign = 'left';
+                if (data.column.index === 2) data.cell.styles.halign = 'right';
+                if (data.column.index === 3) data.cell.styles.halign = 'right';
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // --- 6. BANK DETAILS ROUNDED BOX ---
+        let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
+        if (bankY + 21 > 275) {
+            doc.addPage();
+            bankY = 20;
+        }
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(14, bankY, 182, 20, 2, 2, 'FD');
+
+        const bankBarRgb = _isLight ? [148, 163, 184] : themeRgb;
+        doc.setFillColor(bankBarRgb[0], bankBarRgb[1], bankBarRgb[2]);
+        doc.rect(14, bankY, 2, 20, 'F');
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Name: ${bankAccountName}`, 18, bankY + 4.5);
+        doc.text(`IBAN:${bankIban}`, 18, bankY + 8.5);
+        doc.text(`BIC: ${bankBic}`, 18, bankY + 12.5);
+        doc.text(`Account: ${bankAccount}`, 18, bankY + 16.5);
+
+        doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 4.5);
+        doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 8.5);
+        if (comp.bankAddress && comp.bankAddress !== '97 Main Street, Midleton, Co. Cork') {
+            doc.text(String(comp.bankAddress), 108, bankY + 12.5);
+        }
+
+        // --- 7. PAYMENT HISTORY TABLE ---
+        const paymentList = bill.payment || [];
+        if (paymentList.length > 0) {
+            let pmtSectionY = bankY + 20 + 3.5;
+            const pmtEstHeight = 8 + (paymentList.length * 5.2);
+            if (pmtSectionY + pmtEstHeight > 275) {
+                doc.addPage();
+                pmtSectionY = 20;
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+            doc.text('PAYMENT HISTORY', 14, pmtSectionY);
+
+            const pmtTableHead = [[
+                { content: 'Payment Date', styles: { halign: 'left' } },
+                { content: 'Reference / Voucher', styles: { halign: 'left' } },
+                { content: 'Paid From', styles: { halign: 'left' } },
+                { content: 'Amount', styles: { halign: 'right' } }
+            ]];
+
+            const pmtTableBody = paymentList.map(p => {
+                const d = p.date ? new Date(p.date) : null;
+                const dateStr = d && !isNaN(d.getTime())
+                    ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+                    : '-';
+                const amtStr = `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                return [
+                    dateStr,
+                    p.paymentNumber || '-',
+                    p.bankLedger?.name || 'Bank',
+                    amtStr
+                ];
+            });
+
+            safeAutoTable(doc, {
+                startY: pmtSectionY + 2,
+                head: pmtTableHead,
+                body: pmtTableBody,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: tableHeaderBgRgb,
+                    textColor: tableHeaderTextRgb,
+                    fontStyle: 'bold',
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                },
+                bodyStyles: {
+                    textColor: [15, 23, 42],
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                },
+                columnStyles: {
+                    0: { cellWidth: 38, halign: 'left' },
+                    1: { cellWidth: 50, halign: 'left' },
+                    2: { cellWidth: 50, halign: 'left' },
+                    3: { cellWidth: 44, halign: 'right', fontStyle: 'bold' }
+                },
+                margin: { left: 14, right: 14 }
+            });
+        }
+
+        // --- 8. FOOTER ---
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
+        }
+
+        const fileName = `Purchase_Bill_${String(bill.billNumber || bill.id || 'document').replace(/[\\/:*?"<>|#]/g, '_')}.pdf`;
+        safeSavePdf(doc, fileName);
+        toast.success(`Downloaded ${fileName}`);
+        return doc;
+    }
+
     if (isViewMode && viewBill) {
+        const comp = companySettings || companyDetails || {};
+        const themeColor = comp.invoiceColor || '#dedede';
+        const _isLight = isLightColor(themeColor);
+        const headingColor = _isLight ? '#1e293b' : themeColor;
+        const tableHeaderBg = _isLight ? '#dedede' : themeColor;
+        const tableHeaderText = _isLight ? '#555555' : '#ffffff';
+
+        // Vendor details
+        const targetVendor = viewBill.vendor || (vendors && vendors.find(v => String(v.id) === String(viewBill.vendorId))) || {};
+        const vendorName = targetVendor.name || viewBill.billingName || 'Vendor';
+        const vendorAddr = targetVendor.address || viewBill.billingAddress || '';
+        const vendorCityStateZip = [
+            targetVendor.city || viewBill.billingCity,
+            targetVendor.state ? (targetVendor.state.includes('Co') ? targetVendor.state : `Co, ${targetVendor.state}`) : '',
+            targetVendor.zipCode || targetVendor.zip || viewBill.billingZipCode
+        ].filter(Boolean).join(' ');
+        const vendorPhone = targetVendor.phone || viewBill.billingPhone || '';
+        const vendorEmail = targetVendor.email || viewBill.billingEmail || '';
+        const vendorVat = targetVendor.taxNumber || targetVendor.vatNumber || targetVendor.gstin || '';
+
+        // Company Logo
+        const companyLogoSrc = getCompanyLogoSrc(comp.invoiceLogo || comp.logo);
+
+        // Custom Fields
+        let cfData = {};
+        if (viewBill.customFields) {
+            try {
+                cfData = typeof viewBill.customFields === 'string' ? JSON.parse(viewBill.customFields) : viewBill.customFields;
+            } catch (e) {
+                cfData = {};
+            }
+        }
+        const parsedOtherCharges = Array.isArray(cfData?._otherCharges) ? cfData._otherCharges : [];
+        const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+
+        const subtotalVal = (viewBill.subtotal !== undefined && viewBill.subtotal !== null)
+            ? parseFloat(viewBill.subtotal)
+            : (parseFloat(viewBill.totalAmount || 0) - parseFloat(viewBill.taxAmount || 0) + parseFloat(viewBill.discountAmount || 0) - otherChargesTotal);
+
+        const getOverallDiscountAmt = () => {
+            if (viewBill.overallDiscount > 0) {
+                if (viewBill.overallDiscountType === 'percentage') {
+                    const F = (parseFloat(viewBill.overallDiscount) || 0) / 100;
+                    if (F >= 1) return parseFloat(viewBill.discountAmount || 0);
+                    const sub = parseFloat(subtotalVal) || 0;
+                    const totDisc = parseFloat(viewBill.discountAmount || 0);
+                    const tax = parseFloat(viewBill.taxAmount || 0);
+                    return ((sub - totDisc + tax) * F) / (1 - F);
+                }
+                return parseFloat(viewBill.overallDiscount) || 0;
+            }
+            return 0;
+        };
+
+        const overallDiscountAmt = getOverallDiscountAmt();
+        const discountVal = parseFloat(viewBill.discountAmount || 0);
+        const taxableVal = Math.max(0, subtotalVal - discountVal);
+        const taxVal = parseFloat(viewBill.taxAmount || 0);
+        const totalVal = parseFloat(viewBill.totalAmount || 0);
+        const paidVal = parseFloat(viewBill.paidAmount || 0);
+        const balanceVal = viewBill.balanceAmount !== undefined ? parseFloat(viewBill.balanceAmount) : (totalVal - paidVal);
+
+        const rawItems = viewBill.purchasebillitem || viewBill.items || [];
+        const lineItems = rawItems.length > 0 ? rawItems : (viewBill.bills ? viewBill.bills.flatMap(b => b.purchasebillitem || b.items || []) : []);
+
+        // VAT Summary
+        const vatSummaryMap = {};
+        lineItems.forEach(item => {
+            const r = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
+            if (!vatSummaryMap[r]) {
+                vatSummaryMap[r] = { rate: r, vatAmount: 0, netAmount: 0 };
+            }
+            const lineAmt = parseFloat(item.amount !== undefined ? item.amount : ((item.quantity || 1) * (item.rate || 0)));
+            const lineVat = (lineAmt * r) / 100;
+            vatSummaryMap[r].netAmount += lineAmt;
+            vatSummaryMap[r].vatAmount += lineVat;
+        });
+        const vatSummaryList = Object.values(vatSummaryMap);
+        if (vatSummaryList.length === 0) {
+            vatSummaryList.push({ rate: 23, vatAmount: taxVal, netAmount: taxableVal });
+        }
+
+        const isDuePassedDate = Boolean(viewBill.dueDate && new Date(viewBill.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const rawStatus = String(viewBill.status || '').toUpperCase();
+        const tol = 0.01;
+        const currentStatus = (() => {
+            if (rawStatus === 'CANCELLED') return 'CANCELLED';
+            if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+            if (balanceVal <= tol && totalVal === 0) return 'PAID';
+            if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+            if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
+            if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
+            if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
+            if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+            if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
+            return 'UNPAID';
+        })();
+
+        // Bank details
+        const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
+        const bankIban = comp.iban || 'IE03BOFI90290116673832';
+        const bankBic = comp.bic || 'BOFIIE2D';
+        const bankAccount = comp.accountNumber || '16673832';
+        const bankSortCode = comp.sortCode || '902901';
+        const bankName = comp.bankName || 'Bank Of Ireland';
+        const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
+
+        const billCurrency = viewBill.currency || comp.currency || 'EUR';
+
+        // Density class based on item count
+        const effectiveItemCount = lineItems.length;
+        const densityClass = effectiveItemCount <= 3
+            ? 'cea-density-normal'
+            : effectiveItemCount <= 6
+                ? 'cea-density-moderate'
+                : effectiveItemCount <= 11
+                    ? 'cea-density-compact'
+                    : 'cea-density-ultra-compact';
+
         return (
             <div className="PBILL-page-full-view p-3">
                 <div className="PBILL-view-header no-print">
@@ -2005,10 +2917,9 @@ const PurchaseBill = () => {
                     }}>
                         <ArrowLeft size={18} /> Back
                     </button>
-                    <div className="PBILL-view-actions">
-                        {viewBill.balanceAmount > 0 && hasPermission('create purchase payment') && !viewBill.isStatement && (
+                    <div className="PBILL-view-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {!viewBill.isStatement && (viewBill.status === 'UNPAID' || viewBill.status === 'PARTIAL' || (parseFloat(viewBill.balanceAmount) > 0)) && hasPermission('create purchase payment') && (
                             <button
-                                className="PBILL-btn-add"
                                 onClick={() => handleMakePayment(viewBill)}
                                 style={{
                                     display: 'flex',
@@ -2020,768 +2931,424 @@ const PurchaseBill = () => {
                                     padding: '8px 16px',
                                     borderRadius: '6px',
                                     fontWeight: '600',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem'
                                 }}
+                                title="Record Payment for this Bill"
                             >
-                                <CreditCard size={18} /> Record Payment
+                                <CreditCard size={16} /> Record Payment
                             </button>
                         )}
-                        <button className="PBILL-btn-print" onClick={handlePrint}>
-                            <Printer size={18} /> Print
+                        <button
+                            onClick={() => buildPurchaseBillPdfDoc(viewBill)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#0f172a',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem'
+                            }}
+                            title="Download PDF"
+                        >
+                            <Download size={16} /> Download PDF
+                        </button>
+                        <button
+                            onClick={handlePrint}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#475569',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem'
+                            }}
+                            title="Print"
+                        >
+                            <Printer size={16} /> Print
                         </button>
                     </div>
                 </div>
 
                 <div className="PBILL-view-content-pane printable-area">
                     <div
-                        className={`invoice-preview-container template-${(companySettings?.invoiceTemplate || companyDetails.template || 'New York').toLowerCase().replace(' ', '').replace('invoice-', '')}`}
+                        className={`invoice-preview-container invoice-cea-container ${densityClass}`}
                         id="invoice-print-content"
                         style={{
-                            '--header-bg': companySettings?.invoiceColor || companyDetails.color || '#004aad',
-                            '--header-text': (() => {
-                                const hex = (companySettings?.invoiceColor || companyDetails.color || '#004aad').replace('#', '');
-                                const r = parseInt(hex.substr(0, 2), 16);
-                                const g = parseInt(hex.substr(2, 2), 16);
-                                const b = parseInt(hex.substr(4, 2), 16);
-                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                                return (yiq >= 150) ? '#1e293b' : '#ffffff';
-                            })()
+                            '--header-bg': tableHeaderBg,
+                            '--header-text': tableHeaderText
                         }}
                     >
-                        {/* Header Section */}
-                        {getInvoiceLabel('showHeader') !== false && (
-                            <div className="invoice-header-wrapper">
-                                <div className="invoice-preview-header">
-                                    <div className="invoice-header-left">
-                                        {companySettings?.invoiceLogo || companyDetails.logo ? (
-                                            <img
-                                                src={companySettings?.invoiceLogo || (companyDetails.logo.startsWith('http') ? companyDetails.logo : `${BASE_URL}/${companyDetails.logo.replace(/\\/g, '/')}`)}
-                                                alt="Company Logo"
-                                                className="invoice-logo-large"
-                                            />
-                                        ) : (
-                                            <h2 style={{ color: companySettings?.invoiceColor || companyDetails.color, margin: 0, textTransform: 'uppercase' }}>{companyDetails.name}</h2>
-                                        )}
-
-                                        <div className="invoice-company-details">
-                                            <strong>{companyDetails.name}</strong><br />
-                                            {companyDetails.email}<br />
-                                            {companyDetails.phone}<br />
-                                            {companyDetails.address}
-                                        </div>
-                                    </div>
-                                    <div className="invoice-header-right">
-                                        <div className="invoice-title-large">{viewBill.isStatement ? 'VENDOR STATEMENT' : getDocumentTitle('purchasebill')}</div>
-                                        <div className="invoice-meta-info">
-                                            {viewBill.isStatement ? (
-                                                <>
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">Vendor:</span> {viewBill.vendor?.name}
-                                                    </div>
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">Total Bills:</span> {viewBill.bills.length}
-                                                    </div>
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">As of:</span> {new Date().toLocaleDateString()}
-                                                    </div>
-                                                    {(() => {
-                                                        const fb = viewBill.bills && viewBill.bills[0];
-                                                        if (!fb) return null;
-                                                        return (
-                                                            <>
-                                                                {fb.salesperson && (
-                                                                    <>
-                                                                        <div className="invoice-meta-row">
-                                                                            <span className="invoice-label">Salesperson:</span> <span>{fb.salesperson.name}</span>
-                                                                        </div>
-                                                                        {fb.salesperson.phone && (
-                                                                            <div className="invoice-meta-row">
-                                                                                <span className="invoice-label">Salesperson Phone:</span> <span>{fb.salesperson.phone}</span>
-                                                                            </div>
-                                                                        )}
-                                                                        {fb.salesperson.email && (
-                                                                            <div className="invoice-meta-row">
-                                                                                <span className="invoice-label">Salesperson Email:</span> <span>{fb.salesperson.email}</span>
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                                {fb.carNumber && (
-                                                                    <div className="invoice-meta-row">
-                                                                        <span className="invoice-label">Car Number:</span> <span>{fb.carNumber}</span>
-                                                                    </div>
-                                                                )}
-                                                                {(() => {
-                                                                    if (!fb.customFields) return null;
-                                                                    try {
-                                                                        const cf = typeof fb.customFields === 'string'
-                                                                            ? JSON.parse(fb.customFields)
-                                                                            : fb.customFields;
-                                                                        return (
-                                                                            <>
-                                                                                {cf.deliveryPersonName && (
-                                                                                    <div className="invoice-meta-row">
-                                                                                        <span className="invoice-label">Del. Person:</span> <span>{cf.deliveryPersonName}</span>
-                                                                                    </div>
-                                                                                )}
-                                                                                {cf.deliveryPersonMobile && (
-                                                                                    <div className="invoice-meta-row">
-                                                                                        <span className="invoice-label">Del. Mobile:</span> <span>{cf.deliveryPersonMobile}</span>
-                                                                                    </div>
-                                                                                )}
-                                                                                {cf.deliveryPersonEmail && (
-                                                                                    <div className="invoice-meta-row">
-                                                                                        <span className="invoice-label">Del. Email:</span> <span>{cf.deliveryPersonEmail}</span>
-                                                                                    </div>
-                                                                                )}
-                                                                            </>
-                                                                        );
-                                                                    } catch (e) {
-                                                                        return null;
-                                                                    }
-                                                                })()}
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">Bill No:</span> {viewBill.billNumber}
-                                                    </div>
-                                                    {viewBill.manualReference && (
-                                                        <div className="invoice-meta-row">
-                                                            <span className="invoice-label">Manual Ref:</span> {viewBill.manualReference}
-                                                        </div>
-                                                    )}
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">Date:</span> {new Date(viewBill.date).toLocaleDateString()}
-                                                    </div>
-                                                    <div className="invoice-meta-row">
-                                                        <span className="invoice-label">{getInvoiceLabel('dueDate')}</span> {viewBill.dueDate ? new Date(viewBill.dueDate).toLocaleDateString() : 'N/A'}
-                                                    </div>
-                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') && (
-                                                        <>
-                                                            <div className="invoice-meta-row">
-                                                                <span className="invoice-label">Currency:</span> {viewBill.currency}
-                                                            </div>
-                                                            <div className="invoice-meta-row">
-                                                                <span className="invoice-label">Ex. Rate:</span> 1 {viewBill.currency} = {Number(viewRate).toFixed(4)} {companySettings?.currency || 'EUR'}
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    {viewBill?.salesperson && (
-                                                        <>
-                                                            <div className="invoice-meta-row">
-                                                                <span className="invoice-label">Salesperson:</span> <span>{viewBill.salesperson.name}</span>
-                                                            </div>
-                                                            {viewBill.salesperson.phone && (
-                                                                <div className="invoice-meta-row">
-                                                                    <span className="invoice-label">Salesperson Phone:</span> <span>{viewBill.salesperson.phone}</span>
-                                                                </div>
-                                                            )}
-                                                            {viewBill.salesperson.email && (
-                                                                <div className="invoice-meta-row">
-                                                                    <span className="invoice-label">Salesperson Email:</span> <span>{viewBill.salesperson.email}</span>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    {viewBill?.carNumber && (
-                                                        <div className="invoice-meta-row">
-                                                            <span className="invoice-label">Car Number:</span> <span>{viewBill.carNumber}</span>
-                                                        </div>
-                                                    )}
-                                                    {(() => {
-                                                        if (!viewBill?.customFields) return null;
-                                                        try {
-                                                            const cf = typeof viewBill.customFields === 'string'
-                                                                ? JSON.parse(viewBill.customFields)
-                                                                : viewBill.customFields;
-                                                            return (
-                                                                <>
-                                                                    {cf.deliveryPersonName && (
-                                                                        <div className="invoice-meta-row">
-                                                                            <span className="invoice-label">Del. Person:</span> <span>{cf.deliveryPersonName}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {cf.deliveryPersonMobile && (
-                                                                        <div className="invoice-meta-row">
-                                                                            <span className="invoice-label">Del. Mobile:</span> <span>{cf.deliveryPersonMobile}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {cf.deliveryPersonEmail && (
-                                                                        <div className="invoice-meta-row">
-                                                                            <span className="invoice-label">Del. Email:</span> <span>{cf.deliveryPersonEmail}</span>
-                                                                        </div>
-                                                                    )}
-                                                                </>
-                                                            );
-                                                        } catch (e) {
-                                                            return null;
-                                                        }
-                                                    })()}
-                                                </>
-                                            )}
-                                        </div>
-                                        {companyDetails.showQrCode && (
-                                            <div className="invoice-qr-box" style={{
-                                                marginTop: '15px',
-                                                display: 'flex',
-                                                justifyContent: 'flex-end',
-                                                visibility: 'visible',
-                                                opacity: 1
-                                            }}>
-                                                <img
-                                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`${window.location.origin}/view/bill/${viewBill.id}`)}`}
-                                                    alt="QR"
-                                                    style={{ width: '100px', height: '100px', display: 'block' }}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
+                        {/* 1. HEADER: Company Details (Left) and Logo (Right) */}
+                        <div className="invoice-cea-header">
+                            <div className="invoice-cea-company">
+                                <div className="invoice-cea-company-name">{comp.name || 'CEAC Ltd'}</div>
+                                <div className="invoice-cea-company-line">{comp.address || '17 South Mall'}</div>
+                                <div className="invoice-cea-company-line">
+                                    {comp.city && comp.zip
+                                        ? `${comp.city}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip}`
+                                        : 'Cork, Co, Cork T12VCY2'}
                                 </div>
+                                <div className="invoice-cea-company-line">{comp.phone || '+353214272000'}</div>
+                                <div className="invoice-cea-company-line">{comp.email || 'accounts@ceaarchitects.com'}</div>
+                                <div className="invoice-cea-company-line">VAT ID: {comp.vatNumber || comp.taxNumber || '4120278GH'}</div>
                             </div>
-                        )}
+                            <div className="invoice-cea-logo-container">
+                                <img
+                                    src={companyLogoSrc}
+                                    alt={comp.name || "Company Logo"}
+                                    className="invoice-cea-logo-img"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = ceaArchitectsLogo;
+                                    }}
+                                />
+                            </div>
+                        </div>
 
-                        {/* Addresses Section */}
-                        <div className="invoice-addresses">
-                            <div className="invoice-bill-to">
-                                <div className="invoice-section-header">{getInvoiceLabel('billTo')}</div>
-                                <div className="font-bold">{viewBill.billingName || viewBill.vendor?.name || 'N/A'}</div>
-                                <div className="invoice-company-details">
-                                    {viewBill.billingAddress || viewBill.vendor?.billingAddress || 'N/A'}<br />
-                                    {[viewBill.billingCity || viewBill.vendor?.city, viewBill.billingState || viewBill.vendor?.state, viewBill.billingZipCode || viewBill.vendor?.zipCode].filter(Boolean).join(', ')}
+                        {/* 2. MIDDLE: Document Title & BILL FROM / VENDOR (Left) and Metadata Grid (Right) */}
+                        <div className="invoice-cea-middle">
+                            <div className="invoice-cea-middle-left">
+                                <div className="invoice-cea-doc-heading" style={{ color: headingColor }}>
+                                    {viewBill.isStatement ? 'VENDOR STATEMENT' : 'PURCHASE BILL'}
                                 </div>
+                                <div className="invoice-cea-bill-label">BILL FROM / VENDOR</div>
+                                <div className="invoice-cea-client-name">{vendorName}</div>
+                                {vendorAddr && <div className="invoice-cea-client-line">{vendorAddr}</div>}
+                                {vendorCityStateZip && vendorCityStateZip !== vendorAddr && (
+                                    <div className="invoice-cea-client-line">{vendorCityStateZip}</div>
+                                )}
+                                {vendorPhone && <div className="invoice-cea-client-line">{vendorPhone}</div>}
+                                {vendorEmail && <div className="invoice-cea-client-line">{vendorEmail}</div>}
+                                {vendorVat && <div className="invoice-cea-client-line">VAT ID: {vendorVat}</div>}
                             </div>
-                            <div className="invoice-ship-to" style={{ textAlign: 'right' }}>
-                                <div className="invoice-section-header">{getInvoiceLabel('shipTo')}</div>
-                                <div className="font-bold">{viewBill.shippingName || viewBill.vendor?.name || 'N/A'}</div>
-                                <div className="invoice-company-details">
-                                    {viewBill.shippingAddress || viewBill.vendor?.shippingAddress || viewBill.vendor?.billingAddress}<br />
-                                    {[viewBill.shippingCity || viewBill.vendor?.city, viewBill.shippingState || viewBill.vendor?.state, viewBill.shippingZipCode || viewBill.vendor?.zipCode].filter(Boolean).join(', ')}
+                            <div className="invoice-cea-middle-right">
+                                <div className="invoice-cea-meta-grid">
+                                    <span className="invoice-cea-kv-key">BILL #</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.billNumber ? String(viewBill.billNumber).replace(/^#/, '') : 'N/A'}</span>
+
+                                    <span className="invoice-cea-kv-key">DATE</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.date ? formatCeaDate(viewBill.date) : ''}</span>
+
+                                    {viewBill.manualReference && (
+                                        <>
+                                            <span className="invoice-cea-kv-key">MANUAL REF</span>
+                                            <span className="invoice-cea-kv-val">{viewBill.manualReference}</span>
+                                        </>
+                                    )}
+
+                                    <span className="invoice-cea-kv-key">TERMS</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.paymentTerms || 'Net 30'}</span>
+
+                                    <span className="invoice-cea-kv-key">DUE DATE</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.dueDate ? formatCeaDate(viewBill.dueDate) : (viewBill.date ? formatCeaDate(viewBill.date) : '')}</span>
+
+                                    {viewBill.purchaseorder?.orderNumber && (
+                                        <>
+                                            <span className="invoice-cea-kv-key">P.O. #</span>
+                                            <span className="invoice-cea-kv-val">{viewBill.purchaseorder.orderNumber}</span>
+                                        </>
+                                    )}
+
+                                    {viewBill.goodsreceiptnote?.grnNumber && (
+                                        <>
+                                            <span className="invoice-cea-kv-key">G.R.N. #</span>
+                                            <span className="invoice-cea-kv-val">{viewBill.goodsreceiptnote.grnNumber}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
+                        {/* 3. ITEMS TABLE */}
+                        <table className="invoice-cea-table">
+                            <thead>
+                                <tr style={{ backgroundColor: tableHeaderBg }}>
+                                    <th style={{ width: '20%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('item', 'ACTIVITY')}
+                                    </th>
+                                    <th style={{ width: '30%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('warehouse', 'DESCRIPTION')}
+                                    </th>
+                                    <th style={{ width: '7%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('uom', 'UOM')}
+                                    </th>
+                                    <th style={{ width: '7%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('quantity', 'QTY')}
+                                    </th>
+                                    <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('rate', 'RATE')}
+                                    </th>
+                                    <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('discount', 'DISCOUNT')}
+                                    </th>
+                                    <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('tax', 'VAT')}
+                                    </th>
+                                    <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('price', 'AMOUNT')}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lineItems.map((item, idx) => {
+                                    const productName = item.product?.name || item.itemName || item.name || 'Product';
+                                    const itemDesc = item.description || (item.product?.name ? item.product.name : productName) || '';
+                                    const itemUom = item.uom?.unitName || (allUoms.find(u => u.id === item.uomId)?.unitName) || item.unit || 'Units';
+                                    const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+                                    const itemRate = parseFloat(item.rate || 0);
+                                    const itemDisc = parseFloat(item.discount || 0);
+                                    const itemTax = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
+                                    const itemAmt = parseFloat(item.amount !== undefined ? item.amount : (itemQty * itemRate));
+                                    const isZeroTax = itemTax === 0;
+                                    const taxDisplay = isZeroTax ? 'No VAT' : `${parseFloat(itemTax.toFixed(2))}%`;
+                                    const discDisplay = itemDisc > 0
+                                        ? (item.discountType === 'percentage' ? `${itemDisc}%` : `-${Number(itemDisc).toFixed(2)}`)
+                                        : '0%';
 
-                        {/* Custom Fields Print View */}
-                        {(() => {
-                            let customFieldVals = {};
-                            if (viewBill?.customFields) {
-                                try {
-                                    customFieldVals = typeof viewBill.customFields === 'string'
-                                        ? JSON.parse(viewBill.customFields)
-                                        : viewBill.customFields;
-                                } catch (e) {
-                                    console.error('Error parsing bill custom fields for view:', e);
-                                }
-                            }
-                            const fieldsList = getCustomFieldsForType('purchasebill');
-                            const activeCustomFields = fieldsList.filter(f => customFieldVals[f.label]);
-                            if (activeCustomFields.length === 0) return null;
-                            return (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px', margin: '20px 0', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc', textAlign: 'left' }}>
-                                    {activeCustomFields.map(field => (
-                                        <div key={field.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>{field.label}</span>
-                                            <span style={{ fontSize: '0.95rem', fontWeight: '600', color: '#1e293b', marginTop: '2px' }}>{customFieldVals[field.label]}</span>
-                                        </div>
+                                    return (
+                                        <tr key={idx}>
+                                            <td className="invoice-cea-activity-cell">{productName}</td>
+                                            <td className="invoice-cea-desc-cell">{itemDesc}</td>
+                                            <td style={{ textAlign: 'center' }}>{itemUom}</td>
+                                            <td style={{ textAlign: 'right' }}>{itemQty}</td>
+                                            <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>
+                                            <td style={{ textAlign: 'right' }}>{discDisplay}</td>
+                                            <td style={{ textAlign: 'right' }}>{taxDisplay}</td>
+                                            <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+
+                        {/* 4. DOTTED DIVIDER 1 & TOTALS */}
+                        <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
+
+                        <div className="invoice-cea-subtotal-section">
+                            <div className="invoice-cea-appreciation">
+                                We appreciate your business.
+                            </div>
+                            <div className="invoice-cea-totals-grid">
+                                <span className="invoice-cea-total-label">SUBTOTAL</span>
+                                <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
+
+                                <span className="invoice-cea-total-label">DISCOUNT</span>
+                                <span className="invoice-cea-total-val" style={{ color: discountVal > 0 ? '#dc2626' : undefined }}>
+                                    {discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2)}
+                                </span>
+
+                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+
+                                {otherChargesTotal > 0 && (
+                                    <>
+                                        <span className="invoice-cea-total-label">OTHER CHARGES</span>
+                                        <span className="invoice-cea-total-val">{Number(otherChargesTotal).toFixed(2)}</span>
+                                    </>
+                                )}
+
+                                {viewBill.roundOff !== undefined && viewBill.roundOff !== 0 && (
+                                    <>
+                                        <span className="invoice-cea-total-label">ROUND OFF</span>
+                                        <span className="invoice-cea-total-val">{Number(viewBill.roundOff).toFixed(2)}</span>
+                                    </>
+                                )}
+
+                                <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'VAT'}</span>
+                                <span className="invoice-cea-total-val">
+                                    {Number(taxVal).toFixed(2)}
+                                </span>
+
+                                <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
+                                <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>
+                                    {Number(totalVal).toFixed(2)}
+                                </span>
+
+                                {parseFloat(paidVal) > 0 && (
+                                    <>
+                                        <span className="invoice-cea-total-label">PAYMENT</span>
+                                        <span className="invoice-cea-total-val">-{Number(paidVal).toFixed(2)}</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 5. DOTTED DIVIDER 2 & BALANCE DUE / STATUS */}
+                        <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
+
+                        <div className="invoice-cea-balance-section">
+                            <div className="invoice-cea-balance-box">
+                                <div className="invoice-cea-balance-line">
+                                    <span className="invoice-cea-balance-label">BALANCE DUE</span>
+                                    <span className="invoice-cea-balance-amount" style={{ color: '#111827' }}>
+                                        {billCurrency} {Number(balanceVal).toFixed(2)}
+                                    </span>
+                                </div>
+                                <div className="invoice-cea-status-display" style={{ marginTop: '4px', textAlign: 'right' }}>
+                                    <span
+                                        className="invoice-cea-paid-indicator"
+                                        style={{
+                                            color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#16a34a'
+                                                : currentStatus === 'OVERDUE' ? '#dc2626'
+                                                : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? '#ea580c'
+                                                : currentStatus === 'CANCELLED' ? '#64748b'
+                                                : '#dc2626',
+                                            display: 'block',
+                                            fontSize: '15px',
+                                            fontWeight: '800',
+                                            letterSpacing: '0.05em',
+                                            textTransform: 'uppercase'
+                                        }}
+                                    >
+                                        {currentStatus}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 6. VAT SUMMARY */}
+                        <div className="invoice-cea-vat-section">
+                            <div className="invoice-cea-vat-title" style={{ color: headingColor }}>VAT SUMMARY</div>
+                            <table className="invoice-cea-vat-table">
+                                <thead>
+                                    <tr style={{ backgroundColor: tableHeaderBg }}>
+                                        <th style={{ width: '40%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>RATE</th>
+                                        <th style={{ width: '30%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>VAT</th>
+                                        <th style={{ width: '30%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>NET</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {vatSummaryList.map((vat, i) => (
+                                        <tr key={i}>
+                                            <td style={{ textAlign: 'left' }}>
+                                                {parseFloat(vat.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(vat.rate !== undefined ? vat.rate : 23).toFixed(2))}%`}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>{Number(vat.vatAmount).toFixed(2)}</td>
+                                            <td style={{ textAlign: 'right' }}>{Number(vat.netAmount).toFixed(2)}</td>
+                                        </tr>
                                     ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* 7. BANK DETAILS BOX */}
+                        <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
+                            <div className="invoice-cea-bank-grid">
+                                <div className="invoice-cea-bank-col">
+                                    <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
+                                    <div className="invoice-cea-bank-line">IBAN:{bankIban}</div>
+                                    <div className="invoice-cea-bank-line">BIC: {bankBic}</div>
+                                    <div className="invoice-cea-bank-line">Account: {bankAccount}</div>
+                                </div>
+                                <div className="invoice-cea-bank-col">
+                                    <div className="invoice-cea-bank-line">NSC (SORT CODE): {bankSortCode}</div>
+                                    <div className="invoice-cea-bank-line">{bankName}</div>
+                                    <div className="invoice-cea-bank-line">{bankAddress}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 8. PAYMENT HISTORY SECTION */}
+                        {(() => {
+                            const paymentList = viewBill.payment || [];
+                            if (paymentList.length === 0) return null;
+
+                            return (
+                                <div className="invoice-cea-payment-history-section" style={{ marginTop: '24px', marginBottom: '20px' }}>
+                                    <div className="invoice-cea-vat-title" style={{ color: headingColor, fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                        Payment History
+                                    </div>
+                                    <table className="invoice-cea-vat-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                        <thead>
+                                            <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Payment Date</th>
+                                                <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Reference / Voucher</th>
+                                                <th style={{ padding: '8px 12px', textAlign: 'left', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Paid From</th>
+                                                <th style={{ padding: '8px 12px', textAlign: 'right', color: tableHeaderText, fontWeight: '600', backgroundColor: tableHeaderBg }}>Payment Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paymentList.map((pmt, pIdx) => {
+                                                const d = pmt.date ? new Date(pmt.date) : null;
+                                                const pmtDate = d && !isNaN(d.getTime())
+                                                    ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+                                                    : '-';
+                                                const amtStr = formatDocCurrency(pmt.amount || 0, billCurrency);
+
+                                                return (
+                                                    <tr key={pIdx} style={{ borderBottom: '1px solid #e2e8f0', background: pIdx % 2 === 1 ? '#f8fafc' : '#ffffff' }}>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'left', color: '#334155' }}>{pmtDate}</td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'left', fontWeight: '600', color: '#0f172a' }}>{pmt.paymentNumber || '-'}</td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'left', color: '#475569' }}>{pmt.bankLedger?.name || 'Bank'}</td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>{amtStr}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             );
                         })()}
 
-                        {/* Items Table / Bills Table */}
-                        {viewBill.isStatement ? (
-                            <table className="invoice-table-preview">
-                                <thead>
-                                    <tr>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>Bill No</th>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>Date</th>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>{getTableHeader('item', 'Item').toUpperCase()}</th>
-                                        {getInvoiceLabel('showWarehouse') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>{getTableHeader('warehouse', 'Warehouse').toUpperCase()}</th>}
-                                        {getInvoiceLabel('showQty') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'center' }}>{getTableHeader('quantity', 'Qty').toUpperCase()}</th>}
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>Bill Total</th>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>Paid</th>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>Due</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {viewBill.bills.map((bill, bIdx) => {
-                                        const items = bill.purchasebillitem || bill.items || [];
-                                        return items.map((item, iIdx) => (
-                                            <tr key={`${bIdx}-${iIdx}`}>
-                                                <td style={{ fontWeight: iIdx === 0 ? 600 : 400, color: iIdx === 0 ? 'inherit' : '#94a3b8' }}>
-                                                    {iIdx === 0 ? bill.billNumber : ''}
-                                                </td>
-                                                <td style={{ color: iIdx === 0 ? 'inherit' : '#94a3b8' }}>
-                                                    {iIdx === 0 ? new Date(bill.date).toLocaleDateString() : ''}
-                                                </td>
-                                                <td style={{ fontWeight: 500 }}>{item.product?.name || 'N/A'}</td>
-                                                {getInvoiceLabel('showWarehouse') !== false && <td>{item.warehouse?.name || 'N/A'}</td>}
-                                                {getInvoiceLabel('showQty') !== false && <td style={{ textAlign: 'center' }}>{item.quantity}</td>}
-                                                 <td style={{ textAlign: 'right' }}>
-                                                    {iIdx === 0 ? (
-                                                        <>
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                <>
-                                                                    {formatDocCurrency(bill.totalAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                        ({formatDocCurrency(bill.totalAmount, bill.currency)})
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                formatDocCurrency(bill.totalAmount, companySettings?.currency || 'EUR')
-                                                            )}
-                                                        </>
-                                                    ) : ''}
-                                                </td>
-                                                <td style={{ textAlign: 'right' }}>
-                                                    {iIdx === 0 ? (
-                                                        <>
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                <>
-                                                                    {formatDocCurrency((bill.totalAmount - bill.balanceAmount) * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                        ({formatDocCurrency(bill.totalAmount - bill.balanceAmount, bill.currency)})
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                formatDocCurrency(bill.totalAmount - bill.balanceAmount, companySettings?.currency || 'EUR')
-                                                            )}
-                                                        </>
-                                                    ) : ''}
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: iIdx === 0 ? 600 : 400 }}>
-                                                    {iIdx === 0 ? (
-                                                        <>
-                                                            {bill.currency && bill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                <>
-                                                                    {formatDocCurrency(bill.balanceAmount * (getSyncRate(bill.currency, companySettings?.currency || 'EUR') || 1.0), companySettings?.currency || 'EUR')}
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                        ({formatDocCurrency(bill.balanceAmount, bill.currency)})
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                formatDocCurrency(bill.balanceAmount, companySettings?.currency || 'EUR')
-                                                            )}
-                                                        </>
-                                                    ) : ''}
-                                                </td>
-                                            </tr>
-                                        ));
-                                    })}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <table className="invoice-table-preview">
-                                <thead>
-                                    <tr>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>{getTableHeader('item', 'Item Description').toUpperCase()}</th>
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>HSN/SKU</th>
-                                        {getInvoiceLabel('showWarehouse') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)' }}>{getTableHeader('warehouse', 'Warehouse').toUpperCase()}</th>}
-                                        {getInvoiceLabel('showQty') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'center' }}>{getTableHeader('quantity', 'Qty').toUpperCase()}</th>}
-                                        {getInvoiceLabel('showUom') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'center' }}>UOM</th>}
-                                        {getInvoiceLabel('showRate') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>{getTableHeader('rate', 'Rate').toUpperCase()}</th>}
-                                        {getInvoiceLabel('showTax') !== false && <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>{getTableHeader('tax', 'Tax %').toUpperCase()}</th>}
-                                        <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', textAlign: 'right' }}>{getTableHeader('price', 'Amount').toUpperCase()}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(viewBill.purchasebillitem || viewBill.items || []).map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td>
-                                                <div style={{ fontWeight: 600 }}>{item.product?.name || 'Unknown Product'}</div>
-                                                {item.description && <div style={{ fontSize: '11px', color: '#64748b' }}>{item.description}</div>}
-                                            </td>
-                                            <td>{item.product?.hsnCode || item.product?.sku || '-'}</td>
-                                            {getInvoiceLabel('showWarehouse') !== false && <td>{item.warehouse?.name || '-'}</td>}
-                                            {getInvoiceLabel('showQty') !== false && <td style={{ textAlign: 'center' }}>{item.quantity}</td>}
-                                            {getInvoiceLabel('showUom') !== false && <td style={{ textAlign: 'center' }}>{item.uom?.unitName || allUoms.find(u => u.id === item.uomId)?.unitName || ''}</td>}
-                                            {getInvoiceLabel('showRate') !== false && (
-                                                <td style={{ textAlign: 'right' }}>
-                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                        <>
-                                                            {formatDocCurrency(item.rate * viewRate, companySettings?.currency || 'EUR')}
-                                                            <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                ({formatDocCurrency(item.rate, viewBill.currency)})
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        formatDocCurrency(item.rate, companySettings?.currency || 'EUR')
-                                                    )}
-                                                </td>
-                                            )}
-                                            {getInvoiceLabel('showTax') !== false && <td style={{ textAlign: 'right' }}>{item.taxRate}%</td>}
-                                            <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                    <>
-                                                        {formatDocCurrency(item.amount * viewRate, companySettings?.currency || 'EUR')}
-                                                        <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                            ({formatDocCurrency(item.amount, viewBill.currency)})
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    formatDocCurrency(item.amount, companySettings?.currency || 'EUR')
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-
-                        {/* Totals Section */}
-                        <div className="invoice-total-section">
-                            <div className="invoice-totals">
-                                {viewBill.isStatement ? (
-                                    <>
-                                        <div className="invoice-total-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span className="invoice-label">Total Bill Amount:</span>
-                                                <span style={{ fontWeight: '600' }}>{formatCurrency(viewBill.totalBillAmount)}</span>
-                                            </div>
-                                            {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'EUR';
-                                                if (curr === baseCurr) return null;
-                                                const originalTotal = viewBill.bills.filter(b => (b.currency || baseCurr) === curr).reduce((sum, b) => sum + b.totalAmount, 0);
-                                                return (
-                                                    <span key={`tot-${curr}`} style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                                        ({formatDocCurrency(originalTotal, curr)})
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="invoice-final-total" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', borderTop: '1px solid #edf2f7', paddingTop: '8px', marginTop: '4px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span>Total Amount Paid:</span>
-                                                <span style={{ color: '#334155', fontWeight: '700' }}>{formatCurrency(viewBill.totalBillAmount - viewBill.balanceAmount)}</span>
-                                            </div>
-                                            {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'EUR';
-                                                if (curr === baseCurr) return null;
-                                                const originalPaid = viewBill.bills.filter(b => (b.currency || baseCurr) === curr).reduce((sum, b) => sum + (b.totalAmount - b.balanceAmount), 0);
-                                                return (
-                                                    <span key={`paid-${curr}`} style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                                        ({formatDocCurrency(originalPaid, curr)})
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="invoice-final-total" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', borderTop: '1px solid #ef4444', marginTop: '6px', paddingTop: '6px', color: '#ef4444' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span>Total Balance Due:</span>
-                                                <span style={{ fontWeight: '700' }}>{formatCurrency(viewBill.balanceAmount)}</span>
-                                            </div>
-                                            {Object.keys(viewBill.currencyTotals || {}).map(curr => {
-                                                const baseCurr = companySettings?.currency || 'EUR';
-                                                if (curr === baseCurr) return null;
-                                                const originalBalance = viewBill.currencyTotals[curr];
-                                                return (
-                                                    <span key={`bal-${curr}`} style={{ fontSize: '0.8rem', color: '#ef4444' }}>
-                                                        ({formatDocCurrency(originalBalance, curr)})
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        {(() => {
-                                            let parsedOtherCharges = [];
-                                            try {
-                                                if (viewBill.customFields) {
-                                                    const cf = typeof viewBill.customFields === 'string'
-                                                        ? JSON.parse(viewBill.customFields)
-                                                        : viewBill.customFields;
-                                                    parsedOtherCharges = cf?._otherCharges || [];
-                                                }
-                                            } catch (e) {
-                                                console.error('Error parsing custom fields for other charges in view:', e);
-                                            }
-
-                                            const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-                                            const subtotalVal = (viewBill.subtotal !== undefined && viewBill.subtotal !== null)
-                                                ? viewBill.subtotal
-                                                : (viewBill.totalAmount - (viewBill.taxAmount || 0) + (viewBill.discountAmount || 0) - otherChargesTotal);
-
-                                            const getOverallDiscountAmt = () => {
-                                                if (viewBill.overallDiscount > 0) {
-                                                    if (viewBill.overallDiscountType === 'percentage') {
-                                                        const F = (parseFloat(viewBill.overallDiscount) || 0) / 100;
-                                                        if (F >= 1) return viewBill.discountAmount || 0;
-                                                        const sub = parseFloat(subtotalVal) || 0;
-                                                        const totDisc = parseFloat(viewBill.discountAmount) || 0;
-                                                        const tax = parseFloat(viewBill.taxAmount) || 0;
-                                                        return ((sub - totDisc + tax) * F) / (1 - F);
-                                                    }
-                                                    return parseFloat(viewBill.overallDiscount) || 0;
-                                                }
-                                                return 0;
-                                            };
-
-                                            const overallDiscountAmt = getOverallDiscountAmt();
-                                            const itemDiscountAmt = Math.max(0, (parseFloat(viewBill.discountAmount) || 0) - overallDiscountAmt);
-
-                                            return (
-                                                <>
-                                                    <div className="invoice-total-row">
-                                                        <span className="invoice-label">{getInvoiceLabel('subTotal')}:</span>
-                                                        <span>
-                                                            {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                <>
-                                                                    {formatDocCurrency(subtotalVal * viewRate, companySettings?.currency || 'EUR')}
-                                                                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                        ({formatDocCurrency(subtotalVal, viewBill.currency)})
-                                                                    </span>
-                                                                </>
-                                                            ) : (
-                                                                formatDocCurrency(subtotalVal, companySettings?.currency || 'EUR')
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    {itemDiscountAmt > 0 && (
-                                                        <div className="invoice-total-row">
-                                                            <span className="invoice-label">Item Discount:</span>
-                                                            <span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                    <>
-                                                                        <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt * viewRate, companySettings?.currency || 'EUR')}</span>
-                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                            (- {formatDocCurrency(itemDiscountAmt, viewBill.currency)})
-                                                                        </span>
-                                                                    </>
-                                                                ) : (
-                                                                    <span style={{ color: '#ef4444' }}>- {formatDocCurrency(itemDiscountAmt, companySettings?.currency || 'EUR')}</span>
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {viewBill.taxAmount > 0 && (
-                                                        <div className="invoice-total-row">
-                                                            <span className="invoice-label">{getInvoiceLabel('tax')}:</span>
-                                                            <span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                    <>
-                                                                        <span>+ {formatDocCurrency(viewBill.taxAmount * viewRate, companySettings?.currency || 'EUR')}</span>
-                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                            (+ {formatDocCurrency(viewBill.taxAmount, viewBill.currency)})
-                                                                        </span>
-                                                                    </>
-                                                                ) : (
-                                                                    <span>+ {formatDocCurrency(viewBill.taxAmount, companySettings?.currency || 'EUR')}</span>
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {overallDiscountAmt > 0 && (
-                                                        <div className="invoice-total-row">
-                                                            <span className="invoice-label">Overall Discount ({viewBill.overallDiscountType === 'percentage' ? `${viewBill.overallDiscount}%` : 'Flat'}):</span>
-                                                            <span>
-                                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                    <>
-                                                                        <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt * viewRate, companySettings?.currency || 'EUR')}</span>
-                                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                            (- {formatDocCurrency(overallDiscountAmt, viewBill.currency)})
-                                                                        </span>
-                                                                    </>
-                                                                ) : (
-                                                                    <span style={{ color: '#ef4444' }}>- {formatDocCurrency(overallDiscountAmt, companySettings?.currency || 'EUR')}</span>
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {parsedOtherCharges.filter(c => c.accountId && parseFloat(c.amount) > 0).map((charge) => {
-                                                        const chgAmt = parseFloat(charge.amount) || 0;
-                                                        return (
-                                                            <div className="invoice-total-row" key={charge.id} style={{ color: '#1e293b' }}>
-                                                                <span className="invoice-label">Other Charges{charge.accountName ? ` (${charge.accountName})` : ''}:</span>
-                                                                <span>
-                                                                    {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                                        <>
-                                                                            + {formatDocCurrency(chgAmt * viewRate, companySettings?.currency || 'EUR')}
-                                                                            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                                                (+ {formatDocCurrency(chgAmt, viewBill.currency)})
-                                                                            </span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>+ {formatDocCurrency(chgAmt, companySettings?.currency || 'EUR')}</>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </>
-                                            );
-                                        })()}
-                                        <div className="invoice-final-total">
-                                            <span>{getInvoiceLabel('total')}:</span>
-                                            <span>
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                    <>
-                                                        {formatDocCurrency((viewBill.totalAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
-                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                            ({formatDocCurrency(viewBill.totalAmount, viewBill.currency)})
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    formatDocCurrency(viewBill.totalAmount, companySettings?.currency || 'EUR')
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="invoice-total-row" style={{ marginTop: '5px', fontWeight: '600', color: '#334155' }}>
-                                            <span className="invoice-label">Amount Paid:</span>
-                                            <span>
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                    <>
-                                                        {formatDocCurrency((viewBill.paidAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
-                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                            ({formatDocCurrency(viewBill.paidAmount || 0, viewBill.currency)})
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    formatDocCurrency(viewBill.paidAmount || 0, companySettings?.currency || 'EUR')
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="invoice-total-row" style={{ borderTop: '1px solid #e2e8f0', marginTop: '5px', paddingTop: '5px', fontWeight: '700', color: '#ef4444' }}>
-                                            <span className="invoice-label">Balance Due:</span>
-                                            <span>
-                                                {viewBill.currency && viewBill.currency !== (companySettings?.currency || 'EUR') ? (
-                                                    <>
-                                                        {formatDocCurrency((viewBill.balanceAmount || 0) * viewRate, companySettings?.currency || 'EUR')}
-                                                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', marginLeft: '6px' }}>
-                                                            ({formatDocCurrency(viewBill.balanceAmount, viewBill.currency)})
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    formatDocCurrency(viewBill.balanceAmount, companySettings?.currency || 'EUR')
-                                                )}
-                                            </span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Bank Details & Signature Section */}
-                        {/* <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
-                                <div style={{ flex: 1 }}>
-                                    <div className="invoice-section-header">Bank Details:</div>
-                                    <div style={{ fontSize: '0.9rem', color: '#1e293b' }}>
-                                        <strong>Account Name:</strong> {companyDetails.accountHolder || 'N/A'}<br />
-                                        <strong>Bank Name:</strong> {companyDetails.bankName || 'N/A'}<br />
-                                        <strong>Account No:</strong> {companyDetails.accountNumber || 'N/A'}<br />
-                                        <strong>IFSC Code:</strong> {companyDetails.ifsc || 'N/A'}
-                                    </div>
-                                </div>
-                                <div style={{ flex: 1, textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
-                                    <div style={{ width: '200px', borderTop: '1px solid #1e293b', marginTop: '3rem', paddingTop: '0.5rem', textAlign: 'center', fontWeight: '700' }}>
-                                        Authorized Signatory
-                                    </div>
-                                </div>
-                            </div> */}
-
-                        {/* Payment Details Section */}
-                        {viewBill?.payment && viewBill.payment.length > 0 && (
-                            <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                                <h3 className="invoice-section-header" style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Payment Details:</h3>
-                                <table className="invoice-table-preview" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem' }}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', padding: '8px', textAlign: 'left' }}>Date</th>
-                                            <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', padding: '8px', textAlign: 'left' }}>Vch Type</th>
-                                            <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', padding: '8px', textAlign: 'left' }}>Reference No.</th>
-                                            <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', padding: '8px', textAlign: 'left' }}>Paid From</th>
-                                            <th style={{ backgroundColor: 'var(--header-bg)', color: 'var(--header-text)', padding: '8px', textAlign: 'right' }}>Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {viewBill.payment.map((pay, idx) => (
-                                            <tr key={idx} style={{ borderBottom: '1px solid #edf2f7' }}>
-                                                <td style={{ padding: '8px' }}>{new Date(pay.date).toLocaleDateString()}</td>
-                                                <td style={{ padding: '8px' }}>Payment</td>
-                                                <td style={{ padding: '8px' }}>{pay.paymentNumber || '-'}</td>
-                                                <td style={{ padding: '8px' }}>{pay.bankLedger?.name || '-'}</td>
-                                                <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                    {(() => {
-                                                        const payCurrency = pay.billCurrency || viewBill?.currency;
-                                                        if (payCurrency && payCurrency !== (companySettings?.currency || 'EUR')) {
-                                                            return (
-                                                                <>
-                                                                    <div>{formatDocCurrency(pay.baseAmount || (pay.amount * viewRate), companySettings?.currency || 'EUR')}</div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>
-                                                                        ({formatDocCurrency(pay.amount, payCurrency)})
-                                                                    </div>
-                                                                </>
-                                                            );
-                                                        }
-                                                        return formatDocCurrency(pay.amount, companySettings?.currency || 'EUR');
-                                                    })()}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Notes Section */}
-                        {getInvoiceLabel('showFooter') !== false && (
-                            <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                                <h3 className="invoice-section-header">Notes &amp; Terms</h3>
-                                {(() => {
-                                    let displayNotes = viewBill?.notes || companyDetails.notes || '';
-                                    const linkedGrnNo = viewBill?.goodsreceiptnote?.grnNumber;
-                                    const linkedPoNo = viewBill?.purchaseorder?.orderNumber;
-
-                                    if (linkedGrnNo && !displayNotes.includes(linkedGrnNo)) {
-                                        displayNotes = `GRN No: ${linkedGrnNo}${displayNotes ? '\n' + displayNotes : ''}`;
-                                    }
-                                    if (linkedPoNo && !displayNotes.includes(linkedPoNo)) {
-                                        displayNotes = `Purchase Order No: ${linkedPoNo}${displayNotes ? '\n' + displayNotes : ''}`;
-                                    }
-
-                                    return displayNotes ? (
-                                        <p style={{ color: '#475569', fontSize: '0.9rem', whiteSpace: 'pre-line', marginBottom: '8px' }}>{displayNotes}</p>
-                                    ) : null;
-                                })()}
-                                {companyDetails.terms && (
-                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                        <strong>Terms &amp; Conditions:</strong> {companyDetails.terms}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Attachments Section in View Mode */}
+                        {/* 9. NOTES & TERMS */}
                         {(() => {
-                            let customFieldVals = {};
-                            if (viewBill?.customFields) {
-                                try {
-                                    customFieldVals = typeof viewBill.customFields === 'string'
-                                        ? JSON.parse(viewBill.customFields)
-                                        : viewBill.customFields;
-                                } catch (e) {
-                                    console.error('Error parsing bill custom fields for view:', e);
-                                }
+                            let displayNotes = viewBill?.notes || comp.notes || '';
+                            const linkedGrnNo = viewBill?.goodsreceiptnote?.grnNumber;
+                            const linkedPoNo = viewBill?.purchaseorder?.orderNumber;
+
+                            if (linkedGrnNo && !displayNotes.includes(linkedGrnNo)) {
+                                displayNotes = `GRN No: ${linkedGrnNo}${displayNotes ? '\n' + displayNotes : ''}`;
                             }
-                            const atts = customFieldVals?._attachments;
+                            if (linkedPoNo && !displayNotes.includes(linkedPoNo)) {
+                                displayNotes = `Purchase Order No: ${linkedPoNo}${displayNotes ? '\n' + displayNotes : ''}`;
+                            }
+
+                            if (!displayNotes && !comp.termsPurchase && !comp.terms) return null;
+
+                            return (
+                                <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '16px', textAlign: 'left' }}>
+                                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Notes &amp; Terms</div>
+                                    {displayNotes && (
+                                        <p style={{ color: '#475569', fontSize: '12px', whiteSpace: 'pre-line', marginBottom: '6px' }}>{displayNotes}</p>
+                                    )}
+                                    {(comp.termsPurchase || comp.terms) && (
+                                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                            <strong>Terms &amp; Conditions:</strong> {comp.termsPurchase || comp.terms}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        {/* 10. ATTACHMENTS */}
+                        {(() => {
+                            const atts = cfData?._attachments;
                             const photos = atts?.photos || [];
                             const files = atts?.files || [];
                             if (photos.length === 0 && files.length === 0) return null;
+
                             return (
-                                <div className="PBILL-no-print no-print" style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', textAlign: 'left' }}>
-                                    <h3 className="invoice-section-header" style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Attachments</h3>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                <div className="PBILL-no-print no-print" style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '14px', textAlign: 'left' }}>
+                                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '8px' }}>Attachments</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                         {photos.map((item, idx) => (
-                                            <a key={`p-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
+                                            <a key={`p-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
                                                 <span>🖼️</span> {item.name}
                                             </a>
                                         ))}
                                         {files.map((item, idx) => (
-                                            <a key={`f-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
+                                            <a key={`f-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
                                                 <span>📎</span> {item.name}
                                             </a>
                                         ))}
@@ -2790,11 +3357,10 @@ const PurchaseBill = () => {
                             );
                         })()}
 
-                        {getInvoiceLabel('showFooter') !== false && (
-                            <div className="invoice-thank-you" style={{ textAlign: 'center', marginTop: '3rem', borderTop: '1px dashed #cbd5e1', paddingTop: '1rem', fontStyle: 'italic', color: '#64748b' }}>
-                                Thank you for your business!
-                            </div>
-                        )}
+                        {/* 11. PAGE FOOTER */}
+                        <div className="invoice-cea-page-footer" style={{ marginTop: '24px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>
+                            Page 1 of 1
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3194,7 +3760,8 @@ const PurchaseBill = () => {
                                                                                                         <CreditCard size={14} />
                                                                                                     </button>
                                                                                                 )}
-                                                                                                <button className="PBILL-btn-icon view" onClick={() => handleView(pb)}><Eye size={14} /></button>
+                                                                                                <button className="PBILL-btn-icon view" onClick={() => handleView(pb)} title="View"><Eye size={14} /></button>
+                                                                    <button className="PBILL-btn-icon download" onClick={() => buildPurchaseBillPdfDoc(pb)} title="Download PDF"><Download size={14} /></button>
                                                                                                 {hasPermission('edit purchase bill') && (
                                                                                                     <button className="PBILL-btn-icon edit" onClick={() => handleEdit(pb.id)}><Pencil size={14} /></button>
                                                                                                 )}
@@ -3252,9 +3819,7 @@ const PurchaseBill = () => {
                     <div className="PBILL-view-page-header PBILL-no-print" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {companyDetails.logo && (
-                                    <img src={companyDetails.logo} alt="Company Logo" className="PBILL-modal-logo-img" style={{ height: '26px', objectFit: 'contain' }} />
-                                )}
+                                {(() => { const lSrc = getCompanyLogoSrc(companyDetails?.invoiceLogo || companyDetails?.logo || companySettings?.invoiceLogo || companySettings?.logo); return lSrc ? <img src={lSrc} alt="Company Logo" className="PBILL-modal-logo-img" style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} /> : null; })()}
                                 <h2 className="text-lg font-bold text-gray-800" style={{ margin: 0 }}>
                                     {editingId ? 'Edit Purchase Bill' : 'New Purchase Bill'}
                                 </h2>
@@ -3333,7 +3898,11 @@ const PurchaseBill = () => {
                                         <input type="date"
                                             value={billMeta.date} onChange={(e) => {
                                                 const newDate = e.target.value;
-                                                const newDueDate = calculateDueDate(newDate, selectedVendorCreditPeriod);
+                                                let newDueDate = billMeta.dueDate;
+                                                if (paymentTerm !== 'custom') {
+                                                    const days = parseInt(paymentTerm, 10) || 0;
+                                                    newDueDate = calculateDueDate(newDate, days);
+                                                }
                                                 setBillMeta({ ...billMeta, date: newDate, dueDate: newDueDate });
                                             }}
                                             style={{ width: '100%', maxWidth: '280px' }}
@@ -3343,26 +3912,36 @@ const PurchaseBill = () => {
                                     <div className="PBILL-meta-col">
                                         <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>VENDOR / CASH *</label>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '280px' }}>
-                                            <select className="PBILL-compact-select-large" style={{ flex: 1, height: '34px' }} value={vendorId} onChange={async (e) => {
-                                                const vId = e.target.value;
-                                                setVendorId(vId);
-                                                if (!vId) {
-                                                    setSelectedVendorCreditPeriod(0);
-                                                    setAvailablePayments([]);
-                                                    setAdjustments([]);
-                                                    return;
-                                                }
-                                                const vendorObj = vendors.find(v => v.id == vId);
-                                                const creditDays = vendorObj?.creditPeriod || 0;
-                                                setSelectedVendorCreditPeriod(creditDays);
+                                            <SearchableSelect
+                                                options={vendors}
+                                                value={vendorId}
+                                                onChange={async (vId) => {
+                                                    setVendorId(vId);
+                                                    if (!vId) {
+                                                        setSelectedVendorCreditPeriod(0);
+                                                        setPaymentTerm('0');
+                                                        setAvailablePayments([]);
+                                                        setAdjustments([]);
+                                                        return;
+                                                    }
+                                                    const vendorObj = vendors.find(v => v.id == vId);
+                                                    const creditDays = vendorObj?.creditPeriod || 0;
+                                                    setSelectedVendorCreditPeriod(creditDays);
 
-                                                const newDueDate = calculateDueDate(billMeta.date, creditDays);
-                                                setBillMeta(prev => ({ ...prev, dueDate: newDueDate }));
-                                                await fetchVendorPayments(vId);
-                                            }} disabled={!!sourceData}>
-                                                <option value="">Choose a Vendor...</option>
-                                                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                            </select>
+                                                    let matchedTerm = 'custom';
+                                                    if (creditDays === 0) matchedTerm = '0';
+                                                    else if (creditDays === 7) matchedTerm = '7';
+                                                    else if (creditDays === 30) matchedTerm = '30';
+                                                    else if (creditDays === 60) matchedTerm = '60';
+                                                    setPaymentTerm(matchedTerm);
+
+                                                    const newDueDate = calculateDueDate(billMeta.date, creditDays);
+                                                    setBillMeta(prev => ({ ...prev, dueDate: newDueDate }));
+                                                    await fetchVendorPayments(vId);
+                                                }}
+                                                placeholder="Choose a Vendor..."
+                                                disabled={!!sourceData}
+                                            />
                                             {creationMode === 'direct' && (
                                                 <button
                                                     type="button"
@@ -3435,11 +4014,31 @@ const PurchaseBill = () => {
                                     )}
 
                                     <div className="PBILL-meta-col">
-                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>DUE DATE</label>
-                                        <input type="date"
-                                            value={billMeta.dueDate} onChange={(e) => setBillMeta({ ...billMeta, dueDate: e.target.value })}
-                                            style={{ width: '100%', maxWidth: '280px' }}
-                                            className="PBILL-compact-input" />
+                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
+                                            DUE DATE &amp; TERMS
+                                        </label>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '280px' }}>
+                                            <select
+                                                value={paymentTerm}
+                                                onChange={(e) => handlePaymentTermChange(e.target.value)}
+                                                className="PBILL-compact-select"
+                                                style={{ width: '100%', height: '34px', fontSize: '0.8rem', fontWeight: '600', color: '#334155', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#fff', padding: '0 8px' }}
+                                                title="Select payment terms or due date offset"
+                                            >
+                                                <option value="0">Due upon receipt (0 days)</option>
+                                                <option value="7">Net 7 (7 days from bill date)</option>
+                                                <option value="30">Net 30 (30 days from bill date)</option>
+                                                <option value="60">Net 60 (60 days from bill date)</option>
+                                                <option value="custom">Custom Date</option>
+                                            </select>
+                                            <input
+                                                type="date"
+                                                value={billMeta.dueDate}
+                                                onChange={(e) => handleCustomDueDateChange(e.target.value)}
+                                                style={{ width: '100%' }}
+                                                className="PBILL-compact-input"
+                                            />
+                                        </div>
                                     </div>
 
                                     {showCurrencyField && (
@@ -3780,6 +4379,30 @@ const PurchaseBill = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '10px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={addItem}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '7px 14px',
+                                            background: '#f1f5f9',
+                                            color: '#0f172a',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '6px',
+                                            fontSize: '0.825rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+                                    >
+                                        <Plus size={15} /> Add Line Item
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Footer Toolbar / Section for Other Charges & Dispatch Details */}
@@ -4102,34 +4725,15 @@ const PurchaseBill = () => {
                                             <span>Total Discount:</span>
                                             <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
                                         </div>
+                                        <div className="PBILL-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
+                                            <span>Taxable Amount:</span>
+                                            <span>{formatDocCurrency(Math.max(0, totals.subTotal - totals.discount), selectedCurrency)}</span>
+                                        </div>
                                         <div className="PBILL-compact-t-row">
                                             <span>{getInvoiceLabel('tax', 'VAT Amount')}:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>
                                         </div>
-                                        <div className="PBILL-compact-t-row PBILL-totals-discount-row">
-                                            <div className="PBILL-totals-discount-label-row">
-                                                <span>Overall Disc:</span>
-                                                <div className="PBILL-compact-discount-input-group">
-                                                    <input
-                                                        type="number"
-                                                        className="PBILL-compact-discount-number-input"
-                                                        value={overallDiscount}
-                                                        min="0"
-                                                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                                                        onChange={(e) => setOverallDiscount(e.target.value.replace(/-/g, ''))}
-                                                    />
-                                                    <select
-                                                        className="PBILL-compact-discount-type-select"
-                                                        value={overallDiscountType}
-                                                        onChange={(e) => setOverallDiscountType(e.target.value)}
-                                                    >
-                                                        <option value="percentage">%</option>
-                                                        <option value="fixed">Amt</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <span className="text-red-500">-{formatDocCurrency(totals.ovDiscountAmt || 0, selectedCurrency)}</span>
-                                        </div>
+                                        {/* Overall Discount removed from creation UI */}
                                         {adjustments.reduce((sum, a) => sum + a.amount, 0) > 0 && (
                                             <div className="PBILL-compact-t-row text-green-600 font-semibold">
                                                 <span>Credits Adjusted:</span>

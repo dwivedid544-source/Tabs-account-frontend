@@ -6,52 +6,60 @@ export const getStatusStyle = (status) => {
     const s = (status || '').toUpperCase();
 
     const base = {
-        border: 'none',
+        border: '1px solid transparent',
         outline: 'none',
-        cursor: 'pointer',
+        cursor: 'default',
         appearance: 'auto',
-        padding: '4px 18px 4px 10px',
-        borderRadius: '9999px',
+        padding: '4px 10px',
+        borderRadius: '6px',
         fontSize: '0.75rem',
         fontWeight: '700',
         textTransform: 'uppercase',
         textAlign: 'center',
-        display: 'inline-block',
-        minWidth: '100px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: '96px',
+        boxSizing: 'border-box',
+        lineHeight: '1.2'
     };
 
-    // Green — fully settled / delivered / accepted
-    if (['PAID', 'COMPLETED', 'RECEIVED', 'CLEARED', 'ACCEPTED'].includes(s))
-        return { ...base, background: '#dcfce7', color: '#15803d' };
+    // Green — fully settled / fully paid / delivered / accepted
+    if (['PAID', 'FULLY PAID', 'FULLY_PAID', 'COMPLETED', 'RECEIVED', 'CLEARED', 'ACCEPTED'].includes(s))
+        return { ...base, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' };
 
     // Orange / Yellow — partial or mid-state
-    if (['PARTIAL', 'PARTIALLY_PAID', 'PARTIALLY PAID'].includes(s))
-        return { ...base, background: '#fef3c7', color: '#b45309' };
+    if (['PARTIAL', 'PARTIALLY_PAID', 'PARTIALLY PAID', 'PARTIALLY RETURNED'].includes(s))
+        return { ...base, background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' };
+
+    // Combined multi-invoice status
+    if (['COMBINED'].includes(s))
+        return { ...base, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' };
 
     // Red — overdue
     if (['OVERDUE'].includes(s))
         return { ...base, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' };
 
-    // Soft red / pink — unpaid, pending
-    if (['UNPAID', 'PENDING', 'BOUNCED', 'REJECTED', 'DECLINED'].includes(s))
-        return { ...base, background: '#fee2e2', color: '#dc2626' };
+    // Soft red / pink — unpaid, pending, returned
+    if (['UNPAID', 'PENDING', 'BOUNCED', 'REJECTED', 'DECLINED', 'RETURNED'].includes(s))
+        return { ...base, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' };
 
     // Slate / Gray — cancelled
     if (s === 'CANCELLED')
-        return { ...base, background: '#f1f5f9', color: '#64748b' };
+        return { ...base, background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' };
 
     // Blue — draft
     if (s === 'DRAFT')
-        return { ...base, background: '#eff6ff', color: '#3b82f6' };
+        return { ...base, background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe' };
 
     // Dark teal/green — sent
     if (s === 'SENT')
-        return { ...base, background: '#f8fafc', color: '#334155' };
+        return { ...base, background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0' };
 
     // Gray — expired
     if (s === 'EXPIRED')
-        return { ...base, background: '#f3f4f6', color: '#6b7280' };
+        return { ...base, background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' };
 
     // Default neutral
-    return { ...base, background: '#f1f5f9', color: '#475569' };
+    return { ...base, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' };
 };

@@ -186,47 +186,64 @@
 
 /* Status Pills (Solid Colors) */
 .Invoice-invoice-status-pill {
-    padding: 0.4rem 1rem;
-    border-radius: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 0.75rem;
-    font-weight: 600;
-    color: white;
+    font-weight: 700;
+    text-transform: uppercase;
     text-align: center;
-    display: inline-block;
-    min-width: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+    line-height: 1.2;
+    box-sizing: border-box;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.Invoice-invoice-status-pill.Invoice-paid,
+.Invoice-invoice-status-pill.Invoice-fully-paid {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
 }
 
 .Invoice-invoice-status-pill.Invoice-partial,
 .Invoice-invoice-status-pill.Invoice-partially-paid {
-    background-color: #22d3ee;
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
 }
 
-/* Cyan/Teal */
-.Invoice-invoice-status-pill.Invoice-paid {
-    background-color: #1e293b;
-}
-
-/* Green */
 .Invoice-invoice-status-pill.Invoice-sent {
-    background-color: #f59e0b;
+    background-color: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
 }
 
-/* Orange */
 .Invoice-invoice-status-pill.Invoice-overdue {
-    background-color: #ef4444;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
 }
 
-/* Red */
 .Invoice-invoice-status-pill.Invoice-pending,
 .Invoice-invoice-status-pill.Invoice-unpaid {
     background-color: #fee2e2;
-    color: #ef4444;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+}
+
+.Invoice-invoice-status-pill.Invoice-combined {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
 }
 
 .Invoice-invoice-status-pill.Invoice-draft {
     background-color: #eff6ff;
     color: #3b82f6;
+    border: 1px solid #bfdbfe;
 }
 
 /* Action Buttons Group */
@@ -1287,128 +1304,7 @@
     font-weight: 700;
 }
 
-/* PRINT MEDIA QUERY */
-@media print {
-    @page {
-        margin: 0.5cm;
-        size: auto;
-    }
 
-    body {
-        background: white !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-
-    body * {
-        visibility: hidden;
-    }
-
-    .Invoice-invoice-full-page-view,
-    .Invoice-invoice-full-page-view * {
-        visibility: visible !important;
-    }
-
-    #invoice-print-content,
-    #invoice-print-content * {
-        visibility: visible !important;
-    }
-
-    .Invoice-invoice-full-page-view {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        background: white !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        display: block !important;
-    }
-
-    .invoice-preview-container {
-        box-shadow: none !important;
-        border: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-    }
-
-    .invoice-preview-header {
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        align-items: flex-start !important;
-        width: 100% !important;
-    }
-
-    .invoice-title-large {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-
-    .invoice-table-preview {
-        width: 100% !important;
-        border: 1px solid #e2e8f0 !important;
-        border-collapse: collapse !important;
-        margin-top: 20px !important;
-    }
-
-    .invoice-table-preview th {
-        background-color: #f8fafc !important;
-        color: var(--header-bg) !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        white-space: nowrap !important;
-        font-size: 11px !important;
-        padding: 10px 6px !important;
-        border-bottom: 2px solid #e2e8f0 !important;
-        text-align: left !important;
-    }
-
-    .invoice-table-preview td {
-        font-size: 11px !important;
-        padding: 12px 6px !important;
-        border-bottom: 1px solid #f1f5f9 !important;
-        vertical-align: top !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-
-    .invoice-table-preview td:first-child {
-        width: 38% !important;
-    }
-
-    .invoice-addresses {
-        display: flex !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        width: 100% !important;
-        margin-top: 2.5rem !important;
-        gap: 3rem !important;
-    }
-
-    .invoice-bill-to {
-        flex: 1 !important;
-        text-align: left !important;
-    }
-
-    .invoice-ship-to {
-        flex: 1 !important;
-        text-align: right !important;
-    }
-
-    .invoice-bill-to *,
-    .invoice-ship-to * {
-        visibility: visible !important;
-    }
-
-    .Invoice-no-print,
-    .no-print {
-        display: none !important;
-    }
-}
 
 /* Confirmation Modal Styles */
 .Invoice-confirmation-modal {
@@ -4935,10 +4831,19 @@
     .Invoice-no-print,
     .no-print,
     .Invoice-view-page-header,
+    .Invoice-actions-dropdown-menu,
+    #invoice-action-portal,
     nav,
     header,
-    aside {
+    aside,
+    button {
         display: none !important;
+    }
+
+    *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
     html, body {
@@ -4947,12 +4852,18 @@
         padding: 0 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
     .Invoice-invoice-full-page-view {
         padding: 0 !important;
         margin: 0 !important;
         background: #ffffff !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: block !important;
+        visibility: visible !important;
     }
 
     .Invoice-view-content-wrapper {
@@ -4962,6 +4873,7 @@
         border: none !important;
         width: 100% !important;
         max-width: 100% !important;
+        background: #ffffff !important;
     }
 
     .invoice-preview-container,
@@ -4973,6 +4885,7 @@
         width: 100% !important;
         max-width: 100% !important;
         page-break-after: auto;
+        background: #ffffff !important;
     }
 
     /* Keep items table rows clean without mid-row cutoffs */
@@ -5000,26 +4913,41 @@
         page-break-inside: avoid !important;
     }
 
+    .invoice-cea-table thead,
     .invoice-cea-table thead tr,
-    .invoice-cea-vat-table thead tr,
-    .invoice-cea-payment-history-section thead tr,
-    .invoice-cea-payment-history-table thead tr {
-        background-color: #dedede !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-
     .invoice-cea-table th,
+    .invoice-cea-vat-table thead,
+    .invoice-cea-vat-table thead tr,
     .invoice-cea-vat-table th,
+    .invoice-cea-payment-history-section thead,
+    .invoice-cea-payment-history-section thead tr,
     .invoice-cea-payment-history-section th,
+    .invoice-cea-payment-history-table thead,
+    .invoice-cea-payment-history-table thead tr,
     .invoice-cea-payment-history-table th {
-        color: #555555 !important;
+        background-color: #dedede !important;
+        color: #333333 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
     .invoice-cea-bank-box {
         background-color: #eaedf1 !important;
+        border-left: 3px solid #94a3b8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .invoice-cea-paid-indicator {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .invoice-cea-divider-dotted {
+        border-color: #9ca3af !important;
+        opacity: 0.6 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }

@@ -239,6 +239,12 @@
     border: 1px solid #e2e8f0;
 }
 
+.PBILL-btn-icon.download {
+    background-color: #f0f9ff;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
 .PBILL-btn-icon:hover,
 .PBILL-btn-icon.view:hover,
 .PBILL-btn-icon.edit:hover,
@@ -246,6 +252,12 @@
     background-color: #e2e8f0;
     color: #0f172a;
     border-color: #cbd5e1;
+}
+
+.PBILL-btn-icon.download:hover {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border-color: #7dd3fc;
 }
 
 .PBILL-btn-icon svg {
@@ -914,6 +926,27 @@
     color: #1e293b;
 }
 
+.PBILL-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.PBILL-back-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
 .PBILL-view-header {
     display: flex;
     justify-content: space-between;
@@ -1039,29 +1072,96 @@
 }
 
 @media print {
-    .no-print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+    }
+
+    *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .no-print,
+    .PBILL-no-print,
+    .PBILL-view-header,
+    nav,
+    header,
+    aside,
+    button {
         display: none !important;
     }
 
-    body * {
-        visibility: hidden;
+    html, body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
-    #invoice-print-content,
+    .PBILL-page,
+    .PBILL-page-full-view,
+    .PBILL-view-content-pane {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    #invoice-print-content {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: none !important;
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
     #invoice-print-content * {
         visibility: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
-    #invoice-print-content {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background: white !important;
+    .invoice-cea-table thead,
+    .invoice-cea-table thead tr,
+    .invoice-cea-table th,
+    .invoice-cea-vat-table thead,
+    .invoice-cea-vat-table thead tr,
+    .invoice-cea-vat-table th,
+    .invoice-cea-payment-history-section thead,
+    .invoice-cea-payment-history-section thead tr,
+    .invoice-cea-payment-history-section th,
+    .invoice-cea-payment-history-table thead,
+    .invoice-cea-payment-history-table thead tr,
+    .invoice-cea-payment-history-table th {
+        background-color: #dedede !important;
+        color: #333333 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .invoice-cea-bank-box {
+        background-color: #eaedf1 !important;
+        border-left: 3px solid #94a3b8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 }
 
@@ -1972,8 +2072,8 @@
 }
 
 .PBILL-btn-back:hover {
-    color: #1e293b;
-    background: #334155;
+    color: #0f172a;
+    background: #f1f5f9;
     border-color: #94a3b8;
 }
 
