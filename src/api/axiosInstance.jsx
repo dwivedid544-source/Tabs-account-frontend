@@ -2,7 +2,7 @@ import axios from 'axios';
 import { loaderService } from '../services/loaderService';
 import toast from 'react-hot-toast';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tabaccounting-production.up.railway.app';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tabaccounts.com';
 
 const axiosInstance = axios.create({
     baseURL: `${BASE_URL}/api`,

@@ -13,7 +13,7 @@ export const resolveLogoUrl = (logoVal) => {
         return trimmed;
     }
     const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    const serverUrl = (BASE_URL || 'https://tabaccounting-production.up.railway.app').replace(/\/+$/, '');
+    const serverUrl = (BASE_URL || 'https://tabaccounts.com').replace(/\/+$/, '');
     return `${serverUrl}${cleanPath}`;
 };
 

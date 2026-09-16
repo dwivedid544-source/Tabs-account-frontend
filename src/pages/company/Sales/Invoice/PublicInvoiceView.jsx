@@ -41,7 +41,7 @@ const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
             return logoVal;
         }
         const cleanPath = logoVal.startsWith('/') ? logoVal : `/${logoVal}`;
-        const serverUrl = BASE_URL || 'https://tabaccounting-production.up.railway.app';
+        const serverUrl = BASE_URL || 'https://tabaccounts.com';
         return `${serverUrl}${cleanPath}`;
     }
     return fallback;

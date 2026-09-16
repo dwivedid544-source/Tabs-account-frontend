@@ -4,7 +4,7 @@ import {
     Home, Building2, Ticket, CreditCard, Key,
     Users, ShoppingCart, Truck, FileText, ClipboardList,
     BarChart3, Settings, ChevronDown, ChevronRight, Box,
-    Calculator, Receipt, UserCog, X, Landmark, Shield
+    Calculator, Receipt, UserCog, X, Landmark
 } from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/tab-accounts-logo.png';
@@ -71,8 +71,7 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
             { path: '/superadmin/plan', label: 'Plans & Pricing', icon: Ticket },
             { path: '/superadmin/plan-requests', label: 'Request Plan', icon: ClipboardList },
             { path: '/superadmin/payments', label: 'Payments', icon: CreditCard },
-            { path: '/superadmin/passwords', label: 'Manage Passwords', icon: Key },
-            { path: '/superadmin/audit-logs', label: 'Audit Logs', icon: Shield },
+            { path: '/superadmin/passwords', label: 'Manage Passwords', icon: Key }
         ],
         company: [
             {

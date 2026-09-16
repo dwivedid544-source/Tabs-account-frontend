@@ -1596,6 +1596,13 @@ const PurchaseBill = () => {
 
     const handleVendorView = (group) => {
         resetForm();
+
+        // If the vendor has only 1 bill, viewing it directly views that specific bill
+        if (group.bills && group.bills.length === 1) {
+            handleView(group.bills[0]);
+            return;
+        }
+
         const allPayments = [];
         group.bills.forEach(bill => {
             const curr = bill.currency || companySettings?.currency || 'EUR';
@@ -1611,22 +1618,44 @@ const PurchaseBill = () => {
         // Sort payments by date ascending
         allPayments.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+        // Aggregate all items across all constituent bills
+        const allItems = group.bills.flatMap(b => b.purchasebillitem || b.items || []);
+
+        const isSingleBill = group.bills && group.bills.length === 1;
+        const firstBill = (group.bills && group.bills[0]) || {};
+
         setViewBill({
             ...group,
-            isStatement: true,
+            ...(isSingleBill ? firstBill : {}),
+            isStatement: !isSingleBill,
+            billNumber: isSingleBill ? firstBill.billNumber : `Statement (${group.bills.length} Bills)`,
+            date: isSingleBill ? firstBill.date : (group.earliestDate || group.date),
+            dueDate: isSingleBill ? firstBill.dueDate : (group.latestDueDate || group.dueDate),
+            paymentTerms: isSingleBill ? firstBill.paymentTerms : 'Net 30',
+            manualReference: isSingleBill ? firstBill.manualReference : undefined,
+            currency: isSingleBill ? firstBill.currency : (companySettings?.currency || 'EUR'),
+            subtotal: group.subtotal !== undefined ? group.subtotal : (isSingleBill ? firstBill.subtotal : 0),
+            discountAmount: group.discountAmount !== undefined ? group.discountAmount : (isSingleBill ? firstBill.discountAmount : 0),
+            taxAmount: group.taxAmount !== undefined ? group.taxAmount : (isSingleBill ? firstBill.taxAmount : 0),
+            roundOffAmount: group.roundOffAmount !== undefined ? group.roundOffAmount : (isSingleBill ? firstBill.roundOffAmount : 0),
+            totalAmount: group.totalAmount || group.totalBillAmount || (isSingleBill ? firstBill.totalAmount : 0),
+            paidAmount: group.paidAmount !== undefined ? group.paidAmount : (isSingleBill ? firstBill.paidAmount : 0),
+            balanceAmount: group.balanceAmount !== undefined ? group.balanceAmount : (isSingleBill ? firstBill.balanceAmount : 0),
+            purchasebillitem: allItems,
+            items: allItems,
             payment: allPayments,
-            billingName: group.vendor?.billingName || group.vendor?.name || '',
-            billingAddress: group.vendor?.billingAddress || '',
-            billingCity: group.vendor?.billingCity || '',
-            billingState: group.vendor?.billingState || '',
-            billingZipCode: group.vendor?.billingZipCode || '',
-            billingCountry: group.vendor?.billingCountry || '',
-            shippingName: group.vendor?.shippingName || group.vendor?.name || '',
-            shippingAddress: group.vendor?.shippingAddress || group.vendor?.billingAddress || '',
-            shippingCity: group.vendor?.city || '',
-            shippingState: group.vendor?.state || '',
-            shippingZipCode: group.vendor?.zipCode || '',
-            shippingCountry: group.vendor?.country || ''
+            billingName: group.vendor?.billingName || group.vendor?.name || firstBill.billingName || '',
+            billingAddress: group.vendor?.billingAddress || firstBill.billingAddress || '',
+            billingCity: group.vendor?.billingCity || firstBill.billingCity || '',
+            billingState: group.vendor?.billingState || firstBill.billingState || '',
+            billingZipCode: group.vendor?.billingZipCode || firstBill.billingZipCode || '',
+            billingCountry: group.vendor?.billingCountry || firstBill.billingCountry || '',
+            shippingName: group.vendor?.shippingName || group.vendor?.name || firstBill.shippingName || '',
+            shippingAddress: group.vendor?.shippingAddress || group.vendor?.billingAddress || firstBill.shippingAddress || '',
+            shippingCity: group.vendor?.city || firstBill.shippingCity || '',
+            shippingState: group.vendor?.state || firstBill.shippingState || '',
+            shippingZipCode: group.vendor?.zipCode || firstBill.shippingZipCode || '',
+            shippingCountry: group.vendor?.country || firstBill.shippingCountry || ''
         });
         setIsViewMode(true);
     };
@@ -2239,9 +2268,69 @@ const PurchaseBill = () => {
         const parsedOtherCharges = Array.isArray(cfData?._otherCharges) ? cfData._otherCharges : [];
         const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-        const subtotalVal = (bill.subtotal !== undefined && bill.subtotal !== null)
+        // Process line items & compute fallback totals
+        let computedItemsGross = 0;
+        let computedItemsDisc = 0;
+        let computedItemsTax = 0;
+        const vatSummaryMap = {};
+
+        const processedItems = lineItems.map((item) => {
+            const actName = item.product?.name || item.itemName || item.name || 'Product';
+            const desc = item.description || (item.product?.name ? item.product.name : actName) || '';
+            const uom = item.uom?.unitName || (allUoms.find(u => u.id === item.uomId)?.unitName) || item.unit || '';
+            const qty = parseFloat(item.quantity !== undefined && item.quantity !== null ? item.quantity : (item.qty || 1)) || 0;
+            const rate = parseFloat(item.rate || 0) || 0;
+            const gross = qty * rate;
+
+            const itemTax = parseFloat(item.taxRate !== undefined && item.taxRate !== null ? item.taxRate : (item.tax || 0)) || 0;
+            const isZeroTax = itemTax === 0;
+            const taxDisplay = isZeroTax ? 'No VAT' : `${parseFloat(itemTax.toFixed(2))}%`;
+
+            let lineDisc = 0;
+            const rawDisc = parseFloat(item.discount || 0) || 0;
+            if (rawDisc > 0) {
+                if (item.discountType === 'percentage' || (rawDisc <= 100 && !item.discountType && rawDisc > 0 && Math.abs((gross * rawDisc) / 100 - (item.discountAmount || 0)) < 0.01)) {
+                    lineDisc = (gross * rawDisc) / 100;
+                } else {
+                    lineDisc = rawDisc;
+                }
+            } else if (item.discountAmount) {
+                lineDisc = parseFloat(item.discountAmount) || 0;
+            }
+            lineDisc = Math.min(gross, Math.max(0, lineDisc));
+
+            const discText = rawDisc > 0 ? (item.discountType === 'percentage' ? `${rawDisc}%` : `-${rawDisc.toFixed(2)}`) : '0%';
+            const net = Math.max(0, gross - lineDisc);
+            const lineVat = itemTax > 0 ? (net * itemTax) / 100 : 0;
+            const amt = parseFloat(item.amount !== undefined && item.amount !== null && parseFloat(item.amount) > 0 ? item.amount : (net + lineVat));
+
+            computedItemsGross += gross;
+            computedItemsDisc += lineDisc;
+            computedItemsTax += lineVat;
+
+            const rateKey = parseFloat(itemTax.toFixed(2));
+            if (!vatSummaryMap[rateKey]) {
+                vatSummaryMap[rateKey] = { rate: rateKey, vatAmount: 0, netAmount: 0 };
+            }
+            vatSummaryMap[rateKey].netAmount += net;
+            vatSummaryMap[rateKey].vatAmount += lineVat;
+
+            return {
+                actName,
+                desc,
+                uom,
+                qty,
+                rate,
+                discText,
+                taxDisplay,
+                amt,
+                taxRate: itemTax
+            };
+        });
+
+        const subtotalVal = (bill.subtotal !== undefined && bill.subtotal !== null && parseFloat(bill.subtotal) > 0)
             ? parseFloat(bill.subtotal)
-            : (parseFloat(bill.totalAmount || 0) - parseFloat(bill.taxAmount || 0) + parseFloat(bill.discountAmount || 0) - otherChargesTotal);
+            : (computedItemsGross > 0 ? computedItemsGross : (parseFloat(bill.totalAmount || 0) - parseFloat(bill.taxAmount || 0) + parseFloat(bill.discountAmount || 0) - otherChargesTotal));
 
         const getOverallDiscountAmt = () => {
             if (bill.overallDiscount > 0) {
@@ -2259,55 +2348,29 @@ const PurchaseBill = () => {
         };
 
         const overallDiscountAmt = getOverallDiscountAmt();
-        const discountVal = parseFloat(bill.discountAmount || 0);
+        const discountVal = (bill.discountAmount !== undefined && bill.discountAmount !== null && parseFloat(bill.discountAmount) > 0)
+            ? parseFloat(bill.discountAmount)
+            : (overallDiscountAmt > 0 ? overallDiscountAmt : computedItemsDisc);
+
         const taxableVal = Math.max(0, subtotalVal - discountVal);
-        const taxVal = parseFloat(bill.taxAmount || 0);
-        const totalVal = parseFloat(bill.totalAmount || 0);
+
+        const taxVal = (bill.taxAmount !== undefined && bill.taxAmount !== null && parseFloat(bill.taxAmount) > 0)
+            ? parseFloat(bill.taxAmount)
+            : computedItemsTax;
+
+        const roundOffVal = parseFloat(bill.roundOffAmount || bill.roundOff || 0);
+
+        const totalVal = (bill.totalAmount !== undefined && bill.totalAmount !== null && parseFloat(bill.totalAmount) > 0)
+            ? parseFloat(bill.totalAmount)
+            : (bill.totalBillAmount && parseFloat(bill.totalBillAmount) > 0 ? parseFloat(bill.totalBillAmount) : (taxableVal + taxVal + otherChargesTotal + roundOffVal));
+
         const paidVal = parseFloat(bill.paidAmount || 0);
-        const balanceVal = bill.balanceAmount !== undefined ? parseFloat(bill.balanceAmount) : (totalVal - paidVal);
+        const balanceVal = bill.balanceAmount !== undefined && bill.balanceAmount !== null ? parseFloat(bill.balanceAmount) : Math.max(0, totalVal - paidVal);
 
-        // Process line items
-        const processedItems = lineItems.map((item) => {
-            const actName = item.product?.name || item.itemName || item.name || 'Product';
-            const desc = item.description || (item.product?.name ? item.product.name : actName) || '';
-            const uom = item.uom?.unitName || (allUoms.find(u => u.id === item.uomId)?.unitName) || item.unit || '';
-            const qty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
-            const rate = parseFloat(item.rate || 0);
-            const discVal = parseFloat(item.discount || 0);
-            const discText = discVal > 0 ? (item.discountType === 'percentage' ? `${discVal}%` : `-${discVal.toFixed(2)}`) : '0%';
-            const itemTax = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
-            const isZeroTax = itemTax === 0;
-            const taxDisplay = isZeroTax ? 'No VAT' : `${parseFloat(itemTax.toFixed(2))}%`;
-            const amt = parseFloat(item.amount !== undefined ? item.amount : (qty * rate));
-
-            return {
-                actName,
-                desc,
-                uom,
-                qty,
-                rate,
-                discText,
-                taxDisplay,
-                amt,
-                taxRate: itemTax
-            };
-        });
-
-        // Compute VAT summary
-        const vatSummaryMap = {};
-        processedItems.forEach(it => {
-            const r = it.taxRate !== undefined ? it.taxRate : 23;
-            if (!vatSummaryMap[r]) {
-                vatSummaryMap[r] = { rate: r, vatAmount: 0, netAmount: 0 };
-            }
-            const lineNet = it.amt || 0;
-            const lineVat = (lineNet * r) / 100;
-            vatSummaryMap[r].netAmount += lineNet;
-            vatSummaryMap[r].vatAmount += lineVat;
-        });
-        const vatSummaryList = Object.values(vatSummaryMap);
-        if (vatSummaryList.length === 0) {
-            vatSummaryList.push({ rate: 23, vatAmount: taxVal, netAmount: taxableVal });
+        const vatSummaryList = Object.values(vatSummaryMap).sort((a, b) => b.rate - a.rate);
+        if (vatSummaryList.length === 0 && (taxVal > 0 || taxableVal > 0)) {
+            const defaultRate = taxableVal > 0 ? (taxVal / taxableVal) * 100 : 23;
+            vatSummaryList.push({ rate: defaultRate, vatAmount: taxVal, netAmount: taxableVal });
         }
 
         const isDuePassedDate = Boolean(bill.dueDate && new Date(bill.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
@@ -2432,11 +2495,11 @@ const PurchaseBill = () => {
         const metaKeyX = 118;
         const metaValX = 196;
         const metaRows = [
-            { key: 'BILL #', val: String(bill.billNumber || 'N/A').replace(/^#/, '') },
-            { key: 'DATE', val: formatCeaDate(bill.date) },
+            { key: bill.isStatement ? 'STATEMENT #' : 'BILL #', val: String(bill.billNumber || (bill.isStatement ? 'Statement' : 'N/A')).replace(/^#/, '') },
+            { key: 'DATE', val: formatCeaDate(bill.date || bill.earliestDate) },
             ...(bill.manualReference && typeof bill.manualReference === 'string' && bill.manualReference.trim() ? [{ key: 'MANUAL REF', val: bill.manualReference.trim() }] : []),
             { key: 'TERMS', val: bill.paymentTerms || 'Net 30' },
-            { key: 'DUE DATE', val: formatCeaDate(bill.dueDate || bill.date) },
+            { key: 'DUE DATE', val: formatCeaDate(bill.dueDate || bill.latestDueDate || bill.date || bill.earliestDate) },
             ...(bill.purchaseorder?.orderNumber ? [{ key: 'P.O. #', val: bill.purchaseorder.orderNumber }] : []),
             ...(bill.goodsreceiptnote?.grnNumber ? [{ key: 'G.R.N. #', val: bill.goodsreceiptnote.grnNumber }] : [])
         ];
@@ -2829,9 +2892,52 @@ const PurchaseBill = () => {
         const parsedOtherCharges = Array.isArray(cfData?._otherCharges) ? cfData._otherCharges : [];
         const otherChargesTotal = parsedOtherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
 
-        const subtotalVal = (viewBill.subtotal !== undefined && viewBill.subtotal !== null)
+        const rawItems = viewBill.purchasebillitem || viewBill.items || [];
+        const lineItems = rawItems.length > 0 ? rawItems : (viewBill.bills ? viewBill.bills.flatMap(b => b.purchasebillitem || b.items || []) : []);
+
+        // Compute items gross, discount, and VAT
+        let computedItemsGross = 0;
+        let computedItemsDisc = 0;
+        let computedItemsTax = 0;
+        const vatSummaryMap = {};
+
+        lineItems.forEach(item => {
+            const qty = parseFloat(item.quantity !== undefined && item.quantity !== null ? item.quantity : (item.qty !== undefined && item.qty !== null ? item.qty : 1)) || 0;
+            const rate = parseFloat(item.rate !== undefined && item.rate !== null ? item.rate : (item.price || 0)) || 0;
+            const gross = qty * rate;
+
+            const r = parseFloat(item.taxRate !== undefined && item.taxRate !== null ? item.taxRate : (item.tax || 0)) || 0;
+
+            let lineDisc = 0;
+            const rawDisc = parseFloat(item.discount || 0) || 0;
+            if (rawDisc > 0) {
+                if (item.discountType === 'percentage' || (rawDisc <= 100 && !item.discountType && rawDisc > 0 && Math.abs((gross * rawDisc) / 100 - (item.discountAmount || 0)) < 0.01)) {
+                    lineDisc = (gross * rawDisc) / 100;
+                } else {
+                    lineDisc = rawDisc;
+                }
+            } else if (item.discountAmount) {
+                lineDisc = parseFloat(item.discountAmount) || 0;
+            }
+            lineDisc = Math.min(gross, Math.max(0, lineDisc));
+            const net = Math.max(0, gross - lineDisc);
+            const lineVat = r > 0 ? (net * r) / 100 : 0;
+
+            computedItemsGross += gross;
+            computedItemsDisc += lineDisc;
+            computedItemsTax += lineVat;
+
+            const rateKey = parseFloat(r.toFixed(2));
+            if (!vatSummaryMap[rateKey]) {
+                vatSummaryMap[rateKey] = { rate: rateKey, vatAmount: 0, netAmount: 0 };
+            }
+            vatSummaryMap[rateKey].netAmount += net;
+            vatSummaryMap[rateKey].vatAmount += lineVat;
+        });
+
+        const subtotalVal = (viewBill.subtotal !== undefined && viewBill.subtotal !== null && parseFloat(viewBill.subtotal) > 0)
             ? parseFloat(viewBill.subtotal)
-            : (parseFloat(viewBill.totalAmount || 0) - parseFloat(viewBill.taxAmount || 0) + parseFloat(viewBill.discountAmount || 0) - otherChargesTotal);
+            : (computedItemsGross > 0 ? computedItemsGross : (parseFloat(viewBill.totalAmount || 0) - parseFloat(viewBill.taxAmount || 0) + parseFloat(viewBill.discountAmount || 0) - otherChargesTotal));
 
         const getOverallDiscountAmt = () => {
             if (viewBill.overallDiscount > 0) {
@@ -2849,31 +2955,31 @@ const PurchaseBill = () => {
         };
 
         const overallDiscountAmt = getOverallDiscountAmt();
-        const discountVal = parseFloat(viewBill.discountAmount || 0);
+        const discountVal = (viewBill.discountAmount !== undefined && viewBill.discountAmount !== null && parseFloat(viewBill.discountAmount) > 0)
+            ? parseFloat(viewBill.discountAmount)
+            : (overallDiscountAmt > 0 ? overallDiscountAmt : computedItemsDisc);
+
         const taxableVal = Math.max(0, subtotalVal - discountVal);
-        const taxVal = parseFloat(viewBill.taxAmount || 0);
-        const totalVal = parseFloat(viewBill.totalAmount || 0);
+
+        const taxVal = (viewBill.taxAmount !== undefined && viewBill.taxAmount !== null && parseFloat(viewBill.taxAmount) > 0)
+            ? parseFloat(viewBill.taxAmount)
+            : computedItemsTax;
+
+        const roundOffVal = parseFloat(viewBill.roundOffAmount || viewBill.roundOff || 0);
+
+        const totalVal = (viewBill.totalAmount !== undefined && viewBill.totalAmount !== null && parseFloat(viewBill.totalAmount) > 0)
+            ? parseFloat(viewBill.totalAmount)
+            : (viewBill.totalBillAmount && parseFloat(viewBill.totalBillAmount) > 0 ? parseFloat(viewBill.totalBillAmount) : (taxableVal + taxVal + otherChargesTotal + roundOffVal));
+
         const paidVal = parseFloat(viewBill.paidAmount || 0);
-        const balanceVal = viewBill.balanceAmount !== undefined ? parseFloat(viewBill.balanceAmount) : (totalVal - paidVal);
+        const balanceVal = viewBill.balanceAmount !== undefined && viewBill.balanceAmount !== null
+            ? parseFloat(viewBill.balanceAmount)
+            : Math.max(0, totalVal - paidVal);
 
-        const rawItems = viewBill.purchasebillitem || viewBill.items || [];
-        const lineItems = rawItems.length > 0 ? rawItems : (viewBill.bills ? viewBill.bills.flatMap(b => b.purchasebillitem || b.items || []) : []);
-
-        // VAT Summary
-        const vatSummaryMap = {};
-        lineItems.forEach(item => {
-            const r = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
-            if (!vatSummaryMap[r]) {
-                vatSummaryMap[r] = { rate: r, vatAmount: 0, netAmount: 0 };
-            }
-            const lineAmt = parseFloat(item.amount !== undefined ? item.amount : ((item.quantity || 1) * (item.rate || 0)));
-            const lineVat = (lineAmt * r) / 100;
-            vatSummaryMap[r].netAmount += lineAmt;
-            vatSummaryMap[r].vatAmount += lineVat;
-        });
-        const vatSummaryList = Object.values(vatSummaryMap);
-        if (vatSummaryList.length === 0) {
-            vatSummaryList.push({ rate: 23, vatAmount: taxVal, netAmount: taxableVal });
+        const vatSummaryList = Object.values(vatSummaryMap).sort((a, b) => b.rate - a.rate);
+        if (vatSummaryList.length === 0 && (taxVal > 0 || taxableVal > 0)) {
+            const defaultRate = taxableVal > 0 ? (taxVal / taxableVal) * 100 : 23;
+            vatSummaryList.push({ rate: defaultRate, vatAmount: taxVal, netAmount: taxableVal });
         }
 
         const isDuePassedDate = Boolean(viewBill.dueDate && new Date(viewBill.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
@@ -3044,11 +3150,11 @@ const PurchaseBill = () => {
                             </div>
                             <div className="invoice-cea-middle-right">
                                 <div className="invoice-cea-meta-grid">
-                                    <span className="invoice-cea-kv-key">BILL #</span>
-                                    <span className="invoice-cea-kv-val">{viewBill.billNumber ? String(viewBill.billNumber).replace(/^#/, '') : 'N/A'}</span>
+                                    <span className="invoice-cea-kv-key">{viewBill.isStatement ? 'STATEMENT #' : 'BILL #'}</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.billNumber ? String(viewBill.billNumber).replace(/^#/, '') : (viewBill.isStatement ? 'Statement' : 'N/A')}</span>
 
                                     <span className="invoice-cea-kv-key">DATE</span>
-                                    <span className="invoice-cea-kv-val">{viewBill.date ? formatCeaDate(viewBill.date) : ''}</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.date ? formatCeaDate(viewBill.date) : (viewBill.earliestDate ? formatCeaDate(viewBill.earliestDate) : '')}</span>
 
                                     {viewBill.manualReference && (
                                         <>
@@ -3061,7 +3167,7 @@ const PurchaseBill = () => {
                                     <span className="invoice-cea-kv-val">{viewBill.paymentTerms || 'Net 30'}</span>
 
                                     <span className="invoice-cea-kv-key">DUE DATE</span>
-                                    <span className="invoice-cea-kv-val">{viewBill.dueDate ? formatCeaDate(viewBill.dueDate) : (viewBill.date ? formatCeaDate(viewBill.date) : '')}</span>
+                                    <span className="invoice-cea-kv-val">{viewBill.dueDate ? formatCeaDate(viewBill.dueDate) : (viewBill.latestDueDate ? formatCeaDate(viewBill.latestDueDate) : (viewBill.date ? formatCeaDate(viewBill.date) : ''))}</span>
 
                                     {viewBill.purchaseorder?.orderNumber && (
                                         <>
@@ -3115,15 +3221,30 @@ const PurchaseBill = () => {
                                     const productName = item.product?.name || item.itemName || item.name || 'Product';
                                     const itemDesc = item.description || (item.product?.name ? item.product.name : productName) || '';
                                     const itemUom = item.uom?.unitName || (allUoms.find(u => u.id === item.uomId)?.unitName) || item.unit || 'Units';
-                                    const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
-                                    const itemRate = parseFloat(item.rate || 0);
-                                    const itemDisc = parseFloat(item.discount || 0);
-                                    const itemTax = parseFloat(item.taxRate !== undefined ? item.taxRate : (item.tax || 0));
-                                    const itemAmt = parseFloat(item.amount !== undefined ? item.amount : (itemQty * itemRate));
+                                    const itemQty = parseFloat(item.quantity !== undefined && item.quantity !== null ? item.quantity : (item.qty || 1)) || 0;
+                                    const itemRate = parseFloat(item.rate || 0) || 0;
+                                    const gross = itemQty * itemRate;
+
+                                    const rawDisc = parseFloat(item.discount || 0) || 0;
+                                    let lineDisc = 0;
+                                    if (rawDisc > 0) {
+                                        lineDisc = item.discountType === 'percentage' || (rawDisc <= 100 && !item.discountType && Math.abs((gross * rawDisc) / 100 - (item.discountAmount || 0)) < 0.01)
+                                            ? (gross * rawDisc) / 100
+                                            : rawDisc;
+                                    } else if (item.discountAmount) {
+                                        lineDisc = parseFloat(item.discountAmount) || 0;
+                                    }
+                                    lineDisc = Math.min(gross, Math.max(0, lineDisc));
+
+                                    const itemTax = parseFloat(item.taxRate !== undefined && item.taxRate !== null ? item.taxRate : (item.tax || 0)) || 0;
+                                    const net = Math.max(0, gross - lineDisc);
+                                    const lineVat = itemTax > 0 ? (net * itemTax) / 100 : 0;
+                                    const itemAmt = parseFloat(item.amount !== undefined && item.amount !== null && parseFloat(item.amount) > 0 ? item.amount : (net + lineVat));
+
                                     const isZeroTax = itemTax === 0;
                                     const taxDisplay = isZeroTax ? 'No VAT' : `${parseFloat(itemTax.toFixed(2))}%`;
-                                    const discDisplay = itemDisc > 0
-                                        ? (item.discountType === 'percentage' ? `${itemDisc}%` : `-${Number(itemDisc).toFixed(2)}`)
+                                    const discDisplay = rawDisc > 0
+                                        ? (item.discountType === 'percentage' ? `${rawDisc}%` : `-${Number(rawDisc).toFixed(2)}`)
                                         : '0%';
 
                                     return (
@@ -3562,7 +3683,13 @@ const PurchaseBill = () => {
                                                     vendor: b.vendor,
                                                     bills: [],
                                                     returns: [],
+                                                    subtotal: 0,
+                                                    discountAmount: 0,
+                                                    taxAmount: 0,
+                                                    roundOffAmount: 0,
                                                     totalBillAmount: 0,
+                                                    totalAmount: 0,
+                                                    paidAmount: 0,
                                                     totalReturnAmount: 0,
                                                     balanceAmount: 0,
                                                     earliestDate: b.date,
@@ -3571,8 +3698,25 @@ const PurchaseBill = () => {
                                             }
                                             const rate = getSyncRate(b.currency || 'USD', companySettings?.currency || 'EUR');
                                             groupedMap[key].bills.push(b);
-                                            groupedMap[key].totalBillAmount += b.totalAmount * rate;
-                                            groupedMap[key].balanceAmount += b.balanceAmount * rate;
+
+                                            const bSubtotal = (b.subtotal !== undefined && b.subtotal !== null && parseFloat(b.subtotal) > 0)
+                                                ? parseFloat(b.subtotal)
+                                                : (parseFloat(b.totalAmount || 0) - parseFloat(b.taxAmount || 0) + parseFloat(b.discountAmount || 0));
+                                            const bDiscount = parseFloat(b.discountAmount || 0);
+                                            const bTax = parseFloat(b.taxAmount || 0);
+                                            const bRoundOff = parseFloat(b.roundOffAmount || b.roundOff || 0);
+                                            const bTotal = parseFloat(b.totalAmount || 0);
+                                            const bPaid = parseFloat(b.paidAmount || 0);
+                                            const bBalance = parseFloat(b.balanceAmount !== undefined ? b.balanceAmount : (bTotal - bPaid));
+
+                                            groupedMap[key].subtotal += bSubtotal * rate;
+                                            groupedMap[key].discountAmount += bDiscount * rate;
+                                            groupedMap[key].taxAmount += bTax * rate;
+                                            groupedMap[key].roundOffAmount += bRoundOff * rate;
+                                            groupedMap[key].totalBillAmount += bTotal * rate;
+                                            groupedMap[key].totalAmount += bTotal * rate;
+                                            groupedMap[key].paidAmount += bPaid * rate;
+                                            groupedMap[key].balanceAmount += bBalance * rate;
 
                                             const curr = b.currency || companySettings?.currency || 'EUR';
                                             if (!groupedMap[key].currencyTotals) {

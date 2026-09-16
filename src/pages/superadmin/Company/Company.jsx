@@ -12,6 +12,35 @@ import authService from '../../../services/authService';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../../context/AuthContext';
 import { useContext } from 'react';
+import { resolveLogoUrl } from '../../../utils/logoUrl';
+
+const CompanyCardAvatar = ({ logo, name }) => {
+    const [hasError, setHasError] = useState(false);
+    const resolvedUrl = resolveLogoUrl(logo);
+
+    useEffect(() => {
+        setHasError(false);
+    }, [logo]);
+
+    if (resolvedUrl && !hasError) {
+        return (
+            <div className="supercompany-avatar-wrapper">
+                <img
+                    src={resolvedUrl}
+                    alt={name}
+                    className="supercompany-avatar"
+                    onError={() => setHasError(true)}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="supercompany-avatar-placeholder">
+            {name?.charAt(0).toUpperCase() || 'C'}
+        </div>
+    );
+};
 
 const Company = () => {
     const navigate = useNavigate();
@@ -304,7 +333,7 @@ const Company = () => {
             password: '',
             confirmPassword: ''
         });
-        setLogoPreview(company.logo);
+        setLogoPreview(resolveLogoUrl(company.logo) || company.logo);
         setShowCreateModal(true);
         setActiveDropdownId(null);
     };
@@ -440,13 +469,7 @@ const Company = () => {
                             </div>
 
                             <div className="supercompany-identity">
-                                {company.logo ? (
-                                    <img src={company.logo} alt={company.name} className="supercompany-avatar" />
-                                ) : (
-                                    <div className="supercompany-avatar-placeholder">
-                                        {company.name?.charAt(0).toUpperCase() || 'C'}
-                                    </div>
-                                )}
+                                <CompanyCardAvatar logo={company.logo} name={company.name} />
                                 <div className="supercompany-details">
                                     <h3>{company.name}</h3>
                                     <p className="supercompany-email">{company.email}</p>
@@ -522,7 +545,7 @@ const Company = () => {
                                     <div className="supercompany-logo-upload-wrapper">
                                         <div className="supercompany-logo-placeholder" onClick={handleLogoClick}>
                                             {logoPreview ? (
-                                                <img src={logoPreview} alt="Preview" />
+                                                <img src={resolveLogoUrl(logoPreview) || logoPreview} alt="Preview" />
                                             ) : (
                                                 <div className="flex flex-col items-center text-gray-400">
                                                     <Upload size={24} />

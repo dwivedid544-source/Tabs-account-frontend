@@ -181,7 +181,7 @@ const SmtpSettings = ({ isTab = false }) => {
             let errorText = err.response?.data?.message;
             if (!errorText) {
                 if (err.message === 'Network Error' || err.response?.status === 502) {
-                    errorText = 'Network / Server timeout. Cloud hosting (Railway) blocks outbound SMTP ports (465/587) by default. Test via your local backend or request Railway to unblock SMTP.';
+                    errorText = 'Network / Server timeout. Unable to reach the SMTP server (port 465/587). Please check your SMTP settings or verify if outbound SMTP ports are open on your VPS/server.';
                 } else {
                     errorText = err.message || 'SMTP Connection test failed';
                 }
@@ -227,7 +227,7 @@ const SmtpSettings = ({ isTab = false }) => {
             let errorText = err.response?.data?.message;
             if (!errorText) {
                 if (err.message === 'Network Error' || err.response?.status === 502) {
-                    errorText = 'Network / Server timeout. Cloud hosting (Railway) blocks outbound SMTP ports (465/587) by default. Test via your local backend or request Railway to unblock SMTP.';
+                    errorText = 'Network / Server timeout. Unable to reach the SMTP server (port 465/587). Please check your SMTP settings or verify if outbound SMTP ports are open on your VPS/server.';
                 } else {
                     errorText = err.message || 'Failed to send test email';
                 }

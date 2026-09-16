@@ -9,6 +9,7 @@ import planRequestService from '../../../services/planRequestService';
 import planService from '../../../services/planService';
 import emailjs from '@emailjs/browser';
 import { EMAIL_CONFIG } from '../../../config/emailConfig';
+import { resolveLogoUrl } from '../../../utils/logoUrl';
 import './PlanRequests.css';
 
 const PlanRequests = () => {
@@ -333,7 +334,7 @@ const PlanRequests = () => {
                                         <td data-label="Company">
                                             <div className="flex items-center gap-2">
                                                 {request.logo ? (
-                                                    <img src={request.logo} alt="logo" className="PlanReq-company-logo-sm" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />
+                                                    <img src={resolveLogoUrl(request.logo) || request.logo} alt="logo" className="PlanReq-company-logo-sm" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'contain', background: '#fff', border: '1px solid #e2e8f0' }} />
                                                 ) : (
                                                     <div className="PlanReq-company-icon-sm">
                                                         <Building2 size={16} />
@@ -423,7 +424,7 @@ const PlanRequests = () => {
                                             <label className="block mb-2 font-semibold text-slate-700 w-full text-center">Company Logo</label>
                                             <div className="flex items-center gap-4">
                                                 {logoPreview ? (
-                                                    <img src={logoPreview} alt="Logo Preview" style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+                                                    <img src={resolveLogoUrl(logoPreview) || logoPreview} alt="Logo Preview" style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'contain', background: '#fff', border: '1px solid #e2e8f0' }} />
                                                 ) : (
                                                     <div style={{ width: '60px', height: '60px', borderRadius: '8px', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                                                         <Building2 size={24} />

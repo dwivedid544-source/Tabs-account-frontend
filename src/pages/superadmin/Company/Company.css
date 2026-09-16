@@ -223,17 +223,32 @@
     margin-bottom: 1.5rem;
 }
 
-.supercompany-avatar {
+.supercompany-avatar-wrapper {
     width: 56px;
     height: 56px;
+    min-width: 56px;
     border-radius: 50%;
-    object-fit: cover;
     border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.supercompany-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 3px;
+    display: block;
 }
 
 .supercompany-avatar-placeholder {
     width: 56px;
     height: 56px;
+    min-width: 56px;
     border-radius: 50%;
     background-color: #3b82f6;
     color: white;
@@ -564,7 +579,8 @@
 .supercompany-logo-placeholder img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    padding: 4px;
 }
 
 .supercompany-upload-info {
