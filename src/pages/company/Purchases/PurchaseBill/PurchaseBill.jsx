@@ -2468,19 +2468,19 @@ const PurchaseBill = () => {
 
         const showUom = true;
         const cols = [
-            { key: 'activity', header: 'ACTIVITY', fixedWidth: 26, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+            { key: 'activity', header: 'ACTIVITY', fixedWidth: 36, align: 'left', fontStyle: 'bold', getData: it => it.actName },
             { key: 'description', header: 'DESCRIPTION', isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
             ...(showUom ? [{ key: 'uom', header: 'UOM', fixedWidth: 14, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
             { key: 'quantity', header: 'QUANTITY', fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => String(it.qty) },
-            { key: 'rate', header: 'RATE', fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) },
-            { key: 'discount', header: 'DISCOUNT', fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.discText },
-            { key: 'tax', header: 'TAX', fixedWidth: 17, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay },
-            { key: 'price', header: 'PRICE', fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+            { key: 'rate', header: 'RATE', fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) },
+            { key: 'discount', header: 'DISCOUNT', fixedWidth: 22, align: 'center', fontStyle: 'normal', getData: it => it.discText },
+            { key: 'tax', header: 'TAX', fixedWidth: 18, align: 'center', fontStyle: 'normal', getData: it => it.taxDisplay },
+            { key: 'price', header: 'PRICE', fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
         ];
 
         const totalPrintableWidth = 182;
         const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
-        const flexWidth = Math.max(45, totalPrintableWidth - fixedWidthSum);
+        const flexWidth = Math.max(30, totalPrintableWidth - fixedWidthSum);
 
         const tableHead = [
             cols.map(c => ({
@@ -2505,6 +2505,7 @@ const PurchaseBill = () => {
             head: tableHead,
             body: tableBody,
             theme: 'plain',
+            tableWidth: totalPrintableWidth,
             styles: {
                 overflow: 'linebreak',
                 valign: 'middle',
@@ -2517,7 +2518,7 @@ const PurchaseBill = () => {
                 textColor: tableHeaderTextRgb,
                 fontStyle: 'bold',
                 fontSize: 7.8,
-                cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+                cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
                 valign: 'middle'
             },
             bodyStyles: {
@@ -2583,7 +2584,16 @@ const PurchaseBill = () => {
         }
         printTotalLine('VAT', Number(taxVal).toFixed(2));
         printTotalLine('TOTAL', Number(totalVal).toFixed(2), true);
-        if (paidVal > 0) {
+        const billPayList = bill.payment || [];
+        if (billPayList.length > 0) {
+            billPayList.forEach(pmt => {
+                const pmtD = pmt.date ? new Date(pmt.date) : null;
+                const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                    ? `Payment on ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                    : (pmt.paymentNumber ? `Payment (${pmt.paymentNumber})` : 'Payment');
+                printTotalLine(pmtLabel, `-${Number(parseFloat(pmt.amount || 0)).toFixed(2)}`);
+            });
+        } else if (paidVal > 0) {
             printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
         }
 
@@ -3071,32 +3081,32 @@ const PurchaseBill = () => {
                         </div>
 
                         {/* 3. ITEMS TABLE */}
-                        <table className="invoice-cea-table">
+                        <table className="invoice-cea-table" style={{ width: '100%', tableLayout: 'fixed' }}>
                             <thead>
                                 <tr style={{ backgroundColor: tableHeaderBg }}>
-                                    <th style={{ width: '20%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                    <th style={{ width: '18%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                         {getTableHeader('item', 'ACTIVITY')}
                                     </th>
-                                    <th style={{ width: '30%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                    <th style={{ width: '25%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                         {getTableHeader('warehouse', 'DESCRIPTION')}
                                     </th>
                                     <th style={{ width: '7%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                         {getTableHeader('uom', 'UOM')}
                                     </th>
-                                    <th style={{ width: '7%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
-                                        {getTableHeader('quantity', 'QTY')}
+                                    <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('quantity', 'QUANTITY')}
                                     </th>
-                                    <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                    <th style={{ width: '11%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                         {getTableHeader('rate', 'RATE')}
                                     </th>
-                                    <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                    <th style={{ width: '12%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                         {getTableHeader('discount', 'DISCOUNT')}
                                     </th>
-                                    <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
-                                        {getTableHeader('tax', 'VAT')}
+                                    <th style={{ width: '10%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('tax', 'TAX')}
                                     </th>
-                                    <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
-                                        {getTableHeader('price', 'AMOUNT')}
+                                    <th style={{ width: '11%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                        {getTableHeader('price', 'PRICE')}
                                     </th>
                                 </tr>
                             </thead>
@@ -3118,13 +3128,13 @@ const PurchaseBill = () => {
 
                                     return (
                                         <tr key={idx}>
-                                            <td className="invoice-cea-activity-cell">{productName}</td>
-                                            <td className="invoice-cea-desc-cell">{itemDesc}</td>
+                                            <td className="invoice-cea-activity-cell" style={{ textAlign: 'left', wordBreak: 'break-word' }}>{productName}</td>
+                                            <td className="invoice-cea-desc-cell" style={{ textAlign: 'left', wordBreak: 'break-word' }}>{itemDesc}</td>
                                             <td style={{ textAlign: 'center' }}>{itemUom}</td>
                                             <td style={{ textAlign: 'right' }}>{itemQty}</td>
                                             <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>
-                                            <td style={{ textAlign: 'right' }}>{discDisplay}</td>
-                                            <td style={{ textAlign: 'right' }}>{taxDisplay}</td>
+                                            <td style={{ textAlign: 'center' }}>{discDisplay}</td>
+                                            <td style={{ textAlign: 'center' }}>{taxDisplay}</td>
                                             <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                         </tr>
                                     );
@@ -3175,12 +3185,44 @@ const PurchaseBill = () => {
                                     {Number(totalVal).toFixed(2)}
                                 </span>
 
-                                {parseFloat(paidVal) > 0 && (
-                                    <>
-                                        <span className="invoice-cea-total-label">PAYMENT</span>
-                                        <span className="invoice-cea-total-val">-{Number(paidVal).toFixed(2)}</span>
-                                    </>
-                                )}
+                                {(() => {
+                                    const billPayHistory = viewBill.payment || [];
+                                    if (billPayHistory.length > 0) {
+                                        return billPayHistory.map((pmt, pIdx) => {
+                                            const pmtD = pmt.date ? new Date(pmt.date) : null;
+                                            const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                                                ? `Payment on ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                                                : (pmt.paymentNumber ? `Payment (${pmt.paymentNumber})` : 'Payment');
+                                            const pmtAmt = parseFloat(pmt.amount || 0);
+                                            const tooltipText = [
+                                                pmt.paymentNumber ? `Ref: ${pmt.paymentNumber}` : '',
+                                                pmt.bankLedger?.name ? `From: ${pmt.bankLedger.name}` : ''
+                                            ].filter(Boolean).join(' | ');
+                                            return (
+                                                <React.Fragment key={`bill-pmt-inline-${pIdx}`}>
+                                                    <span
+                                                        className="invoice-cea-total-label"
+                                                        title={tooltipText}
+                                                        style={{ color: '#2563eb', fontStyle: 'normal' }}
+                                                    >
+                                                        {pmtLabel}
+                                                    </span>
+                                                    <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>
+                                                        -{Number(pmtAmt).toFixed(2)}
+                                                    </span>
+                                                </React.Fragment>
+                                            );
+                                        });
+                                    } else if (parseFloat(paidVal) > 0) {
+                                        return (
+                                            <>
+                                                <span className="invoice-cea-total-label">PAYMENT</span>
+                                                <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>-{Number(paidVal).toFixed(2)}</span>
+                                            </>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
                         </div>
 
@@ -3260,7 +3302,7 @@ const PurchaseBill = () => {
                         </div>
 
                         {/* 8. PAYMENT HISTORY SECTION */}
-                        {(() => {
+                        {/* {(() => {
                             const paymentList = viewBill.payment || [];
                             if (paymentList.length === 0) return null;
 
@@ -3299,7 +3341,7 @@ const PurchaseBill = () => {
                                     </table>
                                 </div>
                             );
-                        })()}
+                        })()} */}
 
                         {/* 9. NOTES & TERMS */}
                         {(() => {

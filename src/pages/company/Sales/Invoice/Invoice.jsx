@@ -3197,19 +3197,19 @@ const Invoice = () => {
             const showTax = getInvoiceLabel('showTax') !== false;
 
             const cols = [
-                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 26, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 36, align: 'left', fontStyle: 'bold', getData: it => it.actName },
                 { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
-                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 12, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
-                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
-                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 19, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
-                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.discText }] : []),
-                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 17, align: 'right', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
-                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 22, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 14, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
+                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 22, align: 'center', fontStyle: 'normal', getData: it => it.discText }] : []),
+                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 18, align: 'center', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
             ];
 
             const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
             const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
-            const flexWidth = Math.max(45, totalPrintableWidth - fixedWidthSum);
+            const flexWidth = Math.max(30, totalPrintableWidth - fixedWidthSum);
 
             const tableHead = [
                 cols.map(c => ({
@@ -3234,6 +3234,7 @@ const Invoice = () => {
                 head: tableHead,
                 body: tableBody,
                 theme: 'plain',
+                tableWidth: totalPrintableWidth,
                 styles: {
                     overflow: 'linebreak',
                     valign: 'middle',
@@ -3246,13 +3247,13 @@ const Invoice = () => {
                     textColor: tableHeaderTextRgb,
                     fontStyle: 'bold',
                     fontSize: 7.8,
-                    cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+                    cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
                     valign: 'middle'
                 },
                 bodyStyles: {
                     textColor: [15, 23, 42],
                     fontSize: 7.8,
-                    cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+                    cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
                     valign: 'middle',
                     overflow: 'linebreak',
                     lineHeight: 1.2
@@ -3312,7 +3313,23 @@ const Invoice = () => {
             }
             printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
             printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
-            if (parseFloat(paidVal) > 0) {
+            const pdfPayHistory = resolveInvoicePaymentHistory(inv);
+            if (pdfPayHistory.length > 0) {
+                pdfPayHistory.forEach(pmt => {
+                    const pmtD = pmt.date ? new Date(pmt.date) : null;
+                    const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                        ? `PAYMENT ON ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                        : (pmt.receiptNumber ? `PAYMENT (${pmt.receiptNumber})` : 'PAYMENT');
+                    // Blue label, green value for per-payment lines
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.setTextColor(37, 99, 235); // #2563eb blue
+                    doc.text(pmtLabel, totLabelX, totY);
+                    doc.setTextColor(22, 163, 74); // #16a34a green
+                    doc.text(`-${Number(pmt.amount || 0).toFixed(2)}`, totValX, totY, { align: 'right' });
+                    totY += 4.0;
+                });
+            } else if (parseFloat(paidVal) > 0) {
                 printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
             }
 
@@ -3436,8 +3453,8 @@ const Invoice = () => {
                 doc.text(String(comp.bankAddress), 108, bankY + 12.5);
             }
 
-            // --- 7. PAYMENT HISTORY TABLE ---
-            const sortedHistory = resolveInvoicePaymentHistory(inv);
+            // --- 7. PAYMENT HISTORY TABLE (commented out) ---
+            /* const sortedHistory = resolveInvoicePaymentHistory(inv);
 
             if (sortedHistory.length > 0) {
                 let pmtSectionY = bankY + 20 + 3.5;
@@ -3509,7 +3526,7 @@ const Invoice = () => {
                     },
                     margin: { left: 14, right: 14 }
                 });
-            }
+            } */
 
             // --- 7. FOOTER ---
             const pageCount = doc.internal.getNumberOfPages();
@@ -5346,41 +5363,41 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 3. ITEMS TABLE */}
-                                <table className="invoice-cea-table">
+                                <table className="invoice-cea-table" style={{ width: '100%', tableLayout: 'fixed' }}>
                                     <thead>
                                         <tr style={{ backgroundColor: tableHeaderBg }}>
-                                            <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                            <th style={{ width: showUom ? '18%' : '20%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                            <th style={{ width: showUom ? '25%' : '27%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (
-                                                <th style={{ width: '6%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '7%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('uom', 'UOM')}
                                                 </th>
                                             )}
                                             {showQty && (
-                                                <th style={{ width: '8%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('quantity', 'QUANTITY')}
                                                 </th>
                                             )}
                                             {showRate && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '11%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('rate', 'RATE')}
                                                 </th>
                                             )}
                                             {showDiscount && (
-                                                <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '12%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('discount', 'DISCOUNT')}
                                                 </th>
                                             )}
                                             {showTax && (
-                                                <th style={{ width: '9%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                                <th style={{ width: '10%', textAlign: 'center', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                     {getTableHeader('tax', 'TAX')}
                                                 </th>
                                             )}
-                                            <th style={{ width: '10%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                            <th style={{ width: '11%', textAlign: 'right', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('price', 'PRICE')}
                                             </th>
                                         </tr>
@@ -5413,13 +5430,13 @@ const Invoice = () => {
 
                                             return (
                                                 <tr key={idx}>
-                                                    <td className="invoice-cea-activity-cell">{productName}</td>
-                                                    <td className="invoice-cea-desc-cell">{itemDesc}</td>
+                                                    <td className="invoice-cea-activity-cell" style={{ textAlign: 'left', wordBreak: 'break-word' }}>{productName}</td>
+                                                    <td className="invoice-cea-desc-cell" style={{ textAlign: 'left', wordBreak: 'break-word' }}>{itemDesc}</td>
                                                     {showUom && <td style={{ textAlign: 'center' }}>{itemUom}</td>}
                                                     {showQty && <td style={{ textAlign: 'right' }}>{itemQty}</td>}
                                                     {showRate && <td style={{ textAlign: 'right' }}>{Number(itemRate).toFixed(2)}</td>}
-                                                    {showDiscount && <td style={{ textAlign: 'right' }}>{discDisplay}</td>}
-                                                    {showTax && <td style={{ textAlign: 'right' }}>{taxDisplay}</td>}
+                                                    {showDiscount && <td style={{ textAlign: 'center' }}>{discDisplay}</td>}
+                                                    {showTax && <td style={{ textAlign: 'center' }}>{taxDisplay}</td>}
                                                     <td style={{ textAlign: 'right' }}>{Number(itemAmt).toFixed(2)}</td>
                                                 </tr>
                                             );
@@ -5466,12 +5483,40 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'TOTAL'}</span>
                                         <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
-                                        {parseFloat(paidVal) > 0 && (
-                                            <>
-                                                <span className="invoice-cea-total-label">PAYMENT</span>
-                                                <span className="invoice-cea-total-val">-{Number(paidVal).toFixed(2)}</span>
-                                            </>
-                                        )}
+                                        {(() => {
+                                            const invPayHistory = resolveInvoicePaymentHistory(selectedInvoice);
+                                            if (invPayHistory.length > 0) {
+                                                return invPayHistory.map((pmt, pIdx) => {
+                                                    const pmtD = pmt.date ? new Date(pmt.date) : null;
+                                                    const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                                                        ? `Payment on ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                                                        : (pmt.receiptNumber ? `Payment (${pmt.receiptNumber})` : 'Payment');
+                                                    const pmtAmt = parseFloat(pmt.amount || 0);
+                                                    return (
+                                                        <React.Fragment key={`pmt-inline-${pIdx}`}>
+                                                            <span
+                                                                className="invoice-cea-total-label"
+                                                                title={pmt.receiptNumber ? `Receipt: ${pmt.receiptNumber} | Method: ${(pmt.paymentMode || 'BANK').toUpperCase()}` : ''}
+                                                                style={{ color: '#2563eb', fontStyle: 'normal' }}
+                                                            >
+                                                                {pmtLabel}
+                                                            </span>
+                                                            <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>
+                                                                -{Number(pmtAmt).toFixed(2)}
+                                                            </span>
+                                                        </React.Fragment>
+                                                    );
+                                                });
+                                            } else if (parseFloat(paidVal) > 0) {
+                                                return (
+                                                    <>
+                                                        <span className="invoice-cea-total-label">PAYMENT</span>
+                                                        <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>-{Number(paidVal).toFixed(2)}</span>
+                                                    </>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 </div>
 
@@ -5552,7 +5597,7 @@ const Invoice = () => {
                                 </div>
 
                                 {/* PAYMENT HISTORY SECTION */}
-                                {(() => {
+                                {/* {(() => {
                                     const sortedPaymentHistory = resolveInvoicePaymentHistory(selectedInvoice);
 
                                     if (sortedPaymentHistory.length === 0) return null;
@@ -5617,7 +5662,7 @@ const Invoice = () => {
                                             </table>
                                         </div>
                                     );
-                                })()}
+                                })()} */}
 
                                 {/* 8. PAGE FOOTER */}
                                 {showFooter && (
@@ -5941,21 +5986,22 @@ const Invoice = () => {
                                                 return (
                                                     <tr key={`single-inv-${inv.type || 'INV'}-${inv.id}`} className="Invoice-row">
                                                         <td className="px-4 py-3">
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                 <span style={{
-                                                                    fontSize: '10px',
-                                                                    padding: '2px 6px',
+                                                                    fontSize: '9px',
+                                                                    padding: '1px 5px',
                                                                     borderRadius: '4px',
                                                                     background: inv.type === 'POS_INVOICE' ? '#f8fafc' : '#eff6ff',
                                                                     color: inv.type === 'POS_INVOICE' ? '#334155' : '#2563eb',
                                                                     fontWeight: '800',
+                                                                    lineHeight: '1.1',
                                                                     border: `1px solid ${inv.type === 'POS_INVOICE' ? '#e2e8f0' : '#bfdbfe'}`
                                                                 }}>
                                                                     {inv.type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
                                                                 </span>
                                                                 <span 
                                                                     className="font-bold text-blue-600" 
-                                                                    style={{ cursor: 'pointer' }} 
+                                                                    style={{ cursor: 'pointer', fontSize: '0.82rem' }} 
                                                                     onClick={() => handleView(inv)}
                                                                     title="Click to view invoice"
                                                                 >
@@ -5970,14 +6016,14 @@ const Invoice = () => {
                                                             <div>
                                                                 {formatDocCurrency(inv.balanceAmount !== undefined ? inv.balanceAmount : inv.totalAmount, inv.currency)}
                                                                 {inv.currency && inv.currency !== (companySettings?.currency || 'EUR') && (
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
+                                                                    <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: '#64748b' }}>
                                                                         ({formatDocCurrency((inv.balanceAmount !== undefined ? inv.balanceAmount : inv.totalAmount) * invRate, companySettings?.currency || 'EUR')})
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                                                 <span
                                                                     className="Invoice-invoice-status-pill"
                                                                     style={{
@@ -5989,7 +6035,7 @@ const Invoice = () => {
                                                                     {inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID')}
                                                                 </span>
                                                                 {inv.paymentDate && (inv.paidAmount > 0 || inv.status === 'PAID' || inv.status === 'PARTIAL') && (
-                                                                    <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: '600' }}>
+                                                                    <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: '600' }}>
                                                                         Paid: {new Date(inv.paymentDate).toLocaleDateString()}
                                                                     </span>
                                                                 )}
@@ -6003,7 +6049,7 @@ const Invoice = () => {
                                                                     onClick={() => handleView(inv)}
                                                                     title="View Invoice"
                                                                 >
-                                                                    <Eye size={14} />
+                                                                    <Eye size={12} />
                                                                     <span>View</span>
                                                                 </button>
                                                                 <InvoiceActionDropdown
@@ -6110,25 +6156,26 @@ const Invoice = () => {
                                                                     onClick={(e) => { e.stopPropagation(); toggleGroup(group.id); }}
                                                                     title="Click to expand/collapse invoices"
                                                                 >
-                                                                    <ChevronDown size={14} />
+                                                                    <ChevronDown size={12} />
                                                                 </button>
                                                             )}
                                                             {group.isSingle ? (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{
-                                                                        fontSize: '10px',
-                                                                        padding: '2px 6px',
+                                                                        fontSize: '9px',
+                                                                        padding: '1px 5px',
                                                                         borderRadius: '4px',
                                                                         background: group.invoices[0].type === 'POS_INVOICE' ? '#f8fafc' : '#eff6ff',
                                                                         color: group.invoices[0].type === 'POS_INVOICE' ? '#334155' : '#2563eb',
                                                                         fontWeight: '800',
+                                                                        lineHeight: '1.1',
                                                                         border: `1px solid ${group.invoices[0].type === 'POS_INVOICE' ? '#e2e8f0' : '#bfdbfe'}`
                                                                     }}>
                                                                         {group.invoices[0].type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
                                                                     </span>
                                                                     <span 
                                                                         className="font-bold text-blue-600" 
-                                                                        style={{ cursor: 'pointer' }} 
+                                                                        style={{ cursor: 'pointer', fontSize: '0.82rem' }} 
                                                                         onClick={() => handleView(group.invoices[0])}
                                                                         title="Click to view invoice"
                                                                     >
@@ -6136,16 +6183,16 @@ const Invoice = () => {
                                                                     </span>
                                                                 </div>
                                                             ) : (
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                                                                        <span className="font-bold text-blue-600">
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
+                                                                        <span className="font-bold text-blue-600" style={{ fontSize: '0.84rem' }}>
                                                                             {group.customer?.name}
                                                                         </span>
-                                                                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '500', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px' }}>
+                                                                        <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: '500', background: '#f1f5f9', padding: '1px 6px', borderRadius: '10px' }}>
                                                                             ({group.invoices.length} Invoices)
                                                                         </span>
                                                                     </div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                                                    <div style={{ fontSize: '0.68rem', color: '#64748b', lineHeight: '1.2' }}>
                                                                         {group.invoices.map(i => i.invoiceNumber).join(', ')}
                                                                     </div>
                                                                 </div>
@@ -6230,7 +6277,7 @@ const Invoice = () => {
                                                     <td className="text-right">
                                                         <div className="Invoice-invoice-action-buttons text-nowrap">
                                                             {!group.isSingle ? (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                     <button
                                                                         className="Invoice-btn-combined-view"
                                                                         onClick={() => handleCombinedView(group)}
@@ -6238,13 +6285,13 @@ const Invoice = () => {
                                                                         style={{
                                                                             background: '#f59e0b',
                                                                             color: 'white',
-                                                                            padding: '6px 14px',
-                                                                            borderRadius: '6px',
-                                                                            fontSize: '0.75rem',
+                                                                            padding: '3px 10px',
+                                                                            borderRadius: '4px',
+                                                                            fontSize: '0.72rem',
                                                                             fontWeight: '700',
                                                                             border: 'none',
                                                                             cursor: 'pointer',
-                                                                            boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.3)'
+                                                                            boxShadow: '0 2px 4px -1px rgba(245, 158, 11, 0.25)'
                                                                         }}
                                                                     >
                                                                         View Combined
@@ -6258,9 +6305,9 @@ const Invoice = () => {
                                                                             background: '#f1f5f9',
                                                                             color: '#1e293b',
                                                                             border: '1px solid #cbd5e1',
-                                                                            padding: '5px 10px',
-                                                                            borderRadius: '6px',
-                                                                            fontSize: '0.75rem',
+                                                                            padding: '3px 8px',
+                                                                            borderRadius: '4px',
+                                                                            fontSize: '0.72rem',
                                                                             fontWeight: '600',
                                                                             display: 'inline-flex',
                                                                             alignItems: 'center',
@@ -6268,8 +6315,8 @@ const Invoice = () => {
                                                                             cursor: 'pointer'
                                                                         }}
                                                                     >
-                                                                        <Pencil size={12} />
-                                                                        <Trash2 size={12} />
+                                                                        <Pencil size={11} />
+                                                                        <Trash2 size={11} />
                                                                         <span>Invoices ({group.invoices.length})</span>
                                                                     </button>
                                                                 </div>
@@ -6281,7 +6328,7 @@ const Invoice = () => {
                                                                         onClick={() => handleView(group.invoices[0])}
                                                                         title="View Invoice"
                                                                     >
-                                                                        <Eye size={14} />
+                                                                        <Eye size={12} />
                                                                         <span>View</span>
                                                                     </button>
                                                                     <InvoiceActionDropdown
@@ -6389,9 +6436,9 @@ const Invoice = () => {
                                                                                                     className="Invoice-btn-view-primary" 
                                                                                                     onClick={() => handleView(si)}
                                                                                                     title="View Invoice"
-                                                                                                    style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                                                                                    style={{ padding: '3px 8px', fontSize: '0.72rem' }}
                                                                                                 >
-                                                                                                    <Eye size={13} />
+                                                                                                    <Eye size={11} />
                                                                                                     <span>View</span>
                                                                                                 </button>
                                                                                                 <InvoiceActionDropdown
@@ -6425,7 +6472,7 @@ const Invoice = () => {
                                                                                     <td>-</td>
                                                                                     <td><span className="Invoice-invoice-status-pill" style={{ background: '#ef4444' }}>Credited</span></td>
                                                                                     <td className="text-right">
-                                                                                        <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(sr)}><Eye size={14} /></button>
+                                                                                        <button className="Invoice-invoice-action-btn Invoice-view" onClick={() => handleView(sr)} style={{ padding: '3px 6px' }}><Eye size={11} /></button>
                                                                                     </td>
                                                                                 </tr>
                                                                             ))}

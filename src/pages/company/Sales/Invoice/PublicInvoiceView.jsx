@@ -566,12 +566,40 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <span className="invoice-cea-total-label">{getInvoiceLabel('total') || 'GRAND TOTAL'}</span>
                                     <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
-                                    {parseFloat(paidVal) > 0 && (
-                                        <>
-                                            <span className="invoice-cea-total-label">PAYMENT</span>
-                                            <span className="invoice-cea-total-val">-{Number(paidVal).toFixed(2)}</span>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const pubPayHistory = resolveInvoicePaymentHistory(document);
+                                        if (pubPayHistory.length > 0) {
+                                            return pubPayHistory.map((pmt, pIdx) => {
+                                                const pmtD = pmt.date ? new Date(pmt.date) : null;
+                                                const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                                                    ? `Payment on ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                                                    : (pmt.receiptNumber ? `Payment (${pmt.receiptNumber})` : 'Payment');
+                                                const pmtAmt = parseFloat(pmt.amount || 0);
+                                                return (
+                                                    <React.Fragment key={`pub-pmt-${pIdx}`}>
+                                                        <span
+                                                            className="invoice-cea-total-label"
+                                                            title={pmt.receiptNumber ? `Receipt: ${pmt.receiptNumber} | Method: ${(pmt.paymentMode || 'BANK').toUpperCase()}` : ''}
+                                                            style={{ color: '#2563eb' }}
+                                                        >
+                                                            {pmtLabel}
+                                                        </span>
+                                                        <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>
+                                                            -{Number(pmtAmt).toFixed(2)}
+                                                        </span>
+                                                    </React.Fragment>
+                                                );
+                                            });
+                                        } else if (parseFloat(paidVal) > 0) {
+                                            return (
+                                                <>
+                                                    <span className="invoice-cea-total-label">PAYMENT</span>
+                                                    <span className="invoice-cea-total-val" style={{ color: '#16a34a', fontWeight: '600' }}>-{Number(paidVal).toFixed(2)}</span>
+                                                </>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
                             </div>
 

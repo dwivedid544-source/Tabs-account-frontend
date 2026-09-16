@@ -300,7 +300,7 @@ const InvoiceActionDropdown = ({
                 title="Invoice Actions"
             >
                 <span>Actions</span>
-                <ChevronDown size={variant === 'detail' ? 16 : 14} className={`Invoice-dropdown-chevron ${isOpen ? 'rotate' : ''}`} />
+                <ChevronDown size={variant === 'detail' ? 16 : 12} className={`Invoice-dropdown-chevron ${isOpen ? 'rotate' : ''}`} />
             </button>
             {dropdownMenu}
         </div>

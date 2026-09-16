@@ -153,10 +153,10 @@
 
 .Invoice-invoice-table th {
     text-align: left;
-    padding: 1.25rem 1rem;
+    padding: 0.35rem 0.6rem;
     background: #f8fafc;
     color: #1e293b;
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     font-weight: 800;
     text-transform: uppercase;
     border-bottom: 1px solid #dae1e7;
@@ -164,11 +164,19 @@
 }
 
 .Invoice-invoice-table td {
-    padding: 1.25rem 1rem;
+    padding: 0.28rem 0.6rem;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     vertical-align: middle;
+}
+
+/* Override inline Tailwind py-3/px-4 classes used on some cells */
+.Invoice-invoice-table td.px-4,
+.Invoice-invoice-table td[class*="py-"],
+.Invoice-group-row td,
+.Invoice-row td {
+    padding: 0.28rem 0.6rem !important;
 }
 
 /* Invoice Number Badge */
@@ -186,19 +194,19 @@
 
 /* Status Pills (Solid Colors) */
 .Invoice-invoice-status-pill {
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 700;
+    padding: 2px 7px !important;
+    border-radius: 4px !important;
+    font-size: 0.66rem !important;
+    font-weight: 700 !important;
     text-transform: uppercase;
     text-align: center;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 96px;
-    line-height: 1.2;
+    min-width: 72px !important;
+    line-height: 1.15 !important;
     box-sizing: border-box;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: none !important;
 }
 
 .Invoice-invoice-status-pill.Invoice-paid,
@@ -801,7 +809,8 @@
 
 .Invoice-invoice-action-buttons {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.35rem;
+    align-items: center;
 }
 
 /* Full Page View & Create Styles */
@@ -5433,19 +5442,20 @@
 .Invoice-actions-trigger-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: 4px;
+    padding: 3px 8px;
     background: #ffffff;
     color: #334155;
     border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     white-space: nowrap;
     user-select: none;
+    line-height: 1.2;
 }
 
 .Invoice-actions-trigger-btn:hover {
@@ -5554,18 +5564,50 @@
 .Invoice-btn-view-primary {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: 4px;
+    padding: 3px 8px;
     background: #f59e0b;
     color: #ffffff;
     border: none;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.25);
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
     white-space: nowrap;
+    line-height: 1.2;
+}
+
+.Invoice-btn-view-primary svg {
+    width: 12px;
+    height: 12px;
+}
+
+.Invoice-toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+
+.Invoice-toggle-btn.expanded {
+    transform: rotate(180deg);
+}
+
+.Invoice-sub-table-dropdown th {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.68rem;
+}
+
+.Invoice-sub-table-dropdown td {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
 }
 
 .Invoice-btn-view-primary:hover {
