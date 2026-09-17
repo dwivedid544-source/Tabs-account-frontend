@@ -593,20 +593,12 @@ const Invoice = () => {
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [originRoute, setOriginRoute] = useState(() => {
         const s = location.state;
-        if (s?.from || s?.returnUrl) {
+        if ((s?.from || s?.returnUrl) && (s?.fromReport || s?.sourceName)) {
             return {
                 path: s.from || s.returnUrl,
                 name: s.sourceName || 'Report',
                 returnState: s.returnState || null,
-                fromReport: Boolean(s.fromReport || s.from || s.sourceName)
-            };
-        }
-        if (s?.targetInvoiceId || s?.viewInvoiceId || s?.targetInvoiceNumber) {
-            return {
-                path: -1,
-                name: s.sourceName || 'Report',
-                returnState: s.returnState || null,
-                fromReport: Boolean(s.fromReport)
+                fromReport: true
             };
         }
         return null;
@@ -1053,20 +1045,15 @@ const Invoice = () => {
     // Handle Deep Link from Navigation State
     const deepLinkHandledRef = useRef(null);
     useEffect(() => {
-        if (location.state?.from || location.state?.returnUrl) {
+        if ((location.state?.from || location.state?.returnUrl) && (location.state?.fromReport || location.state?.sourceName)) {
             setOriginRoute({
                 path: location.state.from || location.state.returnUrl,
                 name: location.state.sourceName || 'Report',
                 returnState: location.state.returnState || null,
-                fromReport: Boolean(location.state.fromReport || location.state.from || location.state.sourceName)
+                fromReport: true
             });
-        } else if ((location.state?.targetInvoiceId || location.state?.viewInvoiceId || location.state?.targetInvoiceNumber) && !location.state?.fromInvoiceList) {
-            setOriginRoute(prev => prev || {
-                path: -1,
-                name: location.state.sourceName || 'Report',
-                returnState: location.state.returnState || null,
-                fromReport: Boolean(location.state.fromReport)
-            });
+        } else {
+            setOriginRoute(null);
         }
 
         const searchParamsObj = new URLSearchParams(location.search);
@@ -5070,22 +5057,12 @@ const Invoice = () => {
             <div className="Invoice-invoice-full-page-view">
                 <div className="Invoice-view-page-header Invoice-no-print">
                     <button className="Invoice-btn-back" onClick={async () => {
-                        if (originRoute) {
-                            const returnTarget = originRoute.path;
-                            const returnState = originRoute.returnState;
-                            setOriginRoute(null);
-                            setViewMode(false);
-                            setSelectedInvoice(null);
-                            if (window.history.length > 1) {
-                                navigate(-1);
-                            } else if (typeof returnTarget === 'string' && returnTarget !== '-1') {
-                                navigate(returnTarget, { state: returnState });
-                            } else {
-                                navigate('/company/reports/sales');
-                            }
-                            return;
-                        }
+                        setOriginRoute(null);
                         setViewMode(false);
+                        setSelectedInvoice(null);
+                        deepLinkHandledRef.current = null;
+                        navigate('/company/sales/invoice', { replace: true, state: {} });
+
                         if (shouldAutoOpenNext) {
                             setShouldAutoOpenNext(false);
                             resetForm();
@@ -5109,6 +5086,23 @@ const Invoice = () => {
                     }}>
                         <ArrowLeft size={18} /> Back to Invoices
                     </button>
+                    {originRoute?.fromReport && typeof originRoute?.path === 'string' && originRoute.path !== '-1' && (
+                        <button
+                            className="Invoice-btn-back"
+                            style={{ marginLeft: '8px' }}
+                            onClick={() => {
+                                const returnTarget = originRoute.path;
+                                const returnState = originRoute.returnState;
+                                setOriginRoute(null);
+                                setViewMode(false);
+                                setSelectedInvoice(null);
+                                deepLinkHandledRef.current = null;
+                                navigate(returnTarget, { state: returnState });
+                            }}
+                        >
+                            <ArrowLeft size={18} /> Back to {originRoute.name || 'Report'}
+                        </button>
+                    )}
                     <div className="Invoice-view-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {/* <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status:</span>

@@ -594,7 +594,8 @@ const AuditLogs = () => {
                     targetInvoiceId: targetInvoiceId || undefined,
                     targetInvoiceNumber: targetInvoiceNumber || undefined,
                     type: targetType,
-                    autoOpenDetail: true
+                    autoOpenDetail: true,
+                    fromInvoiceList: true
                 }
             });
             return;

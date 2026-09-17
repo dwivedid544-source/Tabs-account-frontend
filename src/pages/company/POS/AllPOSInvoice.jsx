@@ -28,18 +28,11 @@ const AllPOSInvoice = () => {
     const [viewMode, setViewMode] = useState(false);
     const [originRoute, setOriginRoute] = useState(() => {
         const s = location.state;
-        if (s?.from || s?.returnUrl) {
+        if ((s?.from || s?.returnUrl) && (s?.fromReport || s?.sourceName)) {
             return {
                 path: s.from || s.returnUrl,
                 name: s.sourceName || 'Report',
-                fromReport: Boolean(s.fromReport || s.from || s.sourceName)
-            };
-        }
-        if (s?.targetInvoiceId) {
-            return {
-                path: -1,
-                name: s.sourceName || 'Report',
-                fromReport: Boolean(s.fromReport)
+                fromReport: true
             };
         }
         return null;
@@ -78,18 +71,14 @@ const AllPOSInvoice = () => {
     }, []);
 
     useEffect(() => {
-        if (location.state?.from || location.state?.returnUrl) {
+        if ((location.state?.from || location.state?.returnUrl) && (location.state?.fromReport || location.state?.sourceName)) {
             setOriginRoute({
                 path: location.state.from || location.state.returnUrl,
                 name: location.state.sourceName || 'Report',
-                fromReport: Boolean(location.state.fromReport || location.state.from || location.state.sourceName)
+                fromReport: true
             });
-        } else if (location.state?.targetInvoiceId && !location.state?.fromPOSList) {
-            setOriginRoute(prev => prev || {
-                path: -1,
-                name: location.state.sourceName || 'Report',
-                fromReport: Boolean(location.state.fromReport)
-            });
+        } else {
+            setOriginRoute(null);
         }
 
         if (invoices.length > 0 && location.state && location.state.targetInvoiceId) {
@@ -312,24 +301,29 @@ const AllPOSInvoice = () => {
             <div className="posinv-view-root">
                 <div className="posinv-top-bar no-print">
                     <button className="posinv-btn-back-square" onClick={() => {
-                        if (originRoute) {
-                            const returnTarget = originRoute.path;
-                            setOriginRoute(null);
-                            setViewMode(false);
-                            setSelectedInvoice(null);
-                            if (window.history.length > 1) {
-                                navigate(-1);
-                            } else if (typeof returnTarget === 'string' && returnTarget !== '-1') {
-                                navigate(returnTarget);
-                            } else {
-                                navigate('/company/reports/sales');
-                            }
-                            return;
-                        }
+                        setOriginRoute(null);
                         setViewMode(false);
+                        setSelectedInvoice(null);
+                        navigate('/company/pos/all-invoices', { replace: true, state: {} });
                     }}>
                         <ArrowLeft size={20} />
                     </button>
+                    {originRoute?.fromReport && typeof originRoute?.path === 'string' && originRoute.path !== '-1' && (
+                        <button
+                            className="posinv-btn-back-square"
+                            style={{ marginLeft: '8px' }}
+                            title={`Back to ${originRoute.name || 'Report'}`}
+                            onClick={() => {
+                                const returnTarget = originRoute.path;
+                                setOriginRoute(null);
+                                setViewMode(false);
+                                setSelectedInvoice(null);
+                                navigate(returnTarget);
+                            }}
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                    )}
                     <div className="posinv-header-info">
                         <h1 className="posinv-title-main">POS Invoice Detail</h1>
                         <p className="posinv-subtitle">Manage and print your POS record</p>
