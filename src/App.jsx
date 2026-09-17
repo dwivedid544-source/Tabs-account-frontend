@@ -138,7 +138,9 @@ function App() {
 
               {/* Public Viewing Routes */}
               <Route path="/view/invoice/:id" element={<PublicInvoiceView type="invoice" />} />
+              <Route path="/public/invoice/:id" element={<PublicInvoiceView type="invoice" />} />
               <Route path="/view/pos/:id" element={<PublicInvoiceView type="pos" />} />
+              <Route path="/public/pos/:id" element={<PublicInvoiceView type="pos" />} />
 
               {/* Super Admin Layout & Nested Routes */}
               <Route path="/superadmin/*" element={<SuperAdminLayout />}>

@@ -466,7 +466,12 @@ const Invoice = () => {
                 try {
                     const result = await buildCeaPdfDoc(emailInvoiceData);
                     if (result && result.doc) {
-                        generatedPdfBase64 = result.doc.output('datauristring');
+                        const dataUri = result.doc.output('datauristring');
+                        if (typeof dataUri === 'string' && dataUri.includes(';base64,')) {
+                            generatedPdfBase64 = dataUri.split(';base64,')[1];
+                        } else {
+                            generatedPdfBase64 = dataUri;
+                        }
                     }
                 } catch (pdfErr) {
                     console.warn('Could not generate client-side PDF for email attachment:', pdfErr);
@@ -482,7 +487,8 @@ const Invoice = () => {
                 customerId: emailInvoiceData.customer?.id || emailInvoiceData.customerId,
                 invoiceNumber: emailInvoiceData.invoiceNumber,
                 companyId,
-                pdfBase64: generatedPdfBase64
+                pdfBase64: generatedPdfBase64,
+                clientUrl: window.location.origin
             }, companyId);
 
             if (res.data?.success) {

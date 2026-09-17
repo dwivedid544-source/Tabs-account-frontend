@@ -9,7 +9,14 @@ const salesInvoiceService = {
         const query = companyId ? `?companyId=${companyId}` : '';
         return axios.get(`/sales-invoices/${id}${query}`, options);
     },
-    getPublicById: (id) => axios.get(`/sales-invoices/public/${id}`),
+    getPublicById: (id) => {
+        return axios.get(`/public/invoice/${id}`).catch((err) => {
+            if (err.response?.status === 404) {
+                return axios.get(`/sales-invoices/public/${id}`);
+            }
+            throw err;
+        });
+    },
     create: (data, allowDuplicate = false) => axios.post(`/sales-invoices${allowDuplicate ? '?allowDuplicate=true' : ''}`, data),
     update: (id, data, companyId) => {
         const query = companyId ? `?companyId=${companyId}` : '';

@@ -52,7 +52,37 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     const { formatCurrency, companySettings, getSyncRate, getDocumentTitle } = useContext(CompanyContext);
     const [document, setDocument] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [downloading, setDownloading] = useState(false);
     const [error, setError] = useState(null);
+
+    const handleDownloadPdf = async () => {
+        try {
+            setDownloading(true);
+            const cleanServerUrl = (BASE_URL || 'https://tabaccounts.com').replace(/\/+$/, '');
+            const downloadApiUrl = `${cleanServerUrl}/api/public/invoice/${id}/download`;
+
+            const response = await fetch(downloadApiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to download invoice PDF');
+            }
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            const docNum = document?.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : id;
+            link.download = `Invoice-${docNum}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Download PDF error:', err);
+            const cleanServerUrl = (BASE_URL || 'https://tabaccounts.com').replace(/\/+$/, '');
+            window.open(`${cleanServerUrl}/api/public/invoice/${id}/download`, '_blank');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     const formatDocCurrency = (amount, currencyCode) => {
         const docCurrency = currencyCode || document?.currency || companySettings?.currency || 'EUR';
@@ -90,8 +120,15 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     useEffect(() => {
         const fetchDocument = async () => {
+            if (!id || (isNaN(parseInt(id)) && !String(id).toLowerCase().includes('combined'))) {
+                setError('Invalid Invoice ID. The requested invoice identifier is not valid.');
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
+                setError(null);
                 let response;
                 if (type === 'pos') {
                     response = await posService.getPublicPOSInvoiceById(id);
@@ -100,21 +137,45 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     response = axiosRes.data;
                 }
                 
-                if (response.success) {
+                if (response && response.success && response.data) {
                     setDocument(response.data);
                 } else {
-                    setError('Document not found or inaccessible.');
+                    setError(response?.message || 'Invoice not found or no longer available.');
                 }
             } catch (err) {
                 console.error('Public Preview Error:', err);
-                setError('Failed to load document. Please check your connection.');
+                const status = err.response?.status;
+                if (status === 404) {
+                    setError('Invoice Not Found: This invoice does not exist or may have been deleted.');
+                } else if (status === 400) {
+                    setError('Invalid Invoice ID: The requested invoice identifier is not formatted correctly.');
+                } else {
+                    setError(err.response?.data?.message || 'Failed to load invoice. Please verify your connection and try again.');
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        if (id) fetchDocument();
+        if (id) {
+            fetchDocument();
+        } else {
+            setError('No invoice ID provided.');
+            setLoading(false);
+        }
     }, [id, type]);
+
+    useEffect(() => {
+        if (document) {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('download') === 'true') {
+                const timer = setTimeout(() => {
+                    handleDownloadPdf();
+                }, 800);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [document]);
 
     if (loading) {
         return (
@@ -127,10 +188,54 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     if (error || !document) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6">
-                <AlertCircle className="text-red-500 mb-4" size={48} />
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">Oops!</h2>
-                <p className="text-slate-600">{error || 'Unable to load this document.'}</p>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
+                <div style={{
+                    background: '#ffffff',
+                    padding: '40px 32px',
+                    borderRadius: '16px',
+                    maxWidth: '480px',
+                    width: '100%',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center'
+                }}>
+                    <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: '#fef2f2',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '16px'
+                    }}>
+                        <AlertCircle className="text-red-500" size={32} />
+                    </div>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
+                        Unable to View Invoice
+                    </h2>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5', marginBottom: '24px' }}>
+                        {error || 'The requested invoice could not be found or has been deleted.'}
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            background: '#1e293b',
+                            color: '#ffffff',
+                            fontWeight: '600',
+                            fontSize: '0.875rem',
+                            padding: '10px 22px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(30, 41, 59, 0.2)'
+                        }}
+                    >
+                        Retry Loading
+                    </button>
+                </div>
             </div>
         );
     }
@@ -268,7 +373,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     return (
         <div className="public-invoice-page bg-slate-100 min-h-screen p-4 md:p-10">
-            <div className="max-w-4xl mx-auto mb-4 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 Invoice-no-print">
+            <div className="max-w-4xl mx-auto mb-4 flex flex-wrap justify-between items-center gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200 Invoice-no-print">
                 <div className="flex items-center gap-3">
                     <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#1e293b', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.85rem' }}>
                         TAB
@@ -278,25 +383,48 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Verified client billing &amp; settlement statement</div>
                     </div>
                 </div>
-                <button
-                    onClick={() => window.print()}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: '#1e293b',
-                        color: '#ffffff',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.85rem',
-                        fontWeight: '700',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(30, 41, 59, 0.2)'
-                    }}
-                >
-                    <Download size={16} /> Print / Save PDF
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleDownloadPdf}
+                        disabled={downloading}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#2563eb',
+                            color: '#ffffff',
+                            padding: '8px 18px',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            fontWeight: '700',
+                            border: 'none',
+                            cursor: downloading ? 'wait' : 'pointer',
+                            boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        {downloading ? 'Downloading...' : 'Download Invoice (PDF)'}
+                    </button>
+                    <button
+                        onClick={() => window.print()}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#f1f5f9',
+                            color: '#1e293b',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            border: '1px solid #cbd5e1',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Printer size={16} /> Print
+                    </button>
+                </div>
             </div>
             <div className="max-w-4xl mx-auto">
                 {(() => {
@@ -310,14 +438,15 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         return `${day}-${month}-${year}`;
                     };
 
-                    const billName = document.customer?.name || document.billingName || 'Frank Sheridan';
-                    const billAddr = document.billingAddress || document.customer?.billingAddress || '56 New cork road, Midleton, Co. Cork';
+                    const billName = document.customer?.name || document.billingName || 'Valued Customer';
+                    const billAddr = document.billingAddress || document.customer?.billingAddress || '';
                     const billCityStateZip = [
                         document.billingCity || document.customer?.billingCity,
                         document.billingState || document.customer?.billingState
                     ].filter(Boolean).join(', ');
-                    const billPhone = document.customer?.phone || document.billingPhone;
-                    const email = document.customer?.email || document.billingEmail;
+                    const billPhone = document.customer?.phone || document.billingPhone || '';
+                    const email = document.customer?.email || document.billingEmail || '';
+                    const gstin = document.customer?.vatNumber || document.customer?.taxNumber || document.billingVatNumber || document.vatNumber || '';
                     let cfObj = {};
                     if (document?.customFields) {
                         try {
@@ -328,26 +457,15 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     }
                     const itemsMeta = Array.isArray(cfObj?._itemsDiscountMeta) ? cfObj._itemsDiscountMeta : [];
 
-                    const lineItems = items && items.length > 0 ? items : [
-                        {
-                            activity: 'Services',
-                            description: billAddr || '56 New cork road, Midleton, Co. Cork',
-                            taxRate: 23,
-                            quantity: 1,
-                            rate: 200,
-                            amount: 200
-                        }
-                    ];
+                    const lineItems = items && items.length > 0 ? items : (document.items || document.invoiceitem || []);
 
-
-
-                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
-                    const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
-                    const bankBic = companyDetails.bic || 'BOFIIE2D';
-                    const bankAccount = companyDetails.accountNumber || '16673832';
-                    const bankSortCode = companyDetails.sortCode || '902901';
-                    const bankName = companyDetails.bankName || 'Bank Of Ireland';
-                    const bankAddress = companyDetails.bankAddress || '97 Main Street, Midleton, Co. Cork';
+                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || '';
+                    const bankIban = companyDetails.iban || '';
+                    const bankBic = companyDetails.bic || '';
+                    const bankAccount = companyDetails.accountNumber || '';
+                    const bankSortCode = companyDetails.sortCode || '';
+                    const bankName = companyDetails.bankName || '';
+                    const bankAddress = companyDetails.bankAddress || '';
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
                     const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
                     const isLightColor = (color) => {
@@ -754,12 +872,20 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     );
                 })()}
 
-                <div className="no-print mt-10 flex justify-center">
+                <div className="no-print mt-8 mb-12 flex flex-wrap justify-center items-center gap-3">
+                    <button 
+                        onClick={handleDownloadPdf}
+                        disabled={downloading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer"
+                    >
+                        {downloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                        {downloading ? 'Downloading Invoice...' : 'Download Invoice (PDF)'}
+                    </button>
                     <button 
                         onClick={() => window.print()}
-                        className="bg-slate-800 text-white px-8 py-2.5 rounded-lg font-semibold shadow-lg hover:bg-slate-900 transition flex items-center gap-2"
+                        className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-lg font-semibold shadow hover:shadow-md transition flex items-center gap-2 cursor-pointer"
                     >
-                        Download / Print PDF
+                        <Printer size={18} /> Print
                     </button>
                 </div>
             </div>

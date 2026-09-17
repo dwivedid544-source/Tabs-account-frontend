@@ -62,7 +62,9 @@ axiosInstance.interceptors.response.use(
 
                 // Only redirect to login if user is on a protected route
                 const publicPaths = ['/', '/login', '/overview', '/features', '/pricing', '/aboutus', '/contact', '/careers', '/how-it-works', '/privacy-policy', '/terms-conditions'];
-                const isPublicRoute = publicPaths.includes(window.location.pathname) || window.location.pathname.startsWith('/view/');
+                const isPublicRoute = publicPaths.includes(window.location.pathname) || 
+                                      window.location.pathname.startsWith('/view/') || 
+                                      window.location.pathname.startsWith('/public/');
 
                 if (!isPublicRoute) {
                     window.location.href = '/login';
