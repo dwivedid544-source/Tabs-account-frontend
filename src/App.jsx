@@ -68,6 +68,7 @@ import LedgerReport from './pages/company/Reports/LedgerReport/LedgerReport';
 import TrialBalance from './pages/company/Reports/TrialBalance/TrialBalance';
 import AgentReport from './pages/company/Reports/AgentReport/AgentReport';
 import CompanySettings from './pages/company/Settings/CompanySettings/CompanySettings';
+import SubscriptionReport from './pages/company/Settings/SubscriptionReport/SubscriptionReport';
 import PasswordRequests from './pages/company/Settings/PasswordRequests/PasswordRequests';
 import ProfileSettings from './pages/company/Settings/ProfileSettings/ProfileSettings';
 import AuditLogs from './pages/company/Settings/AuditLogs';
@@ -219,6 +220,7 @@ function App() {
                 <Route path="reports/trial-balance" element={<TrialBalance />} />
                 <Route path="reports/agent-performance" element={<AgentReport />} />
                 <Route path="settings/info" element={<CompanySettings />} />
+                <Route path="settings/subscription-report" element={<SubscriptionReport />} />
                 <Route path="settings/password-requests" element={<PasswordRequests />} />
                 <Route path="settings/profile" element={<ProfileSettings />} />
                 <Route path="settings/audit-logs" element={<AuditLogs />} />

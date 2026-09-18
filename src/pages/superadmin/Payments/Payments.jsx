@@ -394,11 +394,11 @@ const Payments = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="superPayments-modal-footer superPayments-border-t-0 superPayments-bg-white">
+                        {/* <div className="superPayments-modal-footer superPayments-border-t-0 superPayments-bg-white">
                             <button className="superPayments-add-btn w-full justify-center" onClick={() => { setShowViewModal(false); openModal(selectedPayment); }}>
                                 Edit Transaction Details
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             )}

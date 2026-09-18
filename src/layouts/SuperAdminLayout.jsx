@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar/Sidebar';
 import Navbar from '../components/Navbar/Navbar';
 import Loader from '../components/common/Loader';
+import ExpiryPopupModal from '../components/Subscription/ExpiryPopupModal';
 import { loaderService } from '../services/loaderService';
 import './SuperAdminLayout.css';
 
@@ -30,6 +31,29 @@ const SuperAdminLayout = () => {
     }, [location.pathname]);
 
     const navigate = useNavigate();
+    const [showExpiryModal, setShowExpiryModal] = useState(false);
+
+    const isCompanyExpired = React.useMemo(() => {
+        if (!currentUser || currentUser?.role?.toUpperCase() === 'SUPERADMIN') return false;
+        if (currentUser.isExpired === true || currentUser.subscriptionStatus === 'EXPIRED') return true;
+        if (currentUser.company?.endDate) {
+            const expiryDate = new Date(currentUser.company.endDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return expiryDate < today;
+        }
+        return false;
+    }, [currentUser]);
+
+    // Check expiry modal visibility on initial login or load
+    React.useEffect(() => {
+        if (isCompanyExpired) {
+            const isDismissed = sessionStorage.getItem('dismissed_sub_modal');
+            if (!isDismissed) {
+                setShowExpiryModal(true);
+            }
+        }
+    }, [isCompanyExpired]);
 
     // Redirect users to their respective dashboards if they hit the wrong one
     React.useEffect(() => {
@@ -102,6 +126,7 @@ const SuperAdminLayout = () => {
                 permissions={currentUser?.permissions || []}
                 planModules={currentUser?.planModules || []}
                 isAdmin={currentUser?.role?.toUpperCase() === 'COMPANY' || currentUser?.role?.toUpperCase() === 'ADMIN'}
+                isExpired={isCompanyExpired}
                 onClose={() => setIsSidebarOpen(false)}
             />
             <div className={`main-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
@@ -111,6 +136,16 @@ const SuperAdminLayout = () => {
                     <Outlet />
                 </main>
             </div>
+
+            {/* Subscription Expiry Notification Modal */}
+            <ExpiryPopupModal
+                isOpen={showExpiryModal}
+                onClose={() => {
+                    setShowExpiryModal(false);
+                    sessionStorage.setItem('dismissed_sub_modal', 'true');
+                }}
+                subscriptionInfo={currentUser?.company}
+            />
         </div>
     );
 };

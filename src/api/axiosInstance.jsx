@@ -70,10 +70,8 @@ axiosInstance.interceptors.response.use(
                     window.location.href = '/login';
                 }
             } else if (isPlanExpired) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                toast.error(msg || 'Your company plan has expired. Please contact super admin to renew your plan.');
-                window.location.href = '/login';
+                // Keep user logged in, just show expiry message toast
+                toast.error(msg || 'Your subscription has expired. Please renew your plan to access this feature.');
             } else if (error.response && error.response.data && error.response.data.message) {
                 // Show backend error message for legitimate business errors (skip token error popups and silent lookups)
                 const noToast = error.config?.headers?.['X-No-Toast'] || error.config?.headers?.['x-no-toast'];

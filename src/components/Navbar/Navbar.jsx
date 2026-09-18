@@ -678,7 +678,7 @@ const Navbar = ({ toggleSidebar }) => {
                     </div>
                 )}
 
-                <div className="lang-selector-container notranslate">
+                {/* <div className="lang-selector-container notranslate">
                     <button className="icon-btn notranslate" onClick={() => setIsLangOpen(!isLangOpen)}>
                         <Globe size={18} />
                         <span className="lang-text notranslate">{currentLangObj.flag} {currentLangObj.name}</span>
@@ -702,7 +702,7 @@ const Navbar = ({ toggleSidebar }) => {
                             ))}
                         </div>
                     )}
-                </div>
+                </div> */}
 
                 <div className="user-profile-container">
                     <div
