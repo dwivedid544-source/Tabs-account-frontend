@@ -20,11 +20,22 @@ const Plans = () => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
 
+    // Currency helper
+    const getCurrencySymbol = (curr) => {
+        if (!curr) return '€';
+        const c = String(curr).trim().toUpperCase();
+        if (c === 'EUR' || c === 'EURO') return '€';
+        if (c === 'USD') return '$';
+        if (c === 'GBP') return '£';
+        if (c === 'INR') return '₹';
+        return '€';
+    };
+
     // Form State
     const initialFormState = {
         name: '',
         basePrice: 0,
-        currency: 'USD',
+        currency: 'EUR',
         invoiceLimit: '10 invoices',
         customInvoiceLimit: '',
         additionalInvoicePrice: 0,
@@ -208,7 +219,7 @@ const Plans = () => {
             <div className="superplan-modules-list">
                 {displayedModules.map((mod, idx) => (
                     <div key={idx} className="superplan-module-pill">
-                        {mod.name} (${mod.price})
+                        {mod.name} ({getCurrencySymbol(plan.currency)}{mod.price})
                     </div>
                 ))}
                 {remainingCount > 0 && (
@@ -296,11 +307,11 @@ const Plans = () => {
                                                 {plan.name}
                                             </span>
                                         </td>
-                                        <td>{plan.currency}</td>
-                                        <td>${plan.basePrice}</td>
-                                        <td>${plan.totalPrice}</td>
+                                        <td>{plan.currency || 'EUR'}</td>
+                                        <td>{getCurrencySymbol(plan.currency)}{plan.basePrice}</td>
+                                        <td>{getCurrencySymbol(plan.currency)}{plan.totalPrice}</td>
                                         <td>{plan.invoiceLimit}</td>
-                                        <td>${plan.additionalInvoicePrice}/invoice</td>
+                                        <td>{getCurrencySymbol(plan.currency)}{plan.additionalInvoicePrice}/invoice</td>
                                         <td>{plan.userLimit}</td>
                                         <td>{plan.storageCapacity}</td>
                                         <td>{plan.billingCycle}</td>
@@ -310,7 +321,7 @@ const Plans = () => {
                                         <td>
                                             {renderModulesCell(plan)}
                                         </td>
-                                        <td>{plan._count?.companies || 0}</td>
+                                        <td>{plan._count?.companies ?? plan._count?.company ?? plan.subscribersCount ?? 0}</td>
                                         <td>
                                             <div className="superplan-actions-cell">
                                                 <button className="superplan-action-icon-btn superplan-btn-edit" title="Edit" onClick={() => openEditModal(plan)}>
@@ -368,7 +379,7 @@ const Plans = () => {
                                     />
                                 </div>
                                 <div className="superplan-form-group">
-                                    <label>Base Price ($)</label>
+                                    <label>Base Price ({getCurrencySymbol(formData.currency)})</label>
                                     <input
                                         type="number"
                                         name="basePrice"
@@ -379,8 +390,9 @@ const Plans = () => {
                                 <div className="superplan-form-group">
                                     <label>Currency</label>
                                     <select name="currency" value={formData.currency} onChange={handleInputChange}>
-                                        <option value="USD">USD ($) - US Dollar</option>
                                         <option value="EUR">EUR (€) - Euro</option>
+                                        <option value="USD">USD ($) - US Dollar</option>
+                                        <option value="GBP">GBP (£) - British Pound</option>
                                     </select>
                                 </div>
                             </div>
@@ -408,7 +420,7 @@ const Plans = () => {
                                     </div>
                                 </div>
                                 <div className="superplan-form-group">
-                                    <label>Additional Invoice Price ($)</label>
+                                    <label>Additional Invoice Price ({getCurrencySymbol(formData.currency)})</label>
                                     <input
                                         type="number"
                                         name="additionalInvoicePrice"
@@ -485,11 +497,12 @@ const Plans = () => {
                                             </div>
                                             {mod.enabled && (
                                                 <div className="superplan-price-input-wrapper">
-                                                    <span>$</span>
+                                                    <span>{getCurrencySymbol(formData.currency)}</span>
                                                     <input
                                                         type="number"
                                                         value={mod.price}
                                                         onChange={(e) => handleModulePriceChange(idx, e.target.value)}
+                                                        disabled={!mod.enabled}
                                                     />
                                                 </div>
                                             )}
@@ -498,9 +511,9 @@ const Plans = () => {
                                 </div>
                             </div>
 
-                            {/* Total Price */}
-                            <div className="superplan-total-price-banner">
-                                <span>Total Price: <strong>${calculateTotalPrice()}</strong> (Base Price + Selected Modules)</span>
+                            {/* Total Price preview */}
+                            <div className="superplan-total-preview">
+                                <span>Total Price: <strong>{getCurrencySymbol(formData.currency)}{calculateTotalPrice()}</strong> (Base Price + Selected Modules)</span>
                             </div>
 
                             {/* Descriptions */}
@@ -549,7 +562,7 @@ const Plans = () => {
                         </div>
                         <div className="superplan-modal-body view-body">
                             <div className="view-row"><strong>Name:</strong> <span>{selectedPlan.name}</span></div>
-                            <div className="view-row"><strong>Total Price:</strong> <span>${selectedPlan.totalPrice}</span></div>
+                            <div className="view-row"><strong>Total Price:</strong> <span>{getCurrencySymbol(selectedPlan.currency)}{selectedPlan.totalPrice}</span></div>
                             <div className="view-row"><strong>Billing:</strong> <span>{selectedPlan.billingCycle}</span></div>
                             <div className="view-row"><strong>Modules:</strong>
                                 <div className="view-modules">
@@ -596,7 +609,7 @@ const Plans = () => {
                             <div className="superplan-modules-list">
                                 {selectedPlan.modules?.filter(m => m.enabled).map((mod, idx) => (
                                     <div key={idx} className="superplan-module-pill" style={{ marginBottom: '5px' }}>
-                                        {mod.name} (${mod.price})
+                                        {mod.name} ({getCurrencySymbol(selectedPlan.currency)}{mod.price})
                                     </div>
                                 ))}
                             </div>

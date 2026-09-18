@@ -206,7 +206,7 @@ const Payments = () => {
                                         </div>
                                     </td>
                                     <td>{payment.paymentMethod}</td>
-                                    <td className="font-bold">${payment.amount.toLocaleString()}</td>
+                                    <td className="font-bold">€{payment.amount.toLocaleString()}</td>
                                     <td>
                                         <span className={`superPayments-status-badge ${getStatusBadgeClass(payment.status)}`}>
                                             {getStatusLabel(payment.status)}
@@ -297,7 +297,7 @@ const Payments = () => {
 
                                     <div className="superPayments-form-grid">
                                         <div className="form-group mb-4">
-                                            <label className="required block mb-1 font-semibold text-slate-700">Amount ($)</label>
+                                            <label className="required block mb-1 font-semibold text-slate-700">Amount (€)</label>
                                             <div className="superPayments-input-with-icon">
                                                 <Wallet size={16} className="superPayments-input-icon" />
                                                 <input
@@ -368,7 +368,7 @@ const Payments = () => {
                                     <div className={`superPayments-receipt-icon-circle ${selectedPayment.status?.toLowerCase() === 'success' ? 'success' : 'pending'}`}>
                                         {selectedPayment.status?.toLowerCase() === 'success' ? <CheckCircle2 size={40} /> : <AlertCircle size={40} />}
                                     </div>
-                                    <h3 className="superPayments-receipt-amount">${selectedPayment.amount?.toLocaleString()}</h3>
+                                    <h3 className="superPayments-receipt-amount">€{selectedPayment.amount?.toLocaleString()}</h3>
                                     <p className={`superPayments-receipt-status-text ${selectedPayment.status?.toLowerCase() === 'success' ? 'App-text-success' : 'text-warning'}`}>
                                         Transaction {getStatusLabel(selectedPayment.status)}
                                     </p>

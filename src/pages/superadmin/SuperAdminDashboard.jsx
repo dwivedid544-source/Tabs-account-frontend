@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Building2, Users, DollarSign, UserPlus, FileText, Loader2, Plus, Settings, X
+    Building2, Users, Euro, UserPlus, FileText, Loader2, Plus, Settings, X
 } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar
@@ -11,7 +11,7 @@ import './SuperAdminDashboard.css';
 const SuperAdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({
-        stats: { totalCompanies: 0, totalRequests: 0, totalRevenue: 0, todaySignups: 0 },
+        stats: { totalCompanies: 0, activeSubscriptions: 0, totalRequests: 0, totalRevenue: 0, todaySignups: 0 },
         charts: { growthData: [], revenueData: [] }
     });
     const [announcements, setAnnouncements] = useState([]);
@@ -113,10 +113,10 @@ const SuperAdminDashboard = () => {
     return (
         <div className="dashboard-container">
             <div className="stats-grid">
-                <StatsCard title="Total Company" value={data.stats.totalCompanies} icon={Building2} color="green" badge="Lifetime" badgeColor="badge-success" />
-                <StatsCard title="Total Request" value={data.stats.totalRequests} icon={Users} color="blue" badge="Active" badgeColor="badge-neutral" />
-                <StatsCard title="Total Revenue" value={`$${data.stats.totalRevenue.toLocaleString()}`} icon={DollarSign} color="orange" badge="Actual" badgeColor="badge-success" />
-                <StatsCard title="New Signups Company" value={data.stats.todaySignups} icon={UserPlus} color="pink" badge="Today" badgeColor="badge-primary" />
+                <StatsCard title="Total Company" value={data.stats.totalCompanies ?? 0} icon={Building2} color="green" badge="Active" badgeColor="badge-success" />
+                <StatsCard title="Active Subscriptions" value={data.stats.activeSubscriptions ?? data.stats.totalCompanies ?? 0} icon={Users} color="blue" badge="Live" badgeColor="badge-neutral" />
+                <StatsCard title="Total Revenue" value={`€${Number(data.stats.totalRevenue || 0).toLocaleString()}`} icon={Euro} color="orange" badge="Actual" badgeColor="badge-success" />
+                <StatsCard title="New Signups Company" value={data.stats.todaySignups ?? 0} icon={UserPlus} color="pink" badge="Today" badgeColor="badge-primary" />
             </div>
 
             <div className="charts-grid">
@@ -158,7 +158,7 @@ const SuperAdminDashboard = () => {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                                <Tooltip cursor={false} />
+                                <Tooltip cursor={false} formatter={(val) => [`€${Number(val).toLocaleString()}`, 'Revenue']} />
                                 <Area type="monotone" dataKey="val" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.1} strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
