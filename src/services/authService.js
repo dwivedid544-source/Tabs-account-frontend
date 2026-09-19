@@ -34,11 +34,14 @@ const getProfile = async () => {
 
 const impersonate = async (companyId) => {
     const response = await axiosInstance.post('/auth/impersonate', { companyId });
-    if (response.data) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+    const payload = response.data || response;
+    if (payload && payload.token) {
+        localStorage.setItem('token', payload.token);
+        if (payload.user) {
+            localStorage.setItem('user', JSON.stringify(payload.user));
+        }
     }
-    return response.data;
+    return payload;
 };
 
 const authService = {

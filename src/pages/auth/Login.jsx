@@ -30,7 +30,8 @@ const Login = () => {
         e.preventDefault();
 
         try {
-            const response = await login(formData.email, formData.password);
+            const trimmedEmail = (formData.email || '').trim();
+            const response = await login(trimmedEmail, formData.password);
             toast.success('Login Successful!');
 
             const userData = response.user;

@@ -63,6 +63,7 @@ const Company = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [planFilter, setPlanFilter] = useState('');
+    const [impersonatingCompanyId, setImpersonatingCompanyId] = useState(null);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -151,12 +152,20 @@ const Company = () => {
                 if (!formData.password) {
                     return toast.error('Password is required');
                 }
+            } else {
+                if (formData.password && formData.password !== formData.confirmPassword) {
+                    return toast.error('Passwords do not match');
+                }
             }
 
             const data = new FormData();
             Object.keys(formData).forEach(key => {
                 if (key !== 'confirmPassword') {
-                    data.append(key, formData[key]);
+                    if (editingCompany && key === 'password' && !formData[key]) {
+                        // Skip empty password when editing
+                    } else {
+                        data.append(key, formData[key]);
+                    }
                 }
             });
             if (logoFile) {
@@ -173,7 +182,7 @@ const Company = () => {
             fetchCompanies();
             handleCreateModalClose();
         } catch (error) {
-            toast.error(error.response?.data?.error || 'Operation failed');
+            toast.error(error.response?.data?.error || error.response?.data?.message || 'Operation failed');
         }
     };
 
@@ -283,16 +292,37 @@ const Company = () => {
         }
     };
 
-    const handleLoginAsCompany = async (company) => {
+    const handleLoginAsCompany = async (e, company) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        if (impersonatingCompanyId) return;
+
+        setImpersonatingCompanyId(company.id);
+        const loadingToast = toast.loading(`Logging in as ${company.name}...`);
         try {
             const response = await authService.impersonate(company.id);
-            if (response.token) {
-                updateCurrentUser(response.user);
+            const token = response?.token || response?.data?.token;
+            const userData = response?.user || response?.data?.user;
+
+            if (token && userData) {
+                toast.dismiss(loadingToast);
                 toast.success(`Logged in as ${company.name}`);
-                navigate('/company/dashboard');
+                // Use hard navigation so the entire application re-boots cleanly with the company token,
+                // avoids conflicting route guards from SuperAdminLayout, and initializes session state cleanly.
+                window.location.href = '/company/dashboard';
+            } else {
+                throw new Error('Valid session was not returned by server');
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Impersonation failed');
+            toast.dismiss(loadingToast);
+            console.error('Impersonation failed:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Impersonation failed';
+            if (!error.response?.data?.message) {
+                toast.error(errorMsg);
+            }
+            setImpersonatingCompanyId(null);
         }
     };
 
@@ -511,9 +541,14 @@ const Company = () => {
                                     <Users size={12} />
                                     <span>Users</span>
                                 </div>
-                                <div className="supercompany-btn-icon-stack" onClick={() => handleLoginAsCompany(company)}>
+                                <div 
+                                    className={`supercompany-btn-icon-stack ${impersonatingCompanyId === company.id ? 'opacity-50 pointer-events-none' : ''}`}
+                                    onClick={(e) => handleLoginAsCompany(e, company)}
+                                    style={{ cursor: impersonatingCompanyId ? 'not-allowed' : 'pointer' }}
+                                    title={`Login as ${company.name}`}
+                                >
                                     <LogIn size={12} />
-                                    <span>Login</span>
+                                    <span>{impersonatingCompanyId === company.id ? 'Logging in...' : 'Login'}</span>
                                 </div>
                                 <div className="supercompany-btn-icon-stack" onClick={() => handleStorageClick(company)}>
                                     <div className="flex items-center gap-0.5" style={{ fontSize: '0.65rem', fontWeight: '700' }}>
@@ -667,34 +702,34 @@ const Company = () => {
                                 </div>
                                
                               
-                                {!editingCompany && (
-                                    <>
-                                        <div className="supercompany-form-group">
-                                            <label className="required">Password</label>
-                                            <input
-                                                type="password"
-                                                name="password"
-                                                className="supercompany-form-control"
-                                                placeholder="Enter password"
-                                                value={formData.password}
-                                                onChange={handleInputChange}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="supercompany-form-group">
-                                            <label className="required">Confirm Password</label>
-                                            <input
-                                                type="password"
-                                                name="confirmPassword"
-                                                className="supercompany-form-control"
-                                                placeholder="Confirm password"
-                                                value={formData.confirmPassword}
-                                                onChange={handleInputChange}
-                                                required
-                                            />
-                                        </div>
-                                    </>
-                                )}
+                                <div className="supercompany-form-group">
+                                    <label className={editingCompany ? '' : 'required'}>
+                                        {editingCompany ? 'Reset Password (optional)' : 'Password'}
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        className="supercompany-form-control"
+                                        placeholder={editingCompany ? 'Enter new password to change' : 'Enter password'}
+                                        value={formData.password}
+                                        onChange={handleInputChange}
+                                        required={!editingCompany}
+                                    />
+                                </div>
+                                <div className="supercompany-form-group">
+                                    <label className={editingCompany ? '' : 'required'}>
+                                        {editingCompany ? 'Confirm New Password' : 'Confirm Password'}
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="confirmPassword"
+                                        className="supercompany-form-control"
+                                        placeholder={editingCompany ? 'Confirm new password' : 'Confirm password'}
+                                        value={formData.confirmPassword}
+                                        onChange={handleInputChange}
+                                        required={!editingCompany}
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="supercompany-modal-footer">
