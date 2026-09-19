@@ -2637,8 +2637,10 @@ const PurchaseBill = () => {
         };
 
         printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
-        printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2), false, true);
-        printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+        if (discountVal > 0) {
+            printTotalLine('DISCOUNT', `-${Number(discountVal).toFixed(2)}`, false, true);
+            printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+        }
         if (otherChargesTotal > 0) {
             printTotalLine('OTHER CHARGES', Number(otherChargesTotal).toFixed(2));
         }
@@ -3274,13 +3276,17 @@ const PurchaseBill = () => {
                                 <span className="invoice-cea-total-label">SUBTOTAL</span>
                                 <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
 
-                                <span className="invoice-cea-total-label">DISCOUNT</span>
-                                <span className="invoice-cea-total-val" style={{ color: discountVal > 0 ? '#dc2626' : undefined }}>
-                                    {discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2)}
-                                </span>
+                                {discountVal > 0 && (
+                                    <>
+                                        <span className="invoice-cea-total-label">DISCOUNT</span>
+                                        <span className="invoice-cea-total-val" style={{ color: '#dc2626' }}>
+                                            -{Number(discountVal).toFixed(2)}
+                                        </span>
 
-                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                        <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                        <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                    </>
+                                )}
 
                                 {otherChargesTotal > 0 && (
                                     <>
@@ -4924,14 +4930,18 @@ const PurchaseBill = () => {
                                                 </div>
                                             );
                                         })}
-                                        <div className="PBILL-compact-t-row text-red-500">
-                                            <span>Total Discount:</span>
-                                            <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
-                                        </div>
-                                        <div className="PBILL-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
-                                            <span>Taxable Amount:</span>
-                                            <span>{formatDocCurrency(Math.max(0, totals.subTotal - totals.discount), selectedCurrency)}</span>
-                                        </div>
+                                        {totals.discount > 0 && (
+                                            <>
+                                                <div className="PBILL-compact-t-row text-red-500">
+                                                    <span>Total Discount:</span>
+                                                    <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
+                                                </div>
+                                                <div className="PBILL-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
+                                                    <span>Taxable Amount:</span>
+                                                    <span>{formatDocCurrency(Math.max(0, totals.subTotal - totals.discount), selectedCurrency)}</span>
+                                                </div>
+                                            </>
+                                        )}
                                         <div className="PBILL-compact-t-row">
                                             <span>{getInvoiceLabel('tax', 'VAT Amount')}:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>

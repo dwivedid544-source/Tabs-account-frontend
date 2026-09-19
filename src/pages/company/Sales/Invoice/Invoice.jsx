@@ -3301,8 +3301,10 @@ const Invoice = () => {
             };
 
             printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
-            printTotalLine('DISCOUNT', discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2), false, true);
-            printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+            if (discountVal > 0) {
+                printTotalLine('DISCOUNT', `-${Number(discountVal).toFixed(2)}`, false, true);
+                printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+            }
             if (financials.otherCharges > 0) {
                 printTotalLine('OTHER CHARGES', Number(financials.otherCharges).toFixed(2));
             }
@@ -5473,13 +5475,17 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-label">SUBTOTAL</span>
                                         <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
 
-                                        <span className="invoice-cea-total-label">DISCOUNT</span>
-                                        <span className="invoice-cea-total-val" style={{ color: discountVal > 0 ? '#dc2626' : undefined }}>
-                                            {discountVal > 0 ? `-${Number(discountVal).toFixed(2)}` : Number(0).toFixed(2)}
-                                        </span>
+                                        {discountVal > 0 && (
+                                            <>
+                                                <span className="invoice-cea-total-label">DISCOUNT</span>
+                                                <span className="invoice-cea-total-val" style={{ color: '#dc2626' }}>
+                                                    -{Number(discountVal).toFixed(2)}
+                                                </span>
 
-                                        <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                        <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                                <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                                <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                            </>
+                                        )}
 
                                         {financials.otherCharges > 0 && (
                                             <>
@@ -7576,14 +7582,18 @@ const Invoice = () => {
                                             <span>Subtotal:</span>
                                             <span>{formatDocCurrency(totals.subTotal, selectedCurrency)}</span>
                                         </div>
-                                        <div className="Invoice-compact-t-row" style={{ color: totals.discount > 0 ? '#dc2626' : undefined }}>
-                                            <span>Discount:</span>
-                                            <span>{totals.discount > 0 ? `-${formatDocCurrency(totals.discount, selectedCurrency)}` : formatDocCurrency(0, selectedCurrency)}</span>
-                                        </div>
-                                        <div className="Invoice-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
-                                            <span>Taxable Amount:</span>
-                                            <span>{formatDocCurrency(totals.discountedTaxable, selectedCurrency)}</span>
-                                        </div>
+                                        {totals.discount > 0 && (
+                                            <>
+                                                <div className="Invoice-compact-t-row" style={{ color: '#dc2626' }}>
+                                                    <span>Discount:</span>
+                                                    <span>-{formatDocCurrency(totals.discount, selectedCurrency)}</span>
+                                                </div>
+                                                <div className="Invoice-compact-t-row font-semibold text-slate-700 bg-slate-50 py-0.5 px-1 rounded">
+                                                    <span>Taxable Amount:</span>
+                                                    <span>{formatDocCurrency(totals.discountedTaxable, selectedCurrency)}</span>
+                                                </div>
+                                            </>
+                                        )}
                                         <div className="Invoice-compact-t-row">
                                             <span>VAT:</span>
                                             <span>{formatDocCurrency(totals.tax, selectedCurrency)}</span>

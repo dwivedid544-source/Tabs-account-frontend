@@ -678,13 +678,17 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <span className="invoice-cea-total-label">SUBTOTAL</span>
                                     <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
 
-                                    <span className="invoice-cea-total-label">DISCOUNT</span>
-                                    <span className="invoice-cea-total-val" style={{ color: totalDiscountVal > 0 ? '#dc2626' : undefined }}>
-                                        {totalDiscountVal > 0 ? `-${Number(totalDiscountVal).toFixed(2)}` : Number(0).toFixed(2)}
-                                    </span>
+                                    {totalDiscountVal > 0 && (
+                                        <>
+                                            <span className="invoice-cea-total-label">DISCOUNT</span>
+                                            <span className="invoice-cea-total-val" style={{ color: '#dc2626' }}>
+                                                -{Number(totalDiscountVal).toFixed(2)}
+                                            </span>
 
-                                    <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
-                                    <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                            <span className="invoice-cea-total-label">TAXABLE AMOUNT</span>
+                                            <span className="invoice-cea-total-val">{Number(taxableVal).toFixed(2)}</span>
+                                        </>
+                                    )}
 
                                     <span className="invoice-cea-total-label">{getInvoiceLabel('tax') || 'VAT'}</span>
                                     <span className="invoice-cea-total-val">
