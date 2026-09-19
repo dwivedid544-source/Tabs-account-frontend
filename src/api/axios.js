@@ -59,9 +59,8 @@ api.interceptors.response.use(
                     window.location.href = '/login'; 
                 }
             } else if (isPlanExpired) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = '/login'; 
+                // Do not remove token or redirect to login when company plan is expired
+                // Admin remains logged in with restricted access to company info/subscription report
             }
         }
         return Promise.reject(error);

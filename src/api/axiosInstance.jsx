@@ -69,9 +69,13 @@ axiosInstance.interceptors.response.use(
                 if (!isPublicRoute) {
                     window.location.href = '/login';
                 }
-            } else if (isPlanExpired) {
-                // Keep user logged in, just show expiry message toast
-                toast.error(msg || 'Your subscription has expired. Please renew your plan to access this feature.');
+            } else if (isPlanExpired || (status === 403 && typeof msg === 'string' && msg.toLowerCase().includes('expired'))) {
+                // Deduplicate toast with unique id so multiple concurrent requests don't show stacked alerts
+                toast.error(msg || 'Your subscription has expired. Please renew your plan to access this feature.', {
+                    id: 'subscription-expired-toast',
+                    duration: 5000,
+                    style: { maxWidth: '500px' }
+                });
             } else if (error.response && error.response.data && error.response.data.message) {
                 // Show backend error message for legitimate business errors (skip token error popups and silent lookups)
                 const noToast = error.config?.headers?.['X-No-Toast'] || error.config?.headers?.['x-no-toast'];

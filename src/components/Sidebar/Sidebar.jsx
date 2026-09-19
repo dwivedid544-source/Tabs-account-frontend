@@ -30,26 +30,32 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 if (subItemsList.length > 0) {
                     const isActive = subItemsList.some(sub => location.pathname.startsWith(sub.path));
                     if (isActive) {
-                        setExpandedGroups(prev => ({
-                            ...prev,
-                            [item.label]: true
-                        }));
+                        const isGroupLocked = isExpired && !subItemsList.some(sub => isPathExemptFromExpiry(sub.path));
+                        if (!isGroupLocked) {
+                            setExpandedGroups(prev => ({
+                                ...prev,
+                                [item.label]: true
+                            }));
+                        }
                     }
                 }
                 if (item.subSections) {
                     item.subSections.forEach(sec => {
                         const isSubActive = sec.items.some(sub => location.pathname.startsWith(sub.path));
                         if (isSubActive) {
-                            setExpandedSubGroups(prev => ({
-                                ...prev,
-                                [`${item.label}:${sec.category}`]: true
-                            }));
+                            const isSubLocked = isExpired && !sec.items.some(sub => isPathExemptFromExpiry(sub.path));
+                            if (!isSubLocked) {
+                                setExpandedSubGroups(prev => ({
+                                    ...prev,
+                                    [`${item.label}:${sec.category}`]: true
+                                }));
+                            }
                         }
                     });
                 }
             });
         });
-    }, [location.pathname]);
+    }, [location.pathname, isExpired]);
 
     const toggleGroup = (groupName) => {
         setExpandedGroups(prev => ({
@@ -67,16 +73,19 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
 
     const isPathExemptFromExpiry = (targetPath) => {
         if (!targetPath) return false;
+        const cleanPath = targetPath.split('?')[0].replace(/\/$/, '');
         return (
-            targetPath.includes('/dashboard') ||
-            targetPath === '/company/settings/subscription-report' ||
-            targetPath === '/company/settings/info'
+            cleanPath.endsWith('/dashboard') ||
+            cleanPath === '/company/settings/subscription-report' ||
+            cleanPath === '/company/settings/info'
         );
     };
 
     const handleLockedNavigation = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         toast.error('Your subscription has expired. Please renew your plan to access this feature.', {
             id: 'expired-sub-lock-toast',
             duration: 4000
@@ -342,14 +351,23 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 if (visibleSections.length === 0) return null;
 
                 const allVisibleItems = visibleSections.flatMap(sec => sec.items);
-                const isExpanded = expandedGroups[item.label];
+                const isGroupFullyLocked = isExpired && !allVisibleItems.some(sub => isPathExemptFromExpiry(sub.path));
+                const isExpanded = !isGroupFullyLocked && Boolean(expandedGroups[item.label]);
                 const isActive = allVisibleItems.some(sub => location.pathname.startsWith(sub.path));
 
                 return (
-                    <div key={index} className="menu-group">
+                    <div key={index} className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''}`}>
                         <div
-                            className={`menu-item has-submenu ${isActive ? 'active-parent' : ''}`}
-                            onClick={() => toggleGroup(item.label)}
+                            className={`menu-item has-submenu ${isActive ? 'active-parent' : ''} ${isGroupFullyLocked ? 'item-locked' : ''}`}
+                            onClick={(e) => {
+                                if (isGroupFullyLocked) {
+                                    handleLockedNavigation(e);
+                                } else {
+                                    toggleGroup(item.label);
+                                }
+                            }}
+                            style={isGroupFullyLocked ? { cursor: 'not-allowed' } : undefined}
+                            title={isGroupFullyLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
                         >
                             <div className="icon-label">
                                 <div className="menu-icon-wrapper">
@@ -362,53 +380,56 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                             </div>
                         </div>
 
-                        <div className={`submenu ${isExpanded ? 'expanded' : ''}`}>
-                            {visibleSections.map((sec, secIndex) => {
-                                const subKey = `${item.label}:${sec.category}`;
-                                const isSubExpanded = Boolean(expandedSubGroups[subKey]);
-                                const isSubActive = sec.items.some(sub => location.pathname.startsWith(sub.path));
+                        {!isGroupFullyLocked && (
+                            <div className={`submenu ${isExpanded ? 'expanded' : ''}`}>
+                                {visibleSections.map((sec, secIndex) => {
+                                    const subKey = `${item.label}:${sec.category}`;
+                                    const isSubExpanded = Boolean(expandedSubGroups[subKey]);
+                                    const isSubActive = sec.items.some(sub => location.pathname.startsWith(sub.path));
 
-                                return (
-                                    <div key={secIndex} className="submenu-section mb-1">
-                                        <div
-                                            className={`submenu-item reports-sub-header d-flex align-items-center justify-content-between ${isSubActive ? 'active-parent-sub' : ''}`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleSubGroup(subKey);
-                                            }}
-                                        >
-                                            <span>{sec.category}</span>
-                                            {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                        </div>
-
-                                        {isSubExpanded && (
-                                            <div className="submenu-nested-list ps-3 my-1">
-                                                {sec.items.map((sub, subIndex) => {
-                                                    const isLocked = isExpired && !isPathExemptFromExpiry(sub.path);
-                                                    return (
-                                                        <NavLink
-                                                            key={subIndex}
-                                                            to={isLocked ? '#' : sub.path}
-                                                            className={({ isActive }) => `submenu-item ${isActive ? 'active' : ''} ${isLocked ? 'item-locked' : ''}`}
-                                                            onClick={(e) => {
-                                                                if (isLocked) {
-                                                                    handleLockedNavigation(e);
-                                                                } else {
-                                                                    handleItemClick();
-                                                                }
-                                                            }}
-                                                            style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
-                                                        >
-                                                            {sub.label}
-                                                        </NavLink>
-                                                    );
-                                                })}
+                                    return (
+                                        <div key={secIndex} className="submenu-section mb-1">
+                                            <div
+                                                className={`submenu-item reports-sub-header d-flex align-items-center justify-content-between ${isSubActive ? 'active-parent-sub' : ''}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleSubGroup(subKey);
+                                                }}
+                                            >
+                                                <span>{sec.category}</span>
+                                                {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+
+                                            {isSubExpanded && (
+                                                <div className="submenu-nested-list ps-3 my-1">
+                                                    {sec.items.map((sub, subIndex) => {
+                                                        const isLocked = isExpired && !isPathExemptFromExpiry(sub.path);
+                                                        return (
+                                                            <NavLink
+                                                                key={subIndex}
+                                                                to={isLocked ? '#' : sub.path}
+                                                                className={({ isActive }) => `submenu-item ${isActive ? 'active' : ''} ${isLocked ? 'item-locked' : ''}`}
+                                                                onClick={(e) => {
+                                                                    if (isLocked) {
+                                                                        handleLockedNavigation(e);
+                                                                    } else {
+                                                                        handleItemClick();
+                                                                    }
+                                                                }}
+                                                                style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
+                                                                title={isLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
+                                                            >
+                                                                {sub.label}
+                                                            </NavLink>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 );
             }
@@ -428,14 +449,23 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
 
                 if (visibleSubItems.length === 0) return null;
 
-                const isExpanded = expandedGroups[item.label];
+                const isGroupFullyLocked = isExpired && !visibleSubItems.some(sub => isPathExemptFromExpiry(sub.path));
+                const isExpanded = !isGroupFullyLocked && Boolean(expandedGroups[item.label]);
                 const isActive = visibleSubItems.some(sub => location.pathname.startsWith(sub.path));
 
                 return (
-                    <div key={index} className="menu-group">
+                    <div key={index} className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''}`}>
                         <div
-                            className={`menu-item has-submenu ${isActive ? 'active-parent' : ''}`}
-                            onClick={() => toggleGroup(item.label)}
+                            className={`menu-item has-submenu ${isActive ? 'active-parent' : ''} ${isGroupFullyLocked ? 'item-locked' : ''}`}
+                            onClick={(e) => {
+                                if (isGroupFullyLocked) {
+                                    handleLockedNavigation(e);
+                                } else {
+                                    toggleGroup(item.label);
+                                }
+                            }}
+                            style={isGroupFullyLocked ? { cursor: 'not-allowed' } : undefined}
+                            title={isGroupFullyLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
                         >
                             <div className="icon-label">
                                 <div className="menu-icon-wrapper">
@@ -448,28 +478,31 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                             </div>
                         </div>
 
-                        <div className={`submenu ${isExpanded ? 'expanded' : ''}`}>
-                            {visibleSubItems.map((sub, subIndex) => {
-                                const isLocked = isExpired && !isPathExemptFromExpiry(sub.path);
-                                return (
-                                    <NavLink
-                                        key={subIndex}
-                                        to={isLocked ? '#' : sub.path}
-                                        className={({ isActive }) => `submenu-item ${isActive ? 'active' : ''} ${isLocked ? 'item-locked' : ''}`}
-                                        onClick={(e) => {
-                                            if (isLocked) {
-                                                handleLockedNavigation(e);
-                                            } else {
-                                                handleItemClick();
-                                            }
-                                        }}
-                                        style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
-                                    >
-                                        {sub.label}
-                                    </NavLink>
-                                );
-                            })}
-                        </div>
+                        {!isGroupFullyLocked && (
+                            <div className={`submenu ${isExpanded ? 'expanded' : ''}`}>
+                                {visibleSubItems.map((sub, subIndex) => {
+                                    const isLocked = isExpired && !isPathExemptFromExpiry(sub.path);
+                                    return (
+                                        <NavLink
+                                            key={subIndex}
+                                            to={isLocked ? '#' : sub.path}
+                                            className={({ isActive }) => `submenu-item ${isActive ? 'active' : ''} ${isLocked ? 'item-locked' : ''}`}
+                                            onClick={(e) => {
+                                                if (isLocked) {
+                                                    handleLockedNavigation(e);
+                                                } else {
+                                                    handleItemClick();
+                                                }
+                                            }}
+                                            style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
+                                            title={isLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
+                                        >
+                                            {sub.label}
+                                        </NavLink>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 );
             }
@@ -488,6 +521,7 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                         }
                     }}
                     style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
+                    title={isLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
                 >
                     <div className="menu-icon-wrapper">
                         {item.icon && <item.icon size={18} />}

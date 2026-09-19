@@ -3186,7 +3186,12 @@ const Invoice = () => {
             const showUom = getInvoiceLabel('showUom') === true;
             const showQty = getInvoiceLabel('showQty') !== false;
             const showRate = getInvoiceLabel('showRate') !== false;
-            const showDiscount = getInvoiceLabel('showDiscount') !== false || processedItems.some(it => it.discText !== '0%');
+            const hasAppliedDiscount = Boolean(
+                (parseFloat(discountVal || 0) > 0) ||
+                (processedItems && processedItems.some(it => it.discText && it.discText !== '0%')) ||
+                (financials?.computedLines && financials.computedLines.some(l => (parseFloat(l.discVal || 0) > 0 || parseFloat(l.lineDiscount || 0) > 0)))
+            );
+            const showDiscount = hasAppliedDiscount;
             const showTax = getInvoiceLabel('showTax') !== false;
 
             const cols = [
@@ -5199,7 +5204,6 @@ const Invoice = () => {
                     const showUom = getInvoiceLabel('showUom') === true;
                     const showQty = getInvoiceLabel('showQty') !== false;
                     const showRate = getInvoiceLabel('showRate') !== false;
-                    const showDiscount = getInvoiceLabel('showDiscount') !== false || itemsList.some(it => parseFloat(it.discount || 0) > 0);
 
                     const formatCeaDate = (dateVal) => {
                         if (!dateVal) return '';
@@ -5256,6 +5260,20 @@ const Invoice = () => {
                     const balanceVal = financials.balanceDue;
                     const vatSummaryList = financials.vatSummaryList;
                     const lineItems = (financials.computedLines && financials.computedLines.length > 0) ? financials.computedLines : initialLineItems;
+
+                    const hasAppliedDiscount = Boolean(
+                        (parseFloat(discountVal || 0) > 0) ||
+                        (lineItems && lineItems.some((it, idx) => {
+                            const computedLine = financials.computedLines?.[idx];
+                            const meta = previewItemsMeta[idx] || (Array.isArray(previewItemsMeta) && previewItemsMeta.find(m => (m.productId && String(m.productId) === String(it.productId)) || (m.serviceId && String(m.serviceId) === String(it.serviceId))));
+                            const dVal = computedLine?.discVal !== undefined
+                                ? parseFloat(computedLine.discVal)
+                                : (meta?.discount !== undefined ? parseFloat(meta.discount) : (it.discountValue !== undefined ? parseFloat(it.discountValue) : parseFloat(it.discount || 0)));
+                            const dAmt = parseFloat(computedLine?.lineDiscount || it.discountAmount || 0);
+                            return dVal > 0 || dAmt > 0;
+                        }))
+                    );
+                    const showDiscount = hasAppliedDiscount;
 
                     const isDuePassedDate = Boolean(selectedInvoice?.dueDate && new Date(selectedInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
 
@@ -5369,7 +5387,7 @@ const Invoice = () => {
                                             <th style={{ width: showUom ? '18%' : '20%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('item', 'ACTIVITY')}
                                             </th>
-                                            <th style={{ width: showUom ? '25%' : '27%', textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
+                                            <th style={{ width: showUom ? (showDiscount ? '25%' : '37%') : (showDiscount ? '27%' : '39%'), textAlign: 'left', color: tableHeaderText, backgroundColor: tableHeaderBg }}>
                                                 {getTableHeader('warehouse', 'DESCRIPTION')}
                                             </th>
                                             {showUom && (

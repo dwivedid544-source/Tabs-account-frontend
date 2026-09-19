@@ -493,7 +493,17 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                     const showUom = getInvoiceLabel('showUom') === true;
                     const showQty = getInvoiceLabel('showQty') !== false;
                     const showRate = getInvoiceLabel('showRate') !== false;
-                    const showDiscount = getInvoiceLabel('showDiscount') !== false || lineItems.some(it => parseFloat(it.discount || 0) > 0);
+                    const hasAppliedDiscount = Boolean(
+                        (parseFloat(financials?.discount || 0) > 0) ||
+                        (financials?.computedLines && financials.computedLines.some(l => (parseFloat(l.discVal || 0) > 0 || parseFloat(l.lineDiscount || 0) > 0))) ||
+                        (lineItems && lineItems.some((it, idx) => {
+                            const meta = itemsMeta[idx] || (Array.isArray(itemsMeta) && itemsMeta.find(m => (m.productId && String(m.productId) === String(it.productId)) || (m.serviceId && String(m.serviceId) === String(it.serviceId))));
+                            const dVal = meta?.discount !== undefined ? parseFloat(meta.discount) : (it.discountValue !== undefined ? parseFloat(it.discountValue) : parseFloat(it.discount || 0));
+                            const dAmt = parseFloat(it.discountAmount || 0);
+                            return dVal > 0 || dAmt > 0;
+                        }))
+                    );
+                    const showDiscount = hasAppliedDiscount;
 
                     const effectiveItemCount = lineItems.reduce((acc, it) => {
                         const descLen = (it.description || '').length;
@@ -590,7 +600,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         <th style={{ width: '18%', textAlign: 'left', color: tableHeaderText }}>
                                             {getTableHeader('item', 'ACTIVITY')}
                                         </th>
-                                        <th style={{ width: showUom ? '32%' : '37%', textAlign: 'left', color: tableHeaderText }}>
+                                        <th style={{ width: showUom ? (showDiscount ? '32%' : '41%') : (showDiscount ? '37%' : '46%'), textAlign: 'left', color: tableHeaderText }}>
                                             {getTableHeader('warehouse', 'DESCRIPTION')}
                                         </th>
                                         {showUom && (

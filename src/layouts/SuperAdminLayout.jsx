@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import Sidebar from '../components/Sidebar/Sidebar';
 import Navbar from '../components/Navbar/Navbar';
 import Loader from '../components/common/Loader';
@@ -38,9 +39,8 @@ const SuperAdminLayout = () => {
         if (currentUser.isExpired === true || currentUser.subscriptionStatus === 'EXPIRED') return true;
         if (currentUser.company?.endDate) {
             const expiryDate = new Date(currentUser.company.endDate);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return expiryDate < today;
+            expiryDate.setHours(23, 59, 59, 999);
+            return expiryDate.getTime() < Date.now();
         }
         return false;
     }, [currentUser]);
@@ -54,6 +54,32 @@ const SuperAdminLayout = () => {
             }
         }
     }, [isCompanyExpired]);
+
+    // Subscription Expiry Access Control: Protect locked routes from direct URL access
+    React.useEffect(() => {
+        if (!currentUser || !isCompanyExpired) return;
+        const role = currentUser.role?.toUpperCase().trim();
+        if (role === 'SUPERADMIN') return;
+
+        const path = location.pathname.split('?')[0].replace(/\/$/, '');
+        const isExempt = (
+            path === '/company/dashboard' ||
+            path === '/user/dashboard' ||
+            path === '/company/settings/info' ||
+            path === '/company/settings/subscription-report' ||
+            path === '/login' ||
+            path === ''
+        );
+
+        if (!isExempt) {
+            toast.error('Your subscription has expired. Please renew your plan to access this feature.', {
+                id: 'subscription-expired-toast',
+                duration: 4000
+            });
+            const defaultDashboard = (role === 'COMPANY' || role === 'ADMIN') ? '/company/dashboard' : '/user/dashboard';
+            navigate(defaultDashboard, { replace: true });
+        }
+    }, [location.pathname, isCompanyExpired, currentUser, navigate]);
 
     // Redirect users to their respective dashboards if they hit the wrong one
     React.useEffect(() => {

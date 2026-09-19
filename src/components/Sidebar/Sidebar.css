@@ -380,6 +380,29 @@
 }
 
 /* ============================
+   LOCKED / EXPIRED ACCESS CONTROL
+   ============================ */
+.item-locked,
+.menu-item.item-locked,
+.submenu-item.item-locked {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    user-select: none;
+}
+
+.item-locked:hover,
+.menu-item.item-locked:hover,
+.submenu-item.item-locked:hover {
+    cursor: not-allowed !important;
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+.menu-group-locked .menu-item {
+    cursor: not-allowed !important;
+}
+
+/* ============================
    RESPONSIVE SIDEBAR
    ============================ */
 

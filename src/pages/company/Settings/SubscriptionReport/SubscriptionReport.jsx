@@ -43,22 +43,24 @@ const SubscriptionReport = () => {
             // Fallback status from currentUser.company if API endpoint was unreachable
             if (!status && currentUser?.company) {
                 const comp = currentUser.company;
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const now = new Date();
                 let isExp = false;
                 let daysRemaining = 0;
                 let daysExpired = 0;
 
                 if (comp.endDate) {
                     const exp = new Date(comp.endDate);
-                    exp.setHours(0, 0, 0, 0);
-                    const diffTime = exp.getTime() - today.getTime();
-                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                    exp.setHours(23, 59, 59, 999);
+                    const diffTime = exp.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     if (diffDays < 0) {
                         isExp = true;
                         daysExpired = Math.abs(diffDays);
+                        daysRemaining = 0;
                     } else {
-                        daysRemaining = diffDays;
+                        isExp = false;
+                        daysRemaining = Math.max(0, diffDays);
+                        daysExpired = 0;
                     }
                 }
 
