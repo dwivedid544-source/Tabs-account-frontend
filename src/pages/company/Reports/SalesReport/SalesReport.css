@@ -148,7 +148,7 @@
 /* Summary Cards */
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -224,6 +224,359 @@
 .icon-orange {
     background: #f59e0b;
     color: #f59e0b;
+}
+
+/* Clickable Summary Card Styles */
+.clickable-summary-card {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    user-select: none;
+}
+
+.clickable-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-color: #f59e0b;
+}
+
+.clickable-summary-card.active-card-orange {
+    background: #fffdf5 !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 8px 16px rgba(245, 158, 11, 0.1);
+}
+
+.clickable-summary-card.active-card-blue {
+    background: #f0f7ff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 8px 16px rgba(59, 130, 246, 0.1);
+}
+
+.clickable-summary-card.active-card-green {
+    background: #f0fdf4 !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 8px 16px rgba(16, 185, 129, 0.1);
+}
+
+.card-label-with-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-period-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #b45309;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.card-value-orange {
+    color: #d97706 !important;
+}
+
+.card-filter-hint {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.active-card-filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    margin-left: auto;
+}
+
+.btn-clear-card-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-clear-card-filter:hover {
+    background: #fca5a5;
+    color: #7f1d1d;
+}
+
+/* Overdue Report Section */
+.overdue-report-section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #fde68a;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
+    margin-bottom: 2rem;
+    overflow: hidden;
+    animation: slideDownFade 0.25s ease-out;
+}
+
+@keyframes slideDownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.overdue-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: #fffdf5;
+    border-bottom: 1px solid #fef3c7;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.overdue-header-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.overdue-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.overdue-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.overdue-section-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.overdue-badge-count {
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid #fecaca;
+}
+
+.overdue-badge-period {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+
+.overdue-section-subtitle {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.82rem;
+    color: #64748b;
+}
+
+.overdue-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.overdue-search {
+    width: 240px;
+}
+
+.btn-export-sm {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-export-sm:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.btn-close-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-close-section:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.overdue-table-container {
+    max-height: 440px;
+    overflow-y: auto;
+}
+
+.overdue-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.overdue-table-row {
+    transition: background-color 0.15s ease;
+}
+
+.overdue-table-row:hover {
+    background-color: #fffdf5;
+}
+
+.invoice-link {
+    color: #2563eb;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.invoice-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.text-due-date {
+    color: #dc2626;
+}
+
+.badge-days-overdue {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-days-overdue.warning {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.badge-days-overdue.critical {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+}
+
+.btn-view-invoice-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-view-invoice-sm:hover {
+    background: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
+
+.overdue-table-summary-row {
+    background: #fafafa;
+    border-top: 2px solid #e2e8f0;
+    font-size: 0.88rem;
+}
+
+.overdue-table-summary-row td {
+    padding: 0.85rem 1rem;
+}
+
+.empty-state-overdue {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-icon-green {
+    color: #16a34a;
+    margin-bottom: 0.75rem;
+}
+
+.empty-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.25rem 0;
+}
+
+.empty-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0;
 }
 
 /* Report Table Card */
@@ -449,6 +802,7 @@
 .status-pill.unpaid { background: #fff7ed; color: #f97316; border: 1px solid #f97316; }
 .status-pill.partial { background: #eff6ff; color: #3b82f6; border: 1px solid #3b82f6; }
 .status-pill.returned, .status-pill.return { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08); }
+.status-pill.overdue { background: #fef2f2; color: #dc2626; border: 1px solid #f87171; box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08); font-weight: 700; }
 .status-pill.unknown, .status-pill.neutral { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 
 .status-success {

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Download, Calendar,
     DollarSign, CheckCircle2, XCircle, AlertCircle,
-    User, Package, FileText
+    User, Package, FileText, Clock, ArrowRight, X
 } from 'lucide-react';
 import './SalesReport.css';
 import axiosInstance from '../../../../api/axiosInstance';
@@ -41,8 +41,11 @@ const SalesReport = () => {
         totalAmount: 0,
         totalPaid: 0,
         totalUnpaid: 0,
-        overdue: 0
+        overdue: 0,
+        overdueCount: 0
     });
+    const [overdueInvoices, setOverdueInvoices] = useState([]);
+    const [activeCardFilter, setActiveCardFilter] = useState(null); // null, 'GROSS_SALES', 'OVERDUE', 'NET_REVENUE'
 
     const [startDate, setStartDate] = useState(savedFilters?.startDate || '');
     const [endDate, setEndDate] = useState(savedFilters?.endDate || '');
@@ -60,6 +63,7 @@ const SalesReport = () => {
         setStartDate('');
         setEndDate('');
         setTransactionFilter('ALL');
+        setActiveCardFilter(null);
         try {
             sessionStorage.removeItem('tab_sales_report_filters');
         } catch (e) {}
@@ -106,24 +110,163 @@ const SalesReport = () => {
                 const data = response.data.data;
                 
                 if (reportType === 'general') {
-                    setSummaryStats(response.data.summary || { totalSales: 0, totalReturns: 0, netRevenue: 0, totalAmount: 0, totalPaid: 0, totalUnpaid: 0, overdue: 0 });
+                    let overdueList = [];
+                    if (Array.isArray(response.data.overdueInvoices) && response.data.overdueInvoices.length > 0) {
+                        overdueList = response.data.overdueInvoices;
+                    } else if (Array.isArray(data)) {
+                        // Extract qualifying overdue invoices directly from data
+                        const now = new Date();
+                        const past365Days = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+                        past365Days.setHours(0, 0, 0, 0);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        overdueList = data.filter(inv => {
+                            if (inv.isReturn) return false;
+                            const st = String(inv.status || '').toUpperCase();
+                            if (st === 'CANCELLED' || st === 'PAID') return false;
+
+                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
+                                ? inv.balanceAmount 
+                                : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
+                            if (isNaN(rawBal) || rawBal <= 0.01) return false;
+
+                            const dueDate = inv.dueDate ? new Date(inv.dueDate) : (inv.date ? new Date(inv.date) : null);
+                            if (!dueDate || isNaN(dueDate.getTime())) return false;
+
+                            const d = new Date(dueDate);
+                            d.setHours(0, 0, 0, 0);
+                            const duePassed = today.getTime() > d.getTime() || st === 'OVERDUE';
+                            if (!duePassed) return false;
+
+                            const invDate = inv.date ? new Date(inv.date) : dueDate;
+                            if (invDate < past365Days) return false;
+
+                            return true;
+                        }).map(inv => {
+                            const due = new Date(inv.dueDate || inv.date);
+                            due.setHours(0, 0, 0, 0);
+                            const diffDays = Math.max(1, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
+                                ? inv.balanceAmount 
+                                : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
+                            const rawTotal = parseFloat(inv.totalAmount || 0);
+                            const rawPaid = parseFloat(inv.paidAmount !== undefined ? inv.paidAmount : (rawTotal - rawBal));
+
+                            const isPos = Boolean(inv.isPosReturn || inv.type === 'POS_RETURN' || inv.source === 'POS' || inv.type === 'POS_SALE' || inv.type === 'POS_INVOICE');
+
+                            return {
+                                id: inv.id,
+                                invoiceId: inv.id,
+                                invoiceNumber: inv.invoiceNumber,
+                                type: isPos ? 'POS_INVOICE' : 'TAX_INVOICE',
+                                date: inv.date,
+                                dueDate: inv.dueDate || inv.date,
+                                daysOverdue: diffDays,
+                                customerName: inv.customer?.name || 'Walk-in',
+                                totalAmount: rawTotal,
+                                paidAmount: rawPaid,
+                                balanceAmount: rawBal,
+                                status: 'OVERDUE'
+                            };
+                        }).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                    }
+
+                    setOverdueInvoices(overdueList);
+
+                    const incomingSummary = response.data.summary || {};
+                    const calculatedOverdueSum = overdueList.reduce((s, i) => s + (i.balanceAmount || 0), 0);
+                    const finalOverdueAmount = incomingSummary.overdue !== undefined && incomingSummary.overdue > 0
+                        ? incomingSummary.overdue
+                        : calculatedOverdueSum;
+
+                    setSummaryStats({
+                        totalSales: incomingSummary.totalSales || 0,
+                        totalReturns: incomingSummary.totalReturns || 0,
+                        netRevenue: incomingSummary.netRevenue || 0,
+                        totalAmount: incomingSummary.totalAmount || 0,
+                        totalPaid: incomingSummary.totalPaid || 0,
+                        totalUnpaid: incomingSummary.totalUnpaid || 0,
+                        overdue: finalOverdueAmount,
+                        overdueCount: incomingSummary.overdueCount !== undefined ? incomingSummary.overdueCount : overdueList.length
+                    });
+
+                    // Background sync with dedicated endpoint if available
+                    if (!response.data.overdueInvoices) {
+                        axiosInstance.get('/reports/overdue-invoices', { params: { companyId } })
+                            .then(res => {
+                                if (res.data?.success && Array.isArray(res.data.invoices) && res.data.invoices.length > 0) {
+                                    setOverdueInvoices(res.data.invoices);
+                                    setSummaryStats(prev => ({
+                                        ...prev,
+                                        overdue: res.data.totalOverdueAmount !== undefined ? res.data.totalOverdueAmount : prev.overdue,
+                                        overdueCount: res.data.overdueCount !== undefined ? res.data.overdueCount : res.data.invoices.length
+                                    }));
+                                    const bgOverdueIds = new Set(res.data.invoices.map(o => String(o.id || o.invoiceId)));
+                                    setReportData(prev => prev.map(row => {
+                                        if (bgOverdueIds.has(String(row.invoiceId || row.id)) || bgOverdueIds.has(String(row.invoiceNumber))) {
+                                            return {
+                                                ...row,
+                                                isOverdue: true,
+                                                status: 'OVERDUE'
+                                            };
+                                        }
+                                        return row;
+                                    }));
+                                }
+                            })
+                            .catch(() => {
+                                // Dedicated endpoint not yet available on remote server; fallback to extracted list is active
+                            });
+                    }
+
+                    // Set of all qualifying overdue IDs
+                    const overdueInvoiceIds = new Set(overdueList.map(o => String(o.id || o.invoiceId)));
+
                     // Flatten for table
                     const flattened = data.flatMap(inv => {
                         const items = (inv.invoiceitem && inv.invoiceitem.length > 0)
                             ? inv.invoiceitem
                             : [{ id: inv.id, product: null, description: inv.isReturn ? 'Sales Return' : 'Invoice', quantity: 1, amount: inv.totalAmount }];
                         
+                        const now = new Date();
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const dueDate = inv.dueDate ? new Date(inv.dueDate) : (inv.date ? new Date(inv.date) : null);
+                        let isPastDue = false;
+                        if (dueDate && !isNaN(dueDate.getTime())) {
+                            const d = new Date(dueDate);
+                            d.setHours(0, 0, 0, 0);
+                            isPastDue = today.getTime() > d.getTime();
+                        }
+
+                        const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
+                            ? inv.balanceAmount 
+                            : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
+
+                        const isInvOverdue = !inv.isReturn && (
+                            overdueInvoiceIds.has(String(inv.id)) ||
+                            overdueInvoiceIds.has(String(inv.invoiceNumber)) ||
+                            String(inv.status).toUpperCase() === 'OVERDUE' ||
+                            (isPastDue && rawBal > 0.01 && String(inv.status).toUpperCase() !== 'PAID' && String(inv.status).toUpperCase() !== 'CANCELLED')
+                        );
+
                         return items.map(item => ({
                             id: item.id || inv.id,
                             invoiceId: inv.isReturn ? (inv.invoiceId || null) : inv.id,
                             salesReturnId: inv.isReturn ? (inv.salesReturnId || inv.id) : null,
                             invoiceNumber: inv.invoiceNumber,
                             date: new Date(inv.date).toLocaleDateString(),
+                            rawDate: inv.date,
+                            dueDate: inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : new Date(inv.date).toLocaleDateString(),
                             customerName: inv.customer?.name || 'Walk-in',
                             productName: item.product?.name || item.description || (inv.isReturn ? 'Sales Return' : 'Unknown'),
                             qty: item.quantity,
                             amount: item.amount,
-                            status: inv.isReturn ? 'RETURNED' : (inv.status || 'PAID'),
+                            status: inv.isReturn ? 'RETURNED' : (isInvOverdue ? 'OVERDUE' : (inv.status || 'PAID')),
+                            isOverdue: isInvOverdue,
+                            balanceAmount: rawBal,
                             isReturn: Boolean(inv.isReturn),
                             isPosReturn: Boolean(inv.isPosReturn || inv.type === 'POS_RETURN'),
                             source: inv.source,
@@ -172,11 +315,54 @@ const SalesReport = () => {
         handleInvoiceClick(row);
     };
 
+    const overdueRecords = useMemo(() => {
+        return reportData.filter(item => item.isOverdue || String(item.status).toUpperCase() === 'OVERDUE');
+    }, [reportData]);
+    const overdueRecordsCount = overdueRecords.length;
+
+    const paidRecords = useMemo(() => {
+        return reportData.filter(item => !item.isReturn && (
+            String(item.status).toUpperCase() === 'PAID' ||
+            String(item.status).toUpperCase() === 'FULLY_PAID' ||
+            (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
+        ));
+    }, [reportData]);
+    const paidRecordsCount = paidRecords.length;
+
+    const salesRecords = useMemo(() => {
+        return reportData.filter(item => !item.isReturn);
+    }, [reportData]);
+    const salesRecordsCount = salesRecords.length;
+
+    const calculatedPaidSales = useMemo(() => {
+        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
+        return sum > 0 ? sum : (summaryStats.totalPaid || 0);
+    }, [paidRecords, summaryStats.totalPaid]);
+
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
         
-        if (transactionFilter === 'SALES' && item.isReturn) return false;
-        if (transactionFilter === 'RETURNS' && !item.isReturn) return false;
+        // Card Filter: overrides dropdown transactionFilter for intuitive one-click UX
+        if (activeCardFilter === 'OVERDUE') {
+            const isItemOverdue = Boolean(item.isOverdue || String(item.status).toUpperCase() === 'OVERDUE');
+            if (!isItemOverdue) return false;
+        } else if (activeCardFilter === 'GROSS_SALES') {
+            // Filter to All Sales invoices (excluding returns)
+            if (item.isReturn) return false;
+        } else if (activeCardFilter === 'NET_REVENUE') {
+            // Filter to Paid / Collected Revenue invoices
+            const isPaid = !item.isReturn && (
+                String(item.status).toUpperCase() === 'PAID' ||
+                String(item.status).toUpperCase() === 'FULLY_PAID' ||
+                (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
+            );
+            if (!isPaid) return false;
+        } else {
+            if (transactionFilter === 'SALES' && item.isReturn) return false;
+            if (transactionFilter === 'RETURNS' && !item.isReturn) return false;
+            if (transactionFilter === 'INVOICE' && (item.isReturn || item.isPosReturn || item.source === 'POS' || item.type === 'POS_SALE' || item.type === 'POS_INVOICE')) return false;
+            if (transactionFilter === 'POS' && (item.isReturn || (!item.isPosReturn && item.source !== 'POS' && item.type !== 'POS_SALE' && item.type !== 'POS_INVOICE'))) return false;
+        }
 
         if (reportType === 'general') {
             return (
@@ -307,24 +493,59 @@ const SalesReport = () => {
 
             {reportType === 'general' && (
                 <div className="summary-grid">
-                    <div className="summary-card card-blue">
+                    <div 
+                        className={`summary-card card-blue clickable-summary-card ${activeCardFilter === 'GROSS_SALES' ? 'active-card-blue' : ''}`}
+                        onClick={() => setActiveCardFilter(prev => prev === 'GROSS_SALES' ? null : 'GROSS_SALES')}
+                        title="Click to filter table by Gross Sales (all sales invoices)"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'GROSS_SALES' ? null : 'GROSS_SALES'); }}
+                    >
                         <div className="card-content">
                             <span className="card-label">Gross Sales</span>
                             <h3 className="card-value">{formatCurrency(summaryStats.totalSales || summaryStats.totalAmount)}</h3>
+                            <span className="card-filter-hint">
+                                {activeCardFilter === 'GROSS_SALES' ? `● Filtering sales (${salesRecordsCount} records • Click to reset)` : `${salesRecordsCount} sales records • Click to filter`}
+                            </span>
                         </div>
                         <div className="card-icon icon-blue"><DollarSign size={24} /></div>
                     </div>
-                    <div className="summary-card card-red">
+                    <div 
+                        className={`summary-card card-orange clickable-summary-card ${activeCardFilter === 'OVERDUE' ? 'active-card-orange' : ''}`}
+                        onClick={() => setActiveCardFilter(prev => prev === 'OVERDUE' ? null : 'OVERDUE')}
+                        title="Click to filter table by Overdue Invoices"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'OVERDUE' ? null : 'OVERDUE'); }}
+                    >
                         <div className="card-content">
-                            <span className="card-label">Total Returns</span>
-                            <h3 className="card-value" style={{ color: '#ef4444' }}>{formatCurrency(summaryStats.totalReturns || 0)}</h3>
+                            <div className="card-label-with-tag">
+                                <span className="card-label">Overdue Invoices</span>
+                                <span className="card-period-tag">365 Days</span>
+                            </div>
+                            <h3 className="card-value card-value-orange">{formatCurrency(summaryStats.overdue || 0)}</h3>
+                            <span className="card-filter-hint">
+                                {activeCardFilter === 'OVERDUE' 
+                                    ? `● Filtering overdue (${overdueRecordsCount} records • Click to reset)` 
+                                    : `${overdueRecordsCount} overdue records • Click to filter`}
+                            </span>
                         </div>
-                        <div className="card-icon icon-red"><XCircle size={24} /></div>
+                        <div className="card-icon icon-orange"><Clock size={24} /></div>
                     </div>
-                    <div className="summary-card card-green">
+                    <div 
+                        className={`summary-card card-green clickable-summary-card ${activeCardFilter === 'NET_REVENUE' ? 'active-card-green' : ''}`}
+                        onClick={() => setActiveCardFilter(prev => prev === 'NET_REVENUE' ? null : 'NET_REVENUE')}
+                        title="Click to filter table by Paid Revenue (collected invoices)"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'NET_REVENUE' ? null : 'NET_REVENUE'); }}
+                    >
                         <div className="card-content">
                             <span className="card-label">Net Revenue</span>
-                            <h3 className="card-value">{formatCurrency(summaryStats.netRevenue ?? (summaryStats.totalSales - (summaryStats.totalReturns || 0)))}</h3>
+                            <h3 className="card-value">{formatCurrency(calculatedPaidSales || summaryStats.netRevenue || 0)}</h3>
+                            <span className="card-filter-hint">
+                                {activeCardFilter === 'NET_REVENUE' ? `● Filtering paid revenue (${paidRecordsCount} records • Click to reset)` : `${paidRecordsCount} paid records • Click to filter`}
+                            </span>
                         </div>
                         <div className="card-icon icon-green"><CheckCircle2 size={24} /></div>
                     </div>
@@ -343,6 +564,24 @@ const SalesReport = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    {activeCardFilter && (
+                        <div className="active-card-filter-pill">
+                            <span>
+                                Filter: <strong>{
+                                    activeCardFilter === 'OVERDUE' 
+                                        ? `Overdue Invoices (${overdueRecordsCount} records)` 
+                                        : (activeCardFilter === 'GROSS_SALES' ? `Gross Sales (${salesRecordsCount} records)` : `Paid Revenue (${paidRecordsCount} records)`)
+                                }</strong>
+                            </span>
+                            <button 
+                                className="btn-clear-card-filter" 
+                                onClick={() => setActiveCardFilter(null)}
+                                title="Reset filter"
+                            >
+                                <X size={14} /> Clear Filter
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="table-container">
