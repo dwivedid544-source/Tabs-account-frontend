@@ -125,11 +125,27 @@ const PurchaseReport = () => {
                         overdueCount: incomingSummary.overdueCount !== undefined ? incomingSummary.overdueCount : overdueBills.length
                     });
 
-                    // Flatten for general view
-                    const flattened = data.flatMap(bill => {
+                    // Transform data to BILL-LEVEL records (one row per unique bill/return)
+                    const billRows = data.map(bill => {
+                        const isReturn = Boolean(bill.isReturn);
                         const items = (bill.purchasebillitem && bill.purchasebillitem.length > 0)
                             ? bill.purchasebillitem
-                            : [{ id: bill.id, product: null, description: bill.isReturn ? 'Purchase Return' : 'Purchase Bill', quantity: 1, amount: bill.totalAmount }];
+                            : (bill.purchasereturnitem || []);
+
+                        // Extract product names for display and search
+                        const productNames = items
+                            .map(it => it.product?.name || it.description)
+                            .filter(Boolean);
+
+                        let displayProductName = isReturn ? 'Purchase Return' : 'Purchase Bill';
+                        if (items.length === 1) {
+                            displayProductName = productNames[0] || (isReturn ? 'Purchase Return' : 'Unknown');
+                        } else if (items.length > 1) {
+                            displayProductName = `Multiple Items (${items.length})`;
+                        }
+
+                        // Total quantity across line items
+                        const totalQty = items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0), 0);
 
                         const dueDate = bill.dueDate ? new Date(bill.dueDate) : (bill.date ? new Date(bill.date) : null);
                         let isPastDue = false;
@@ -142,32 +158,58 @@ const PurchaseReport = () => {
                         const rawBal = parseFloat(bill.balanceAmount !== undefined && bill.balanceAmount !== null 
                             ? bill.balanceAmount 
                             : ((bill.totalAmount || 0) - (bill.paidAmount || 0)));
+                        const rawTotal = parseFloat(bill.totalAmount || 0);
+                        const rawPaid = parseFloat(bill.paidAmount !== undefined ? bill.paidAmount : Math.max(0, rawTotal - rawBal));
 
-                        const isBillOverdue = !bill.isReturn && (
+                        const isBillOverdue = !isReturn && (
                             overdueBillIds.has(String(bill.id)) ||
                             overdueBillIds.has(String(bill.billNumber)) ||
                             String(bill.status).toUpperCase() === 'OVERDUE' ||
                             (isPastDue && rawBal > 0.01 && String(bill.status).toUpperCase() !== 'PAID' && String(bill.status).toUpperCase() !== 'CANCELLED')
                         );
 
-                        return items.map(item => ({
-                            id: item.id || bill.id,
+                        // Overdue / outstanding amount for this bill
+                        const overdueAmount = isBillOverdue ? rawBal : 0;
+
+                        // Authoritative status
+                        let authoritativeStatus = bill.status;
+                        if (isReturn) {
+                            authoritativeStatus = 'RETURNED';
+                        } else if (isBillOverdue) {
+                            authoritativeStatus = 'OVERDUE';
+                        } else if (rawBal <= 0.01) {
+                            authoritativeStatus = 'PAID';
+                        } else if (rawPaid > 0.01 && rawBal > 0.01) {
+                            authoritativeStatus = 'PARTIALLY PAID';
+                        } else {
+                            authoritativeStatus = bill.status || 'UNPAID';
+                        }
+
+                        return {
+                            id: bill.id,
                             billId: bill.id,
                             billNumber: bill.billNumber,
                             date: new Date(bill.date).toLocaleDateString(),
+                            rawDate: bill.date,
                             dueDate: bill.dueDate ? new Date(bill.dueDate).toLocaleDateString() : (bill.date ? new Date(bill.date).toLocaleDateString() : '-'),
+                            rawDueDate: bill.dueDate,
                             vendorName: bill.vendor?.name || 'Unknown',
-                            productName: item.product?.name || item.description || (bill.isReturn ? 'Purchase Return' : 'Unknown'),
-                            qty: item.quantity,
-                            amount: item.amount,
-                            status: bill.isReturn ? 'RETURNED' : (isBillOverdue ? 'OVERDUE' : (bill.status || 'UNPAID')),
-                            isOverdue: isBillOverdue,
+                            productName: displayProductName,
+                            productNames: productNames,
+                            items: items,
+                            qty: totalQty > 0 ? totalQty : (items.length > 0 ? items.length : '-'),
+                            totalAmount: rawTotal,
+                            paidAmount: rawPaid,
                             balanceAmount: rawBal,
-                            isReturn: Boolean(bill.isReturn),
-                            type: bill.type || (bill.isReturn ? 'RETURN' : 'PURCHASE')
-                        }));
+                            overdueAmount: overdueAmount,
+                            amount: rawTotal,
+                            status: authoritativeStatus,
+                            isOverdue: isBillOverdue,
+                            isReturn: isReturn,
+                            type: bill.type || (isReturn ? 'RETURN' : 'PURCHASE')
+                        };
                     });
-                    setReportData(flattened);
+                    setReportData(billRows);
                 } else {
                     setReportData(data);
                 }
@@ -203,12 +245,12 @@ const PurchaseReport = () => {
     const purchasesRecordsCount = purchasesRecords.length;
 
     const calculatedGrossPurchases = useMemo(() => {
-        const sum = purchasesRecords.reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
+        const sum = purchasesRecords.reduce((s, item) => s + (parseFloat(item.totalAmount || item.amount) || 0), 0);
         return sum > 0 ? sum : (summaryStats.totalPurchases || summaryStats.totalAmount || 0);
     }, [purchasesRecords, summaryStats.totalPurchases, summaryStats.totalAmount]);
 
     const calculatedPaidPurchases = useMemo(() => {
-        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
+        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.paidAmount || item.totalAmount || item.amount) || 0), 0);
         return sum > 0 ? sum : (summaryStats.totalPaid || 0);
     }, [paidRecords, summaryStats.totalPaid]);
 
@@ -240,6 +282,7 @@ const PurchaseReport = () => {
                 item.billNumber?.toLowerCase().includes(searchLower) ||
                 item.vendorName?.toLowerCase().includes(searchLower) ||
                 item.productName?.toLowerCase().includes(searchLower) ||
+                (Array.isArray(item.productNames) && item.productNames.some(p => p.toLowerCase().includes(searchLower))) ||
                 item.status?.toLowerCase().includes(searchLower)
             );
         } else if (reportType === 'item') {
@@ -250,7 +293,19 @@ const PurchaseReport = () => {
     });
 
     const exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(filteredData);
+        const ws = XLSX.utils.json_to_sheet(filteredData.map(r => ({
+            'Bill / Return #': r.billNumber,
+            'Type': r.type,
+            'Date': r.date,
+            'Due Date': r.dueDate,
+            'Vendor': r.vendorName,
+            'Product': r.productName,
+            'Qty': r.qty,
+            'Total Amount': r.totalAmount,
+            'Paid Amount': r.paidAmount,
+            'Balance Due': r.balanceAmount,
+            'Status': r.status
+        })));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "PurchaseReport");
         XLSX.writeFile(wb, `Purchase_${reportType}_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -374,7 +429,7 @@ const PurchaseReport = () => {
                             <span className="card-label">Gross Purchase</span>
                             <h3 className="card-value">{formatCurrency(calculatedGrossPurchases || summaryStats.totalPurchases || summaryStats.totalAmount || 0)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'GROSS_PURCHASE' ? `● Filtering purchases (${purchasesRecordsCount} records • Click to reset)` : `${purchasesRecordsCount} purchase records • Click to filter`}
+                                {activeCardFilter === 'GROSS_PURCHASE' ? `● Filtering purchases (${purchasesRecordsCount} ${purchasesRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)` : `${purchasesRecordsCount} ${purchasesRecordsCount === 1 ? 'purchase bill' : 'purchase bills'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-blue"><ShoppingBag size={24} /></div>
@@ -395,8 +450,8 @@ const PurchaseReport = () => {
                             <h3 className="card-value card-value-orange">{formatCurrency(summaryStats.overdue || 0)}</h3>
                             <span className="card-filter-hint">
                                 {activeCardFilter === 'OVERDUE' 
-                                    ? `● Filtering overdue (${overdueRecordsCount} records • Click to reset)` 
-                                    : `${overdueRecordsCount} overdue records • Click to filter`}
+                                    ? `● Filtering overdue (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)` 
+                                    : `${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'overdue bill' : 'overdue bills'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-orange"><Clock size={24} /></div>
@@ -413,7 +468,7 @@ const PurchaseReport = () => {
                             <span className="card-label">Net Purchase</span>
                             <h3 className="card-value">{formatCurrency(calculatedPaidPurchases || summaryStats.netPurchase || 0)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'NET_PURCHASE' ? `● Filtering paid purchases (${paidRecordsCount} records • Click to reset)` : `${paidRecordsCount} paid records • Click to filter`}
+                                {activeCardFilter === 'NET_PURCHASE' ? `● Filtering paid purchases (${paidRecordsCount} ${paidRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)` : `${paidRecordsCount} ${paidRecordsCount === 1 ? 'paid bill' : 'paid bills'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-green"><CheckCircle2 size={24} /></div>
@@ -438,8 +493,8 @@ const PurchaseReport = () => {
                             <span>
                                 Filter: <strong>{
                                     activeCardFilter === 'OVERDUE' 
-                                        ? `Overdue Bills (${overdueRecordsCount} records)` 
-                                        : (activeCardFilter === 'GROSS_PURCHASE' ? `Gross Purchase (${purchasesRecordsCount} records)` : `Paid Purchases (${paidRecordsCount} records)`)
+                                        ? `Overdue Bills (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'})` 
+                                        : (activeCardFilter === 'GROSS_PURCHASE' ? `Gross Purchase (${purchasesRecordsCount} ${purchasesRecordsCount === 1 ? 'bill' : 'bills'})` : `Paid Purchases (${paidRecordsCount} ${paidRecordsCount === 1 ? 'bill' : 'bills'})`)
                                 }</strong>
                             </span>
                             <button 
@@ -469,7 +524,9 @@ const PurchaseReport = () => {
                                         <th>Vendor</th>
                                         <th>Product</th>
                                         <th className="text-center">Qty</th>
-                                        <th className="text-right">Amount</th>
+                                        <th className="text-right">
+                                            {activeCardFilter === 'OVERDUE' ? 'Overdue Amount' : (activeCardFilter === 'NET_PURCHASE' ? 'Paid Amount' : 'Amount')}
+                                        </th>
                                         <th>Status</th>
                                     </tr>
                                 )}
@@ -516,10 +573,37 @@ const PurchaseReport = () => {
                                                 </td>
                                                 <td>{row.date}</td>
                                                 <td className="font-medium">{row.vendorName}</td>
-                                                <td>{row.productName}</td>
+                                                <td title={row.productNames?.length > 1 ? row.productNames.join(', ') : ''}>
+                                                    <span style={{ fontWeight: '500' }}>{row.productName}</span>
+                                                    {row.productNames?.length > 1 && (
+                                                        <span style={{ display: 'block', fontSize: '0.72rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>
+                                                            {row.productNames.join(', ')}
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="text-center">{row.qty}</td>
                                                 <td className="text-right font-bold" style={{ color: row.isReturn ? '#dc2626' : 'inherit' }}>
-                                                    {row.isReturn ? `-${formatCurrency(row.amount)}` : formatCurrency(row.amount)}
+                                                    {row.isReturn ? (
+                                                        `-${formatCurrency(row.totalAmount || row.amount)}`
+                                                    ) : activeCardFilter === 'OVERDUE' ? (
+                                                        <div>
+                                                            <span style={{ color: '#dc2626' }}>{formatCurrency(row.balanceAmount)}</span>
+                                                            {row.paidAmount > 0.01 && (
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: '#6b7280', marginTop: '2px' }}>
+                                                                    Total: {formatCurrency(row.totalAmount)} • Paid: {formatCurrency(row.paidAmount)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            <span>{formatCurrency(row.totalAmount || row.amount)}</span>
+                                                            {row.balanceAmount > 0.01 && row.status !== 'PAID' && (
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: row.isOverdue ? '#dc2626' : '#d97706', marginTop: '2px' }}>
+                                                                    Due: {formatCurrency(row.balanceAmount)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <span className={`status-pill ${row.isReturn ? 'returned' : (row.status || 'unknown').toLowerCase()}`}>

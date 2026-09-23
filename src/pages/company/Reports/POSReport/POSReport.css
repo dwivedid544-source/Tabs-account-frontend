@@ -179,6 +179,14 @@
     border-left-color: #10b981;
 }
 
+.summary-card.card-red {
+    border-left-color: #ef4444;
+}
+
+.summary-card.card-orange {
+    border-left-color: #f59e0b;
+}
+
 .summary-card.card-purple {
     border-left-color: #a855f7;
 }
@@ -192,11 +200,104 @@
     text-transform: uppercase;
 }
 
+.card-label-with-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-period-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #b45309;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 .card-value {
     font-size: 1.5rem;
     font-weight: 800;
     color: #1e293b;
     margin: 0;
+}
+
+.card-value-orange {
+    color: #d97706 !important;
+}
+
+.card-filter-hint {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* Clickable Summary Card Styles */
+.clickable-summary-card {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    user-select: none;
+}
+
+.clickable-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.clickable-summary-card.active-card-orange {
+    background: #fffdf5 !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 8px 16px rgba(245, 158, 11, 0.1);
+}
+
+.clickable-summary-card.active-card-blue {
+    background: #f0f7ff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 8px 16px rgba(59, 130, 246, 0.1);
+}
+
+.clickable-summary-card.active-card-green {
+    background: #f0fdf4 !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 8px 16px rgba(16, 185, 129, 0.1);
+}
+
+.active-card-filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    margin-left: auto;
+}
+
+.btn-clear-card-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-clear-card-filter:hover {
+    background: #fca5a5;
 }
 
 .card-icon {
@@ -215,8 +316,18 @@
 }
 
 .icon-green {
-    background: #1e293b;
+    background: #10b981;
     color: #10b981;
+}
+
+.icon-red {
+    background: #ef4444;
+    color: #ef4444;
+}
+
+.icon-orange {
+    background: #f59e0b;
+    color: #f59e0b;
 }
 
 .icon-purple {

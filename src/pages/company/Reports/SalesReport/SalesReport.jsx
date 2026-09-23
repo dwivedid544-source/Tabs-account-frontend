@@ -66,7 +66,7 @@ const SalesReport = () => {
         setActiveCardFilter(null);
         try {
             sessionStorage.removeItem('tab_sales_report_filters');
-        } catch (e) {}
+        } catch (e) { }
     };
     const [searchTerm, setSearchTerm] = useState(savedFilters?.searchTerm || '');
     const [showExportOptions, setShowExportOptions] = useState(false);
@@ -81,7 +81,7 @@ const SalesReport = () => {
                 endDate,
                 searchTerm
             }));
-        } catch (e) {}
+        } catch (e) { }
     }, [reportType, transactionFilter, startDate, endDate, searchTerm]);
 
     useEffect(() => {
@@ -108,7 +108,7 @@ const SalesReport = () => {
 
             if (response.data.success) {
                 const data = response.data.data;
-                
+
                 if (reportType === 'general') {
                     let overdueList = [];
                     if (Array.isArray(response.data.overdueInvoices) && response.data.overdueInvoices.length > 0) {
@@ -126,8 +126,8 @@ const SalesReport = () => {
                             const st = String(inv.status || '').toUpperCase();
                             if (st === 'CANCELLED' || st === 'PAID') return false;
 
-                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
-                                ? inv.balanceAmount 
+                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null
+                                ? inv.balanceAmount
                                 : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
                             if (isNaN(rawBal) || rawBal <= 0.01) return false;
 
@@ -147,8 +147,8 @@ const SalesReport = () => {
                             const due = new Date(inv.dueDate || inv.date);
                             due.setHours(0, 0, 0, 0);
                             const diffDays = Math.max(1, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
-                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
-                                ? inv.balanceAmount 
+                            const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null
+                                ? inv.balanceAmount
                                 : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
                             const rawTotal = parseFloat(inv.totalAmount || 0);
                             const rawPaid = parseFloat(inv.paidAmount !== undefined ? inv.paidAmount : (rawTotal - rawBal));
@@ -223,12 +223,30 @@ const SalesReport = () => {
                     // Set of all qualifying overdue IDs
                     const overdueInvoiceIds = new Set(overdueList.map(o => String(o.id || o.invoiceId)));
 
-                    // Flatten for table
-                    const flattened = data.flatMap(inv => {
+                    // Transform data to INVOICE-LEVEL records (one row per unique invoice/transaction)
+                    const invoiceRows = data.map(inv => {
+                        const isReturn = Boolean(inv.isReturn);
+                        const isPos = Boolean(inv.isPosReturn || inv.type === 'POS_RETURN' || inv.source === 'POS' || inv.type === 'POS_SALE' || inv.type === 'POS_INVOICE');
+
                         const items = (inv.invoiceitem && inv.invoiceitem.length > 0)
                             ? inv.invoiceitem
-                            : [{ id: inv.id, product: null, description: inv.isReturn ? 'Sales Return' : 'Invoice', quantity: 1, amount: inv.totalAmount }];
-                        
+                            : (inv.posinvoiceitem || inv.salesreturnitem || []);
+
+                        // Extract product names for display and search
+                        const productNames = items
+                            .map(it => it.product?.name || it.description)
+                            .filter(Boolean);
+
+                        let displayProductName = isReturn ? 'Sales Return' : 'Invoice';
+                        if (items.length === 1) {
+                            displayProductName = productNames[0] || (isReturn ? 'Sales Return' : 'Unknown');
+                        } else if (items.length > 1) {
+                            displayProductName = `Multiple Items (${items.length})`;
+                        }
+
+                        // Total quantity across line items
+                        const totalQty = items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0), 0);
+
                         const now = new Date();
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
@@ -241,39 +259,64 @@ const SalesReport = () => {
                             isPastDue = today.getTime() > d.getTime();
                         }
 
-                        const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null 
-                            ? inv.balanceAmount 
+                        const rawBal = parseFloat(inv.balanceAmount !== undefined && inv.balanceAmount !== null
+                            ? inv.balanceAmount
                             : ((inv.totalAmount || 0) - (inv.paidAmount || 0)));
+                        const rawTotal = parseFloat(inv.totalAmount || 0);
+                        const rawPaid = parseFloat(inv.paidAmount !== undefined ? inv.paidAmount : Math.max(0, rawTotal - rawBal));
 
-                        const isInvOverdue = !inv.isReturn && (
+                        const isInvOverdue = !isReturn && (
                             overdueInvoiceIds.has(String(inv.id)) ||
                             overdueInvoiceIds.has(String(inv.invoiceNumber)) ||
                             String(inv.status).toUpperCase() === 'OVERDUE' ||
                             (isPastDue && rawBal > 0.01 && String(inv.status).toUpperCase() !== 'PAID' && String(inv.status).toUpperCase() !== 'CANCELLED')
                         );
 
-                        return items.map(item => ({
-                            id: item.id || inv.id,
-                            invoiceId: inv.isReturn ? (inv.invoiceId || null) : inv.id,
-                            salesReturnId: inv.isReturn ? (inv.salesReturnId || inv.id) : null,
+                        // Overdue / outstanding amount for this invoice
+                        const overdueAmount = isInvOverdue ? rawBal : 0;
+
+                        // Authoritative status
+                        let authoritativeStatus = inv.status;
+                        if (isReturn) {
+                            authoritativeStatus = 'RETURNED';
+                        } else if (isInvOverdue) {
+                            authoritativeStatus = 'OVERDUE';
+                        } else if (rawBal <= 0.01) {
+                            authoritativeStatus = 'PAID';
+                        } else if (rawPaid > 0.01 && rawBal > 0.01) {
+                            authoritativeStatus = 'PARTIALLY PAID';
+                        } else {
+                            authoritativeStatus = inv.status || 'UNPAID';
+                        }
+
+                        return {
+                            id: inv.id,
+                            invoiceId: isReturn ? (inv.invoiceId || null) : inv.id,
+                            salesReturnId: isReturn ? (inv.salesReturnId || inv.id) : null,
                             invoiceNumber: inv.invoiceNumber,
                             date: new Date(inv.date).toLocaleDateString(),
                             rawDate: inv.date,
-                            dueDate: inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : new Date(inv.date).toLocaleDateString(),
+                            dueDate: inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : (inv.date ? new Date(inv.date).toLocaleDateString() : '-'),
+                            rawDueDate: inv.dueDate,
                             customerName: inv.customer?.name || 'Walk-in',
-                            productName: item.product?.name || item.description || (inv.isReturn ? 'Sales Return' : 'Unknown'),
-                            qty: item.quantity,
-                            amount: item.amount,
-                            status: inv.isReturn ? 'RETURNED' : (isInvOverdue ? 'OVERDUE' : (inv.status || 'PAID')),
-                            isOverdue: isInvOverdue,
+                            productName: displayProductName,
+                            productNames: productNames,
+                            items: items,
+                            qty: totalQty > 0 ? totalQty : (items.length > 0 ? items.length : '-'),
+                            totalAmount: rawTotal,
+                            paidAmount: rawPaid,
                             balanceAmount: rawBal,
-                            isReturn: Boolean(inv.isReturn),
+                            overdueAmount: overdueAmount,
+                            amount: rawTotal,
+                            status: authoritativeStatus,
+                            isOverdue: isInvOverdue,
+                            isReturn: isReturn,
                             isPosReturn: Boolean(inv.isPosReturn || inv.type === 'POS_RETURN'),
                             source: inv.source,
-                            type: inv.type || (inv.isReturn ? (inv.isPosReturn ? 'POS_RETURN' : 'RETURN') : 'SALE')
-                        }));
+                            type: inv.type || (isReturn ? (inv.isPosReturn ? 'POS_RETURN' : 'RETURN') : (isPos ? 'POS_SALE' : 'SALE'))
+                        };
                     });
-                    setReportData(flattened);
+                    setReportData(invoiceRows);
                 } else {
                     setReportData(data);
                 }
@@ -335,13 +378,13 @@ const SalesReport = () => {
     const salesRecordsCount = salesRecords.length;
 
     const calculatedPaidSales = useMemo(() => {
-        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
+        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.paidAmount || item.totalAmount || item.amount) || 0), 0);
         return sum > 0 ? sum : (summaryStats.totalPaid || 0);
     }, [paidRecords, summaryStats.totalPaid]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
-        
+
         // Card Filter: overrides dropdown transactionFilter for intuitive one-click UX
         if (activeCardFilter === 'OVERDUE') {
             const isItemOverdue = Boolean(item.isOverdue || String(item.status).toUpperCase() === 'OVERDUE');
@@ -369,6 +412,7 @@ const SalesReport = () => {
                 item.invoiceNumber?.toLowerCase().includes(searchLower) ||
                 item.customerName?.toLowerCase().includes(searchLower) ||
                 item.productName?.toLowerCase().includes(searchLower) ||
+                (Array.isArray(item.productNames) && item.productNames.some(p => p.toLowerCase().includes(searchLower))) ||
                 item.status?.toLowerCase().includes(searchLower)
             );
         } else if (reportType === 'item') {
@@ -379,7 +423,19 @@ const SalesReport = () => {
     });
 
     const exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(filteredData);
+        const ws = XLSX.utils.json_to_sheet(filteredData.map(r => ({
+            'Invoice / Return #': r.invoiceNumber,
+            'Type': r.type,
+            'Date': r.date,
+            'Due Date': r.dueDate,
+            'Customer': r.customerName,
+            'Product': r.productName,
+            'Qty': r.qty,
+            'Total Amount': r.totalAmount,
+            'Paid Amount': r.paidAmount,
+            'Balance Due': r.balanceAmount,
+            'Status': r.status
+        })));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
         XLSX.writeFile(wb, `Sales_${reportType}_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -389,13 +445,23 @@ const SalesReport = () => {
         const doc = new jsPDF('l', 'mm', 'a4');
         doc.setFontSize(18);
         doc.text(`Sales Report - ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}`, 14, 20);
-        
+
         let headers = [];
         let body = [];
 
         if (reportType === 'general') {
-            headers = [["Inv / Return #", "Type", "Date", "Customer", "Product", "Qty", "Amount", "Status"]];
-            body = filteredData.map(r => [r.invoiceNumber, r.type, r.date, r.customerName, r.productName, r.qty, formatCurrency(r.amount), r.status]);
+            headers = [["Inv / Return #", "Type", "Date", "Customer", "Product", "Qty", "Total", "Balance", "Status"]];
+            body = filteredData.map(r => [
+                r.invoiceNumber,
+                r.type,
+                r.date,
+                r.customerName,
+                r.productName,
+                r.qty,
+                formatCurrency(r.totalAmount || r.amount),
+                formatCurrency(r.balanceAmount || 0),
+                r.status
+            ]);
         } else if (reportType === 'item') {
             headers = [["Product", "SKU", "Category", "Total Qty", "Total Sales", "Avg Rate", "Invoices"]];
             body = filteredData.map(r => [r.productName, r.sku, r.category, r.totalQty, formatCurrency(r.totalAmount), formatCurrency(r.avgRate), r.invoiceCount]);
@@ -420,7 +486,7 @@ const SalesReport = () => {
                     <h1 className="page-title">Sales Analytics</h1>
                     <p className="page-subtitle">Track revenue, sales, and sales returns performance</p>
                 </div>
-                
+
                 <div className="header-actions">
                     <div className="report-filters-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <div className="date-input-wrapper">
@@ -454,7 +520,7 @@ const SalesReport = () => {
                             Reset
                         </button>
                     </div>
-                    
+
                     <div className="export-dropdown-wrapper">
                         <button className="btn-export" onClick={() => setShowExportOptions(!showExportOptions)}>
                             <Download size={16} /> Export
@@ -470,7 +536,7 @@ const SalesReport = () => {
             </div>
 
             {/* Tab Navigation */}
-            <div className="report-tabs">
+            {/* <div className="report-tabs">
                 <button 
                     className={`tab-btn ${reportType === 'general' ? 'active' : ''}`}
                     onClick={() => setReportType('general')}
@@ -489,11 +555,11 @@ const SalesReport = () => {
                 >
                     <User size={18} /> Sales by Customer
                 </button>
-            </div>
+            </div> */}
 
             {reportType === 'general' && (
                 <div className="summary-grid">
-                    <div 
+                    <div
                         className={`summary-card card-blue clickable-summary-card ${activeCardFilter === 'GROSS_SALES' ? 'active-card-blue' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'GROSS_SALES' ? null : 'GROSS_SALES')}
                         title="Click to filter table by Gross Sales (all sales invoices)"
@@ -505,12 +571,14 @@ const SalesReport = () => {
                             <span className="card-label">Gross Sales</span>
                             <h3 className="card-value">{formatCurrency(summaryStats.totalSales || summaryStats.totalAmount)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'GROSS_SALES' ? `● Filtering sales (${salesRecordsCount} records • Click to reset)` : `${salesRecordsCount} sales records • Click to filter`}
+                                {activeCardFilter === 'GROSS_SALES'
+                                    ? `● Filtering sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
+                                    : `${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-blue"><DollarSign size={24} /></div>
                     </div>
-                    <div 
+                    <div
                         className={`summary-card card-orange clickable-summary-card ${activeCardFilter === 'OVERDUE' ? 'active-card-orange' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'OVERDUE' ? null : 'OVERDUE')}
                         title="Click to filter table by Overdue Invoices"
@@ -525,14 +593,14 @@ const SalesReport = () => {
                             </div>
                             <h3 className="card-value card-value-orange">{formatCurrency(summaryStats.overdue || 0)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'OVERDUE' 
-                                    ? `● Filtering overdue (${overdueRecordsCount} records • Click to reset)` 
-                                    : `${overdueRecordsCount} overdue records • Click to filter`}
+                                {activeCardFilter === 'OVERDUE'
+                                    ? `● Filtering overdue (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
+                                    : `${overdueRecordsCount} overdue ${overdueRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-orange"><Clock size={24} /></div>
                     </div>
-                    <div 
+                    <div
                         className={`summary-card card-green clickable-summary-card ${activeCardFilter === 'NET_REVENUE' ? 'active-card-green' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'NET_REVENUE' ? null : 'NET_REVENUE')}
                         title="Click to filter table by Paid Revenue (collected invoices)"
@@ -544,7 +612,9 @@ const SalesReport = () => {
                             <span className="card-label">Net Revenue</span>
                             <h3 className="card-value">{formatCurrency(calculatedPaidSales || summaryStats.netRevenue || 0)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'NET_REVENUE' ? `● Filtering paid revenue (${paidRecordsCount} records • Click to reset)` : `${paidRecordsCount} paid records • Click to filter`}
+                                {activeCardFilter === 'NET_REVENUE'
+                                    ? `● Filtering paid revenue (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
+                                    : `${paidRecordsCount} paid ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-green"><CheckCircle2 size={24} /></div>
@@ -556,9 +626,9 @@ const SalesReport = () => {
                 <div className="table-controls">
                     <div className="search-wrapper">
                         <Search size={18} className="search-icon" />
-                        <input 
-                            type="text" 
-                            placeholder={`Search ${reportType} report...`} 
+                        <input
+                            type="text"
+                            placeholder={`Search ${reportType} report...`}
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -568,13 +638,15 @@ const SalesReport = () => {
                         <div className="active-card-filter-pill">
                             <span>
                                 Filter: <strong>{
-                                    activeCardFilter === 'OVERDUE' 
-                                        ? `Overdue Invoices (${overdueRecordsCount} records)` 
-                                        : (activeCardFilter === 'GROSS_SALES' ? `Gross Sales (${salesRecordsCount} records)` : `Paid Revenue (${paidRecordsCount} records)`)
+                                    activeCardFilter === 'OVERDUE'
+                                        ? `Overdue Invoices (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'invoice' : 'invoices'})`
+                                        : (activeCardFilter === 'GROSS_SALES'
+                                            ? `Gross Sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'})`
+                                            : `Paid Revenue (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'})`)
                                 }</strong>
                             </span>
-                            <button 
-                                className="btn-clear-card-filter" 
+                            <button
+                                className="btn-clear-card-filter"
                                 onClick={() => setActiveCardFilter(null)}
                                 title="Reset filter"
                             >
@@ -600,7 +672,9 @@ const SalesReport = () => {
                                         <th>Customer</th>
                                         <th>Product</th>
                                         <th className="text-center">Qty</th>
-                                        <th className="text-right">Amount</th>
+                                        <th className="text-right">
+                                            {activeCardFilter === 'OVERDUE' ? 'Overdue Amount' : (activeCardFilter === 'NET_REVENUE' ? 'Paid Amount' : 'Amount')}
+                                        </th>
                                         <th>Status</th>
                                     </tr>
                                 )}
@@ -627,7 +701,7 @@ const SalesReport = () => {
                             </thead>
                             <tbody>
                                 {filteredData.map((row, idx) => (
-                                    <tr 
+                                    <tr
                                         key={idx}
                                         onDoubleClick={() => handleRowDoubleClick(row)}
                                         title={row.invoiceId ? "Double-click to view invoice details" : ""}
@@ -637,7 +711,7 @@ const SalesReport = () => {
                                             <>
                                                 <td className="font-mono">
                                                     {(row.invoiceId || (row.isReturn && row.salesReturnId)) ? (
-                                                        <span 
+                                                        <span
                                                             className="text-blue-600 hover:text-blue-800 hover:underline font-bold cursor-pointer inline-flex items-center gap-1"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -666,10 +740,37 @@ const SalesReport = () => {
                                                 </td>
                                                 <td>{row.date}</td>
                                                 <td className="font-medium">{row.customerName}</td>
-                                                <td>{row.productName}</td>
+                                                <td title={row.productNames?.length > 1 ? row.productNames.join(', ') : ''}>
+                                                    <span style={{ fontWeight: '500' }}>{row.productName}</span>
+                                                    {row.productNames?.length > 1 && (
+                                                        <span style={{ display: 'block', fontSize: '0.72rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>
+                                                            {row.productNames.join(', ')}
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="text-center">{row.qty}</td>
                                                 <td className="text-right font-bold" style={{ color: row.isReturn ? '#dc2626' : 'inherit' }}>
-                                                    {row.isReturn ? `-${formatCurrency(row.amount)}` : formatCurrency(row.amount)}
+                                                    {row.isReturn ? (
+                                                        `-${formatCurrency(row.totalAmount || row.amount)}`
+                                                    ) : activeCardFilter === 'OVERDUE' ? (
+                                                        <div>
+                                                            <span style={{ color: '#dc2626' }}>{formatCurrency(row.balanceAmount)}</span>
+                                                            {row.paidAmount > 0.01 && (
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: '#6b7280', marginTop: '2px' }}>
+                                                                    Total: {formatCurrency(row.totalAmount)} • Paid: {formatCurrency(row.paidAmount)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            <span>{formatCurrency(row.totalAmount || row.amount)}</span>
+                                                            {row.balanceAmount > 0.01 && row.status !== 'PAID' && (
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: row.isOverdue ? '#dc2626' : '#d97706', marginTop: '2px' }}>
+                                                                    Due: {formatCurrency(row.balanceAmount)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <span className={`status-pill ${row.isReturn ? 'returned' : (row.status || 'unknown').toLowerCase()}`}>

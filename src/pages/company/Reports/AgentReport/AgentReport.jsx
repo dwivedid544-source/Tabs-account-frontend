@@ -306,7 +306,14 @@ const AgentReport = () => {
                 d.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 d.agentName.toLowerCase().includes(searchTerm.toLowerCase());
             
-            const matchType = typeFilter === 'all' || d.type === typeFilter;
+            const isSaleType = d.type === 'Sale' || d.type === 'POS Sale';
+            const isPurchaseType = d.type === 'Purchase';
+            const isReturnType = d.type === 'Sales Return' || d.type === 'POS Return' || d.type === 'Purchase Return' || Boolean(d.isReturn);
+
+            const matchType = typeFilter === 'all' || 
+                (typeFilter === 'Sale' && isSaleType) ||
+                (typeFilter === 'Purchase' && isPurchaseType) ||
+                (typeFilter === 'Return' && isReturnType);
             
             const matchStatus = statusFilter === 'all' || d.status.toLowerCase() === statusFilter.toLowerCase();
             
@@ -325,7 +332,14 @@ const AgentReport = () => {
                 i.agentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 i.warehouseName.toLowerCase().includes(searchTerm.toLowerCase());
             
-            const matchType = typeFilter === 'all' || i.type === typeFilter;
+            const isSaleType = i.type === 'Sale' || i.type === 'POS Sale';
+            const isPurchaseType = i.type === 'Purchase';
+            const isReturnType = i.type === 'Sales Return' || i.type === 'POS Return' || i.type === 'Purchase Return';
+
+            const matchType = typeFilter === 'all' || 
+                (typeFilter === 'Sale' && isSaleType) ||
+                (typeFilter === 'Purchase' && isPurchaseType) ||
+                (typeFilter === 'Return' && isReturnType);
             
             const doc = aggregatedDocs.find(d => d.docNumber === i.docNumber);
             const docStatus = doc ? doc.status : '';
@@ -353,13 +367,26 @@ const AgentReport = () => {
     let totalUnpaid = 0;
 
     filteredDocsList.forEach(d => {
-        if (d.type === 'Sale') {
+        const isSaleType = d.type === 'Sale' || d.type === 'POS Sale';
+        const isSalesReturn = d.type === 'Sales Return' || d.type === 'POS Return';
+        const isPurchaseType = d.type === 'Purchase';
+        const isPurchaseReturn = d.type === 'Purchase Return';
+
+        if (isSaleType) {
             totalSales += d.totalAmount;
-        } else {
+            totalPaid += (d.paidAmount || 0);
+            totalUnpaid += (d.balanceAmount || 0);
+        } else if (isSalesReturn) {
+            totalSales -= Math.abs(d.totalAmount || 0);
+        } else if (isPurchaseType) {
             totalPurchases += d.totalAmount;
+            if (typeFilter === 'Purchase') {
+                totalPaid += (d.paidAmount || 0);
+                totalUnpaid += (d.balanceAmount || 0);
+            }
+        } else if (isPurchaseReturn) {
+            totalPurchases -= Math.abs(d.totalAmount || 0);
         }
-        totalPaid += d.paidAmount;
-        totalUnpaid += d.balanceAmount;
     });
 
     const docCount = filteredDocsList.length;
