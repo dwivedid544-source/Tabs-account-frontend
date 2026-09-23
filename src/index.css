@@ -276,4 +276,26 @@ svg path.recharts-tooltip-cursor,
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
-}
+}
+
+/* ==========================================================================
+   Global Responsive Layout & Zoom Normalization (100% and above)
+   ========================================================================== */
+.page-content {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure tables scroll smoothly horizontally without breaking page grid */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Prevent image blowout */
+img {
+    max-width: 100%;
+    height: auto;
+}
+

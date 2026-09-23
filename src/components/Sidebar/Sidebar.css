@@ -184,8 +184,9 @@
 
 .sidebar.collapsed .menu-text,
 .sidebar.collapsed .chevron-wrapper,
-.sidebar.collapsed .submenu {
-    display: none;
+.sidebar.collapsed .submenu,
+.sidebar.collapsed .submenu-nested-list {
+    display: none !important;
 }
 
 /* ===============================
@@ -230,22 +231,26 @@
     border-right: 6px solid #1e293b;
 }
 
-/* Floating Submenu for groups */
-.sidebar.collapsed .menu-group:hover .submenu {
+.sidebar.collapsed .menu-group:hover > .submenu {
     display: flex !important;
     flex-direction: column;
     position: absolute;
     left: 65px; /* Moved slightly closer to avoid gap */
     top: 0;
     background-color: #1e293b;
-    min-width: 200px;
+    min-width: 220px;
     padding: 0.75rem;
     border-radius: 12px;
-    z-index: 2000;
+    z-index: 3000;
     box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     margin-left: 0;
     border-left: none;
 }
+
+.sidebar.collapsed .menu-group:hover .submenu-nested-list {
+    display: flex !important;
+}
+
 
 /* Hover Bridge: Transparent area to keep hover active while moving mouse to submenu */
 .sidebar.collapsed .menu-group .submenu::after {
@@ -324,7 +329,7 @@
     border-left: 1px solid #edf2f7;
 }
 
-.submenu.expanded {
+.sidebar.open .submenu.expanded {
     display: block;
 }
 
