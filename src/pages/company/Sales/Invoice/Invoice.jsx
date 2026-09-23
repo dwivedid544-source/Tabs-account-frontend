@@ -5361,10 +5361,10 @@ const Invoice = () => {
                                     <div className="invoice-cea-middle-right">
                                         <div className="invoice-cea-meta-grid">
                                             <span className="invoice-cea-kv-key">{getInvoiceLabel('number') || 'INVOICE'}</span>
-                                            <span className="invoice-cea-kv-val">{selectedInvoice?.invoiceNumber ? String(selectedInvoice.invoiceNumber).replace(/^#/, '') : '1550'}</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.invoiceNumber ? String(selectedInvoice.invoiceNumber).replace(/^#/, '') : (selectedInvoice?.id ? `INV-${selectedInvoice.id}` : '-')}</span>
 
                                             <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
-                                            <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '06-05-2026'}</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.date ? formatCeaDate(selectedInvoice.date) : '-'}</span>
 
                                             {(selectedInvoice?.poNumber && typeof selectedInvoice.poNumber === 'string' && selectedInvoice.poNumber.trim()) && (
                                                 <>
@@ -5377,7 +5377,7 @@ const Invoice = () => {
                                             <span className="invoice-cea-kv-val">{selectedInvoice?.paymentTerms || 'Net 7'}</span>
 
                                             <span className="invoice-cea-kv-key">{getInvoiceLabel('dueDate') || 'DUE DATE'}</span>
-                                            <span className="invoice-cea-kv-val">{selectedInvoice?.dueDate ? formatCeaDate(selectedInvoice.dueDate) : (selectedInvoice?.date ? formatCeaDate(calculateDueDate(selectedInvoice.date, 7)) : '13-05-2026')}</span>
+                                            <span className="invoice-cea-kv-val">{selectedInvoice?.dueDate ? formatCeaDate(selectedInvoice.dueDate) : (selectedInvoice?.date ? formatCeaDate(calculateDueDate(selectedInvoice.date, 7)) : '-')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -5619,6 +5619,37 @@ const Invoice = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* INVOICES INCLUDED IN COMBINED STATEMENT */}
+                                {Boolean(selectedInvoice?.isCombined || (Array.isArray(selectedInvoice?.invoices) && selectedInvoice.invoices.length > 0)) && (
+                                    <div className="invoice-cea-invoices-included-section" style={{ marginTop: '24px' }}>
+                                        <div className="invoice-cea-vat-title" style={{ color: headingColor }}>INVOICES INCLUDED IN THIS STATEMENT</div>
+                                        <table className="invoice-cea-table" style={{ marginTop: '8px' }}>
+                                            <thead>
+                                                <tr style={{ backgroundColor: tableHeaderBg }}>
+                                                    <th style={{ width: '22%', textAlign: 'left', color: tableHeaderText }}>INVOICE #</th>
+                                                    <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText }}>DATE</th>
+                                                    <th style={{ width: '16%', textAlign: 'left', color: tableHeaderText }}>DUE DATE</th>
+                                                    <th style={{ width: '16%', textAlign: 'right', color: tableHeaderText }}>TOTAL</th>
+                                                    <th style={{ width: '15%', textAlign: 'right', color: tableHeaderText }}>PAID</th>
+                                                    <th style={{ width: '15%', textAlign: 'right', color: tableHeaderText }}>BALANCE</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {(selectedInvoice.invoices || []).map((ci, cidx) => (
+                                                    <tr key={cidx}>
+                                                        <td style={{ textAlign: 'left', fontWeight: '600' }}>{ci.invoiceNumber || `INV-${ci.id}`}</td>
+                                                        <td style={{ textAlign: 'left' }}>{ci.date ? formatCeaDate(ci.date) : '-'}</td>
+                                                        <td style={{ textAlign: 'left' }}>{ci.dueDate ? formatCeaDate(ci.dueDate) : '-'}</td>
+                                                        <td style={{ textAlign: 'right' }}>{Number(ci.totalAmount || 0).toFixed(2)}</td>
+                                                        <td style={{ textAlign: 'right' }}>{Number(ci.paidAmount || 0).toFixed(2)}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: '600' }}>{Number(ci.balanceAmount || 0).toFixed(2)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
 
                                 {/* PAYMENT HISTORY SECTION */}
                                 {/* {(() => {
@@ -6132,10 +6163,15 @@ const Invoice = () => {
                                                 };
                                             }
                                             const rate = getSyncRate(inv.currency || 'USD', companySettings?.currency || 'EUR');
-                                            const invFin = computeInvoiceFinancials(inv);
-                                            const invTotal = (invFin.total > 0 || invFin.subtotal > 0) ? invFin.total : (parseFloat(inv.totalAmount || 0) || 0);
-                                            const invBalance = (invFin.balanceDue !== undefined && (invFin.total > 0 || invFin.subtotal > 0)) ? invFin.balanceDue : (parseFloat(inv.balanceAmount || 0) || 0);
-                                            const effectivePaid = (invFin.paidAmount !== undefined && (invFin.total > 0 || invFin.subtotal > 0)) ? invFin.paidAmount : (inv.paidAmount !== undefined ? parseFloat(inv.paidAmount) : (invTotal - invBalance));
+                                            const invTotal = (inv.totalAmount !== undefined && inv.totalAmount !== null)
+                                                ? parseFloat(inv.totalAmount)
+                                                : (computeInvoiceFinancials(inv).total || 0);
+                                            const invBalance = (inv.balanceAmount !== undefined && inv.balanceAmount !== null)
+                                                ? parseFloat(inv.balanceAmount)
+                                                : (computeInvoiceFinancials(inv).balanceDue || 0);
+                                            const effectivePaid = (inv.paidAmount !== undefined && inv.paidAmount !== null)
+                                                ? parseFloat(inv.paidAmount)
+                                                : Math.max(0, invTotal - invBalance);
 
                                             groupedMap[key].invoices.push(inv);
                                             groupedMap[key].totalInvoiceAmount += invTotal * rate;

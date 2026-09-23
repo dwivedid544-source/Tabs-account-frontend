@@ -344,7 +344,7 @@ const SalesReturn = () => {
                 setSelectedInvoiceDetails(invoice);
 
                 // Construct auto narration text with invoice ID / number and invoice narration
-                const invRefNo = invoice.invoiceNumber || (invoice.id ? `#INV${String(invoice.id).padStart(6, '0')}` : `#${invoiceId}`);
+                const invRefNo = invoice.invoiceNumber || (invoice.id ? `INV-${invoice.id}` : `INV-${invoiceId}`);
                 const invNarration = invoice.narration || invoice.notes || invoice.reason || '';
                 const autoNarration = invNarration
                     ? `Sales Return against Invoice ${invRefNo} - ${invNarration}`
@@ -976,10 +976,7 @@ const SalesReturn = () => {
                                     ? (returnItems[0]?.warehouse?.name || '-')
                                     : '-';
 
-                                // Get invoice number - format as #INV000001
-                                const invoiceNumber = row.invoice?.invoiceNumber
-                                    ? (row.invoice.invoiceNumber.startsWith('#') ? row.invoice.invoiceNumber : `#${row.invoice.invoiceNumber}`)
-                                    : (row.invoiceId ? `#INV${String(row.invoiceId).padStart(6, '0')}` : null);
+                                const invoiceNumber = row.invoice?.invoiceNumber || (row.invoiceId ? `INV-${row.invoiceId}` : null);
                                 const displayStatus = row.status || 'Pending';
 
                                 return (
@@ -993,7 +990,7 @@ const SalesReturn = () => {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                 {invoiceNumber && (
                                                     <span className="SalesReturn-invoice-number-badge">
-                                                        #{invoiceNumber}
+                                                        {invoiceNumber}
                                                     </span>
                                                 )}
                                                 <span className={`SalesReturn-sales-return-status-badge ${getStatusClass(displayStatus)}`}>

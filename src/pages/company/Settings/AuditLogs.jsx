@@ -636,7 +636,13 @@ const AuditLogs = () => {
                         <div className="audit-meta-card-label">Entity & ID</div>
                         <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Tag size={14} style={{ color: '#64748b' }} />
-                            <span>{log.entity} #{log.entityId || parsed.invoiceNumber || 'N/A'}</span>
+                            <span>{(() => {
+                                if (log.entity === 'Invoice' || log.entity === 'Sales Invoice') {
+                                    const num = parsed.invoiceNumber || parsed.record?.invoiceNumber || (activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
+                                    if (num) return `${log.entity} #${String(num).replace(/^#/, '')}`;
+                                }
+                                return `${log.entity} #${log.entityId || 'N/A'}`;
+                            })()}</span>
                         </div>
                         {parsed.poNumber && (
                             <div style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600, marginTop: '2px' }}>
@@ -1223,7 +1229,15 @@ const AuditLogs = () => {
                                                 <td>{getActionBadge(log.action)}</td>
                                                 <td>
                                                     <span className="audit-entity-tag">
-                                                        {log.entity} {log.entityId ? `#${log.entityId}` : ''}
+                                                        {(() => {
+                                                            if (log.entity === 'Invoice' || log.entity === 'Sales Invoice') {
+                                                                let p = {};
+                                                                try { p = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}); } catch(e){}
+                                                                const num = p.invoiceNumber || p.record?.invoiceNumber || (activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
+                                                                if (num) return `${log.entity} #${String(num).replace(/^#/, '')}`;
+                                                            }
+                                                            return `${log.entity} ${log.entityId ? '#' + log.entityId : ''}`;
+                                                        })()}
                                                     </span>
                                                 </td>
                                                 {isSuperAdmin && (

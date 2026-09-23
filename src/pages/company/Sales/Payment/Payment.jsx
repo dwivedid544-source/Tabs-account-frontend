@@ -275,29 +275,23 @@ const Payment = () => {
     const fetchDropdowns = async () => {
         try {
             const companyId = GetCompanyId();
-            const [invRes, ledgerRes, custRes, posRes] = await Promise.all([
+            const [invRes, ledgerRes, custRes] = await Promise.all([
                 salesInvoiceService.getAll(companyId),
                 ledgerService.getAll(companyId),
-                customerService.getAll(companyId),
-                posService.getPOSInvoices(companyId).catch(() => null)
+                customerService.getAll(companyId)
             ]);
 
             // Build type map and combined invoice list
             const typeMap = {};
             const combinedInvoices = [];
 
-            if (invRes.data.success) {
-                const taxInvoices = invRes.data.data.filter(inv => inv.balanceAmount > 0);
-                taxInvoices.forEach(inv => { typeMap[inv.id] = 'TAX_INVOICE'; });
-                combinedInvoices.push(...taxInvoices);
-            }
-
-            if (posRes && posRes.success && posRes.data) {
-                const posInvoices = (Array.isArray(posRes.data) ? posRes.data : [])
-                    .filter(inv => parseFloat(inv.balanceAmount || 0) > 0)
-                    .map(inv => ({ ...inv, invoiceType: 'POS_INVOICE' }));
-                posInvoices.forEach(inv => { typeMap[inv.id] = 'POS_INVOICE'; });
-                combinedInvoices.push(...posInvoices);
+            if (invRes?.data?.success) {
+                const unpaidInvoices = (invRes.data.data || []).filter(inv => parseFloat(inv.balanceAmount || 0) > 0);
+                unpaidInvoices.forEach(inv => {
+                    const invType = inv.type === 'POS_INVOICE' || inv.invoiceType === 'POS_INVOICE' || !!inv.posinvoiceitem ? 'POS_INVOICE' : 'TAX_INVOICE';
+                    typeMap[inv.id] = invType;
+                });
+                combinedInvoices.push(...unpaidInvoices);
             }
 
             setInvoices(combinedInvoices);
@@ -1199,7 +1193,7 @@ const Payment = () => {
                                     {filteredReceipts.map(rec => (
                                         <tr key={rec.id}>
                                             <td className="font-bold text-blue-600">{rec.receiptNumber}</td>
-                                            <td><span className="SalesPayment-source-link">{rec.invoice?.invoiceNumber || 'No Link'}</span></td>
+                                            <td><span className="SalesPayment-source-link">{rec.invoice?.invoiceNumber || (rec.allocations?.[0]?.invoice?.invoiceNumber) || (rec.allocations?.[0]?.invoiceId ? `INV-${rec.allocations[0].invoiceId}` : 'No Link')}</span></td>
                                             <td>{rec.customer?.name}</td>
                                             <td>{new Date(rec.date).toLocaleDateString()}</td>
                                             <td>{rec.cashBankAccount?.name || '-'}</td>

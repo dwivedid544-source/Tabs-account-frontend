@@ -124,6 +124,20 @@ export const buildCombinedPaymentHistory = (childInvoices = [], combinedTotal = 
                     receipt: r
                 });
             });
+        } else if (childInv.paidAmount && parseFloat(childInv.paidAmount) > 0) {
+            rawItems.push({
+                id: `inv-${childInv.id}-paid`,
+                invoiceId: childInv.id,
+                invoiceNumber: childInv.invoiceNumber,
+                amount: parseFloat(childInv.paidAmount),
+                receipt: {
+                    id: `inv-${childInv.id}`,
+                    receiptNumber: `Payment (${childInv.invoiceNumber || 'INV-' + childInv.id})`,
+                    date: childInv.date,
+                    amount: parseFloat(childInv.paidAmount),
+                    paymentMode: 'BANK'
+                }
+            });
         }
     });
 
@@ -171,6 +185,17 @@ export const buildCombinedPaymentHistory = (childInvoices = [], combinedTotal = 
         paymentHistory,
         totalPaid: runningPaid
     };
+};
+
+export const isDuePassed = (dueDate) => {
+    if (!dueDate) return false;
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(due);
+    d.setHours(0, 0, 0, 0);
+    return today.getTime() > d.getTime();
 };
 
 export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
@@ -246,17 +271,19 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
 
         const balanceDue = Math.max(0, parseFloat((total - paymentsReceived).toFixed(2)));
 
-        const isDuePassed = Boolean(itemsOrInvoice.dueDate && new Date(itemsOrInvoice.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const isDuePassedDate = isDuePassed(itemsOrInvoice.dueDate) || childInvoices.some(ci => isDuePassed(ci.dueDate || ci.date));
         const tol = 0.01;
         let status = 'UNPAID';
         if (balanceDue <= tol && (total > 0 || paymentsReceived > 0)) {
             status = 'PAID';
         } else if (balanceDue <= tol && total === 0) {
             status = 'PAID';
+        } else if (balanceDue > tol && isDuePassedDate) {
+            status = 'OVERDUE';
         } else if (paymentsReceived > tol && balanceDue > tol) {
             status = 'PARTIALLY PAID';
-        } else if (balanceDue > tol && isDuePassed) {
-            status = 'OVERDUE';
+        } else {
+            status = 'UNPAID';
         }
 
         let vatSummaryList = Object.values(groups).sort((a, b) => b.rate - a.rate);
@@ -277,13 +304,17 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
             otherCharges: explicitOtherCharges,
             roundOff: explicitRoundOff,
             total,
+            totalAmount: total,
             paidAmount: paymentsReceived,
+            paymentsReceived,
             balanceDue,
+            balanceAmount: balanceDue,
             vatSummaryList,
             computedLines,
             paymentHistory,
             allAllocations,
             status,
+            paymentStatus: status,
             isCombined: true,
             isReconciled: Math.abs((subtotal - discount + vatTotal + explicitOtherCharges + explicitRoundOff) - total) <= 0.01
         };
@@ -344,12 +375,14 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
         rawItems = itemsOrInvoice;
     }
 
+    const overallDiscount = parseFloat(options.overallDiscount !== undefined ? options.overallDiscount : (sourceInv?.overallDiscount !== undefined ? sourceInv.overallDiscount : 0)) || 0;
+    const overallDiscountType = options.overallDiscountType || sourceInv?.overallDiscountType || 'percentage';
+    const explicitDiscountAmount = parseFloat(options.discountAmount !== undefined ? options.discountAmount : (sourceInv?.discountAmount !== undefined ? sourceInv.discountAmount : 0)) || 0;
+
     let subtotal = 0;
-    let discount = 0;
-    let taxableAmount = 0;
-    let vatTotal = 0;
-    const computedLines = [];
-    const groups = {};
+    let lineDiscountSum = 0;
+    let netBeforeOverall = 0;
+    const initialLines = [];
 
     if (rawItems.length > 0) {
         rawItems.forEach((item, idx) => {
@@ -359,15 +392,51 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
             ))) || null;
 
             const line = computeInvoiceLine(item, meta);
-            computedLines.push({
-                ...item,
-                ...line
-            });
+            initialLines.push({ item, meta, line });
 
             subtotal += line.gross;
-            discount += line.lineDiscount;
-            taxableAmount += line.net;
-            vatTotal += line.vat;
+            lineDiscountSum += line.lineDiscount;
+            netBeforeOverall += line.net;
+        });
+    } else if (sourceInv) {
+        subtotal = parseFloat(sourceInv.subtotal || 0) || 0;
+        lineDiscountSum = parseFloat(sourceInv.discountAmount || 0) || 0;
+        netBeforeOverall = Math.max(0, subtotal - lineDiscountSum);
+    }
+
+    let ovDiscountAmt = 0;
+    if (overallDiscount > 0) {
+        if (overallDiscountType === 'percentage') {
+            ovDiscountAmt = (netBeforeOverall * Math.min(100, Math.max(0, overallDiscount))) / 100;
+        } else {
+            ovDiscountAmt = Math.min(netBeforeOverall, Math.max(0, overallDiscount));
+        }
+    } else if (explicitDiscountAmount > lineDiscountSum) {
+        ovDiscountAmt = explicitDiscountAmount - lineDiscountSum;
+    }
+
+    let totalDiscount = parseFloat((lineDiscountSum + ovDiscountAmt).toFixed(2));
+    let taxableAmount = Math.max(0, parseFloat((subtotal - totalDiscount).toFixed(2)));
+    const overallDiscountRatio = netBeforeOverall > 0 ? (ovDiscountAmt / netBeforeOverall) : 0;
+
+    let vatTotal = 0;
+    const computedLines = [];
+    const groups = {};
+
+    if (initialLines.length > 0) {
+        initialLines.forEach(({ item, meta, line }) => {
+            const lineGross = line.gross;
+            const lineAfterItemDisc = line.net;
+            const lineDiscountedTaxable = lineAfterItemDisc * (1 - overallDiscountRatio);
+            const lineVat = (lineDiscountedTaxable * line.taxRate) / 100;
+            vatTotal += lineVat;
+
+            computedLines.push({
+                ...item,
+                ...line,
+                taxableNet: lineDiscountedTaxable,
+                taxAmount: lineVat
+            });
 
             const rateKey = line.taxRate.toFixed(2);
             if (!groups[rateKey]) {
@@ -377,13 +446,11 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
                     netAmount: 0
                 };
             }
-            groups[rateKey].netAmount += line.net;
-            groups[rateKey].vatAmount += line.vat;
+            groups[rateKey].netAmount += lineDiscountedTaxable;
+            groups[rateKey].vatAmount += lineVat;
         });
+        vatTotal = parseFloat(vatTotal.toFixed(2));
     } else if (sourceInv) {
-        subtotal = parseFloat(sourceInv.subtotal || 0) || 0;
-        discount = parseFloat(sourceInv.discountAmount || 0) || 0;
-        taxableAmount = Math.max(0, subtotal - discount);
         vatTotal = parseFloat(sourceInv.taxAmount || 0) || 0;
     }
 
@@ -402,17 +469,45 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
     const explicitRoundOff = parseFloat(roundOff) || 0;
     const explicitPayments = parseFloat(paymentsReceived) || 0;
 
-    const total = parseFloat((taxableAmount + vatTotal + explicitOtherCharges + explicitRoundOff).toFixed(2));
-    const balanceDue = Math.max(0, parseFloat((total - explicitPayments).toFixed(2)));
+    let total = parseFloat((taxableAmount + vatTotal + explicitOtherCharges + explicitRoundOff).toFixed(2));
+    let balanceDue = Math.max(0, parseFloat((total - explicitPayments).toFixed(2)));
 
-    // Internal reconciliation check:
-    // Subtotal - Discount + VAT + Other Charges + Round Off = Total
-    const reconciledEquationVal = subtotal - discount + vatTotal + explicitOtherCharges + explicitRoundOff;
+    // Align with authoritative sourceInv values (backend-computed via adjustInvoiceWithReturns)
+    // Use the backend total if within a reasonable rounding tolerance (covers overallDiscount edge-cases)
+    if (sourceInv && sourceInv.totalAmount !== undefined && sourceInv.totalAmount !== null) {
+        const invTotal = parseFloat(sourceInv.totalAmount);
+        if (Math.abs(invTotal - total) <= 0.05) {
+            total = invTotal;
+        }
+    }
+    if (sourceInv && sourceInv.taxAmount !== undefined && sourceInv.taxAmount !== null) {
+        const invTax = parseFloat(sourceInv.taxAmount);
+        if (Math.abs(invTax - vatTotal) <= 0.05) {
+            vatTotal = invTax;
+        }
+    }
+    if (sourceInv && sourceInv.discountAmount !== undefined && sourceInv.discountAmount !== null) {
+        const invDisc = parseFloat(sourceInv.discountAmount);
+        if (Math.abs(invDisc - totalDiscount) <= 0.05) {
+            totalDiscount = invDisc;
+        }
+    }
+    // Always trust the authoritative backend balanceAmount when paymentsReceived was not explicitly passed in.
+    // The backend value comes from adjustInvoiceWithReturns / syncInvoiceInDb and is the single source of truth.
+    if (sourceInv && sourceInv.balanceAmount !== undefined && sourceInv.balanceAmount !== null && options.paymentsReceived === undefined) {
+        const invBal = parseFloat(sourceInv.balanceAmount);
+        if (!isNaN(invBal) && invBal >= 0) {
+            balanceDue = invBal;
+        }
+    }
+
+
+    const reconciledEquationVal = subtotal - totalDiscount + vatTotal + explicitOtherCharges + explicitRoundOff;
     const reconciliationDiscrepancy = Math.abs(reconciledEquationVal - total);
-    if (reconciliationDiscrepancy > 0.01) {
-        console.error('[Invoice Financials Reconciliation Bug Detected!]', {
+    if (reconciliationDiscrepancy > 0.05) {
+        console.error('[Invoice Financials Reconciliation Discrepancy]', {
             subtotal,
-            discount,
+            totalDiscount,
             taxableAmount,
             vatTotal,
             explicitOtherCharges,
@@ -433,7 +528,7 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
         }];
     }
 
-    const isDuePassed = Boolean(sourceInv?.dueDate && new Date(sourceInv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+    const isDuePassedDate = isDuePassed(sourceInv?.dueDate);
     const tol = 0.01;
     let status = 'UNPAID';
     if (explicitPayments > total + tol) {
@@ -442,29 +537,33 @@ export const computeInvoiceFinancials = (itemsOrInvoice = [], options = {}) => {
         status = 'PAID';
     } else if (balanceDue <= tol && total === 0 && explicitPayments === 0) {
         status = 'PAID';
+    } else if (balanceDue > tol && isDuePassedDate) {
+        status = 'OVERDUE';
     } else if (explicitPayments > tol && balanceDue > tol) {
         status = 'PARTIALLY PAID';
-    } else if (balanceDue > tol && isDuePassed) {
-        status = 'OVERDUE';
     } else {
         status = 'UNPAID';
     }
 
     return {
         subtotal: parseFloat(subtotal.toFixed(2)),
-        discount: parseFloat(discount.toFixed(2)),
+        discount: parseFloat(totalDiscount.toFixed(2)),
         taxableAmount: parseFloat(taxableAmount.toFixed(2)),
         vatTotal: parseFloat(vatTotal.toFixed(2)),
         otherCharges: parseFloat(explicitOtherCharges.toFixed(2)),
         roundOff: parseFloat(explicitRoundOff.toFixed(2)),
         total,
+        totalAmount: total,
         paidAmount: parseFloat(explicitPayments.toFixed(2)),
+        paymentsReceived: parseFloat(explicitPayments.toFixed(2)),
         balanceDue,
+        balanceAmount: balanceDue,
         vatSummaryList,
         computedLines,
         status,
+        paymentStatus: status,
         isCombined: false,
-        isReconciled: reconciliationDiscrepancy <= 0.01
+        isReconciled: reconciliationDiscrepancy <= 0.05
     };
 };
 

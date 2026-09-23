@@ -572,10 +572,10 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 <div className="invoice-cea-middle-right">
                                     <div className="invoice-cea-meta-grid">
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('number') || 'INVOICE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : '1550'}</span>
+                                        <span className="invoice-cea-kv-val">{document.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : (document.id ? `INV-${document.id}` : '-')}</span>
 
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.date ? formatCeaDate(document.date) : '06-05-2026'}</span>
+                                        <span className="invoice-cea-kv-val">{document.date ? formatCeaDate(document.date) : '-'}</span>
 
                                         {(document?.poNumber && typeof document.poNumber === 'string' && document.poNumber.trim()) && (
                                             <>
@@ -588,7 +588,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                         <span className="invoice-cea-kv-val">{document.paymentTerms || 'Net 7'}</span>
 
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('dueDate') || 'DUE DATE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.dueDate ? formatCeaDate(document.dueDate) : (document.date ? formatCeaDate(document.date) : '13-05-2026')}</span>
+                                        <span className="invoice-cea-kv-val">{document.dueDate ? formatCeaDate(document.dueDate) : (document.date ? formatCeaDate(document.date) : '-')}</span>
                                     </div>
                                 </div>
                             </div>
