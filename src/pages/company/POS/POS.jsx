@@ -653,7 +653,67 @@ const POS = () => {
     };
 
     const handlePrint = () => {
-        window.print();
+        const printArea = document.getElementById('print-area');
+        if (!printArea) {
+            window.print();
+            return;
+        }
+
+        // Collect all stylesheets from the current page
+        const stylesHtml = Array.from(document.styleSheets)
+            .map(sheet => {
+                try {
+                    if (sheet.href) {
+                        return `<link rel="stylesheet" href="${sheet.href}" />`;
+                    }
+                    const rules = Array.from(sheet.cssRules || []).map(r => r.cssText).join('\n');
+                    return `<style>${rules}</style>`;
+                } catch {
+                    return sheet.href ? `<link rel="stylesheet" href="${sheet.href}" />` : '';
+                }
+            })
+            .join('\n');
+
+        const printContent = printArea.innerHTML;
+
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+        if (!printWindow) {
+            // Fallback if popup blocked
+            window.print();
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>POS Invoice</title>
+                ${stylesHtml}
+                <style>
+                    @media print {
+                        body { margin: 0; padding: 0; background: #fff; }
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+                    }
+                    body { margin: 0; padding: 0; background: #fff; font-family: sans-serif; }
+                </style>
+            </head>
+            <body>
+                ${printContent}
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                            setTimeout(function() { window.close(); }, 2000);
+                        }, 400);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     };
 
     const handleClosePrint = () => {

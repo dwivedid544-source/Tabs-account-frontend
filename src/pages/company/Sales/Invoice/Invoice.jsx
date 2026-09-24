@@ -6264,38 +6264,7 @@ const Invoice = () => {
                                                     <td> {group.latestDueDate ? new Date(group.latestDueDate).toLocaleDateString() : 'N/A'}</td>
                                                     <td className="font-bold">
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                            {(() => {
-                                                                const currs = Object.keys(group.currencyTotals || {});
-                                                                const baseCurr = companySettings?.currency || 'EUR';
-                                                                if (currs.length === 1) {
-                                                                    const curr = currs[0];
-                                                                    const originalAmount = group.currencyTotals[curr];
-                                                                    if (curr !== baseCurr) {
-                                                                        return (
-                                                                            <span>
-                                                                                {formatDocCurrency(originalAmount, curr)}
-                                                                                <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#64748b', marginLeft: '6px' }}>
-                                                                                    ({formatDocCurrency(group.balanceAmount, baseCurr)})
-                                                                                </span>
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                } else if (currs.length > 1) {
-                                                                    return (
-                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                            {currs.map(curr => (
-                                                                                <span key={curr} style={{ fontSize: '0.85rem', color: '#475569' }}>
-                                                                                    {formatDocCurrency(group.currencyTotals[curr], curr)}
-                                                                                </span>
-                                                                            ))}
-                                                                            <span style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '2px', marginTop: '2px' }}>
-                                                                                Total: {formatDocCurrency(group.balanceAmount, baseCurr)}
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                }
-                                                                return <span>{formatCurrency(group.balanceAmount)}</span>;
-                                                            })()}
+                                                            <span>{formatDocCurrency(group.balanceAmount, companySettings?.currency || 'EUR')}</span>
                                                             {group.totalReturnAmount > 0 && (
                                                                 <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '700', whiteSpace: 'nowrap' }}>
                                                                     Return Impact: -{formatCurrency(group.totalReturnAmount)}
@@ -6456,17 +6425,17 @@ const Invoice = () => {
                                                                                         <td>{new Date(si.date).toLocaleDateString()}</td>
                                                                                         <td>
                                                                                             {formatDocCurrency(si.totalAmount, si.currency)}
-                                                                                            {si.currency && si.currency !== (companySettings?.currency || 'INR') && (
+                                                                                            {si.currency && si.currency !== (companySettings?.currency || 'EUR') && (
                                                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(si.totalAmount * subRate, companySettings?.currency || 'INR')})
+                                                                                                    ({formatDocCurrency(si.totalAmount * subRate, companySettings?.currency || 'EUR')})
                                                                                                 </div>
                                                                                             )}
                                                                                         </td>
                                                                                         <td className="font-bold">
                                                                                             {formatDocCurrency(si.balanceAmount, si.currency)}
-                                                                                            {si.currency && si.currency !== (companySettings?.currency || 'INR') && (
+                                                                                            {si.currency && si.currency !== (companySettings?.currency || 'EUR') && (
                                                                                                 <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#64748b' }}>
-                                                                                                    ({formatDocCurrency(si.balanceAmount * subRate, companySettings?.currency || 'INR')})
+                                                                                                    ({formatDocCurrency(si.balanceAmount * subRate, companySettings?.currency || 'EUR')})
                                                                                                 </div>
                                                                                             )}
                                                                                         </td>

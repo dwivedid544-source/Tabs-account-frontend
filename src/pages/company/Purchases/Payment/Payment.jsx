@@ -32,7 +32,8 @@ const Payment = () => {
     const { companySettings, formatCurrency, getSyncRate, getReceiptPaymentLabel, getReceiptPaymentHeader, getDocumentTitle } = useContext(CompanyContext);
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || companySettings?.currency || 'EUR';
+        const rawCurr = currencyCode || companySettings?.currency || 'EUR';
+        const docCurrency = rawCurr === 'USD' ? (companySettings?.currency || 'EUR') : rawCurr;
         const localeMap = {
             'INR': 'en-IN', 'AED': 'ar-AE', 'SAR': 'ar-SA', 'EUR': 'en-IE',
             'GBP': 'en-GB', 'JPY': 'ja-JP', 'CNY': 'zh-CN', 'RUB': 'ru-RU',
@@ -149,7 +150,8 @@ const Payment = () => {
 
     useEffect(() => {
         const baseCurrency = companySettings?.currency || 'EUR';
-        const billCurrency = selectedBill?.currency || baseCurrency;
+        const rawBillCurrency = selectedBill?.currency || baseCurrency;
+        const billCurrency = rawBillCurrency === 'USD' ? baseCurrency : rawBillCurrency;
         if (billCurrency !== baseCurrency) {
             const liveRate = getSyncRate(billCurrency, baseCurrency) || 1.0;
             setExchangeRate(liveRate);
@@ -172,7 +174,8 @@ const Payment = () => {
     const getBillRate = (bill) => {
         if (!bill) return 1.0;
         const baseCurr = companySettings?.currency || 'EUR';
-        const billCurr = bill.currency || baseCurr;
+        const rawBillCurr = bill.currency || baseCurr;
+        const billCurr = rawBillCurr === 'USD' ? baseCurr : rawBillCurr;
         if (billCurr === baseCurr) return 1.0;
         return getSyncRate(billCurr, baseCurr) || 1.0;
     };
@@ -900,7 +903,8 @@ const Payment = () => {
                                                 <td className="PurchasePayment-amount-text font-semibold">
                                                     {(() => {
                                                         const baseCurr = companySettings?.currency || 'EUR';
-                                                        const billCurr = p.purchasebill?.currency || (p.allocations && p.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                        const rawCurr = p.purchasebill?.currency || (p.allocations && p.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                        const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                         const isForeign = billCurr !== baseCurr;
                                                         const liveRate = isForeign ? exchangeRate : 1.0;
                                                         return isForeign ? (
@@ -1063,7 +1067,8 @@ const Payment = () => {
                                         <div className="SalesPayment-invoice-grid">
                                             {filteredVendorBills.map(bill => {
                                                 const baseCurr = companySettings?.currency || 'EUR';
-                                                const billCurr = bill.currency || baseCurr;
+                                                const rawCurr = bill.currency || baseCurr;
+                                                const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                 const isForeign = billCurr !== baseCurr;
                                                 const liveRate = isForeign ? exchangeRate : 1.0;
                                                 return (
@@ -1194,7 +1199,8 @@ const Payment = () => {
                                                     <div className="PurchasePayment-form-group">
                                                         {(() => {
                                                             const baseCurr = companySettings?.currency || 'EUR';
-                                                            const billCurr = selectedBill?.currency || baseCurr;
+                                                            const rawCurr = selectedBill?.currency || baseCurr;
+                                                            const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                             const isForeign = billCurr !== baseCurr;
                                                             const liveRate = isForeign ? exchangeRate : 1.0;
                                                             return (
@@ -1249,7 +1255,8 @@ const Payment = () => {
 
                                                 {(() => {
                                                     const baseCurr = companySettings?.currency || 'EUR';
-                                                    const billCurr = selectedBill?.currency || baseCurr;
+                                                    const rawCurr = selectedBill?.currency || baseCurr;
+                                                    const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                     if (billCurr !== baseCurr) {
                                                         return (
                                                             <div className="PurchasePayment-form-group">
@@ -1347,7 +1354,8 @@ const Payment = () => {
                                                                             return rawAlloc;
                                                                         })();
                                                                         const baseCurr = companySettings?.currency || 'EUR';
-                                                                        const billCurr = bill.currency || baseCurr;
+                                                                        const rawCurr = bill.currency || baseCurr;
+                                                                        const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                                         const isForeign = billCurr !== baseCurr;
                                                                         const liveRate = isForeign ? exchangeRate : 1.0;
                                                                         return (
@@ -1432,7 +1440,8 @@ const Payment = () => {
                                             {/* Allocation Summary Info */}
                                             {(() => {
                                                 const baseCurr = companySettings?.currency || 'EUR';
-                                                const billCurr = selectedBill?.currency || baseCurr;
+                                                const rawCurr = selectedBill?.currency || baseCurr;
+                                                const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                 const isForeign = billCurr !== baseCurr;
                                                 const liveRate = isForeign ? exchangeRate : 1.0;
                                                 const totalPaid = parseFloat(amount || 0);
@@ -1940,7 +1949,8 @@ const Payment = () => {
                                         <p className="pp-receipt-satisfaction-text">
                                             {(() => {
                                                 const baseCurr = companySettings?.currency || 'EUR';
-                                                const billCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                const rawCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                 const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                 const isForeign = billCurr !== baseCurr;
                                                 const amtStr = isForeign
@@ -1959,7 +1969,8 @@ const Payment = () => {
                                         <span className="pp-receipt-satisfaction-amount">
                                             {(() => {
                                                 const baseCurr = companySettings?.currency || 'EUR';
-                                                const billCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                const rawCurr = viewPayment.purchasebill?.currency || (viewPayment.allocations && viewPayment.allocations[0]?.purchasebill?.currency) || baseCurr;
+                                                const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                 const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                 const isForeign = billCurr !== baseCurr;
                                                 return isForeign ? (
@@ -1990,7 +2001,8 @@ const Payment = () => {
                                                     {viewPayment.allocations && viewPayment.allocations.length > 0 ? (
                                                         viewPayment.allocations.map((alloc, index) => {
                                                             const baseCurr = companySettings?.currency || 'EUR';
-                                                            const billCurr = alloc.purchasebill?.currency || baseCurr;
+                                                            const rawCurr = alloc.purchasebill?.currency || baseCurr;
+                                                            const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                             const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                             const isForeign = billCurr !== baseCurr;
                                                             const billTotal = alloc.purchasebill?.totalAmount || 0;
@@ -2036,7 +2048,8 @@ const Payment = () => {
                                                         // Fallback to legacy single bill link
                                                         (() => {
                                                             const baseCurr = companySettings?.currency || 'EUR';
-                                                            const billCurr = viewPayment.purchasebill?.currency || baseCurr;
+                                                            const rawCurr = viewPayment.purchasebill?.currency || baseCurr;
+                                                            const billCurr = rawCurr === 'USD' ? baseCurr : rawCurr;
                                                             const liveRate = getSyncRate(billCurr, baseCurr) || 1.0;
                                                             const isForeign = billCurr !== baseCurr;
                                                             const billTotal = viewPayment.purchasebill?.totalAmount || (parseFloat(viewPayment.amount || 0) + parseFloat(viewPayment.discountAmount || 0));

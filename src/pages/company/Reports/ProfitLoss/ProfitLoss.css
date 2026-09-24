@@ -614,11 +614,11 @@
 }
 
 .net-income-box-premium:has(.text-success) {
-    border-left-color: var(--pl-income);
+    border-left-color: #10b981;
 }
 
 .net-income-box-premium:has(.text-danger) {
-    border-left-color: var(--pl-expense);
+    border-left-color: #ef4444;
 }
 
 .net-income-label {
@@ -657,11 +657,11 @@
 }
 
 .net-income-value.text-success {
-    color: #64748b !important; /* Emerald 400 for contrast on dark */
+    color: #10b981 !important; /* Emerald green for profit */
 }
 
 .net-income-value.text-danger {
-    color: #f87171 !important; /* Red 400 for contrast on dark */
+    color: #ef4444 !important; /* Red for loss */
 }
 
 /* Loading & Empty States */

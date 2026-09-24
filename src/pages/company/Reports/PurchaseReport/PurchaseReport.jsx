@@ -234,6 +234,9 @@ const PurchaseReport = () => {
         return reportData.filter(item => !item.isReturn && (
             String(item.status).toUpperCase() === 'PAID' ||
             String(item.status).toUpperCase() === 'FULLY_PAID' ||
+            String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
+            String(item.status).toUpperCase() === 'PARTIAL' ||
+            (parseFloat(item.paidAmount) > 0.01) ||
             (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
         ));
     }, [reportData]);
@@ -250,9 +253,16 @@ const PurchaseReport = () => {
     }, [purchasesRecords, summaryStats.totalPurchases, summaryStats.totalAmount]);
 
     const calculatedPaidPurchases = useMemo(() => {
-        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.paidAmount || item.totalAmount || item.amount) || 0), 0);
-        return sum > 0 ? sum : (summaryStats.totalPaid || 0);
-    }, [paidRecords, summaryStats.totalPaid]);
+        const sum = paidRecords.reduce((s, item) => {
+            const paid = parseFloat(item.paidAmount);
+            if (!isNaN(paid) && paid > 0) return s + paid;
+            if (String(item.status).toUpperCase() === 'PAID' || String(item.status).toUpperCase() === 'FULLY_PAID' || (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01)) {
+                return s + (parseFloat(item.totalAmount || item.amount) || 0);
+            }
+            return s;
+        }, 0);
+        return sum > 0 ? sum : (summaryStats.totalPaid || summaryStats.netPurchase || 0);
+    }, [paidRecords, summaryStats.totalPaid, summaryStats.netPurchase]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
@@ -265,10 +275,13 @@ const PurchaseReport = () => {
             // Filter to All Purchase Bills (excluding returns)
             if (item.isReturn) return false;
         } else if (activeCardFilter === 'NET_PURCHASE') {
-            // Filter to Paid / Settled Purchase Bills
+            // Filter to Paid / Settled Purchase Bills (including partially paid)
             const isPaid = !item.isReturn && (
                 String(item.status).toUpperCase() === 'PAID' ||
                 String(item.status).toUpperCase() === 'FULLY_PAID' ||
+                String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
+                String(item.status).toUpperCase() === 'PARTIAL' ||
+                (parseFloat(item.paidAmount) > 0.01) ||
                 (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
             );
             if (!isPaid) return false;
@@ -466,7 +479,7 @@ const PurchaseReport = () => {
                     >
                         <div className="card-content">
                             <span className="card-label">Net Purchase</span>
-                            <h3 className="card-value">{formatCurrency(calculatedPaidPurchases || summaryStats.netPurchase || 0)}</h3>
+                            <h3 className="card-value">{formatCurrency(calculatedPaidPurchases || summaryStats.netPurchase || summaryStats.totalPaid || 0)}</h3>
                             <span className="card-filter-hint">
                                 {activeCardFilter === 'NET_PURCHASE' ? `● Filtering paid purchases (${paidRecordsCount} ${paidRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)` : `${paidRecordsCount} ${paidRecordsCount === 1 ? 'paid bill' : 'paid bills'} • Click to filter`}
                             </span>
@@ -591,6 +604,15 @@ const PurchaseReport = () => {
                                                             {row.paidAmount > 0.01 && (
                                                                 <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: '#6b7280', marginTop: '2px' }}>
                                                                     Total: {formatCurrency(row.totalAmount)} • Paid: {formatCurrency(row.paidAmount)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : activeCardFilter === 'NET_PURCHASE' ? (
+                                                        <div>
+                                                            <span style={{ color: '#16a34a' }}>{formatCurrency(row.paidAmount > 0 ? row.paidAmount : (row.totalAmount || row.amount))}</span>
+                                                            {row.balanceAmount > 0.01 && (
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', color: '#6b7280', marginTop: '2px' }}>
+                                                                    Total: {formatCurrency(row.totalAmount)} • Due: {formatCurrency(row.balanceAmount)}
                                                                 </div>
                                                             )}
                                                         </div>

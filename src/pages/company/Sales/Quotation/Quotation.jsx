@@ -1108,7 +1108,7 @@ const Quotation = () => {
             ? (itemTotals.subTotal - itemTotals.itemDiscount) * odVal / 100
             : odVal;
 
-        const grandTotal = itemTotals.total - overallDiscountAmount;
+    const grandTotal = itemTotals.total - overallDiscountAmount;
 
         return {
             subTotal: itemTotals.subTotal,
@@ -2053,7 +2053,7 @@ const Quotation = () => {
                                                         <span>Item Discount:</span>
                                                         <span className="text-red-500">-{formatCurrency(totals.discount)}</span>
                                                     </div>
-                                                    {/* Overall Discount row */}
+                                                    {/* Overall Discount row commented out
                                                     <div className="Quotation-t-row" style={{ alignItems: 'center', gap: '8px' }}>
                                                         <span style={{ whiteSpace: 'nowrap' }}>Overall Discount:</span>
                                                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginLeft: 'auto' }}>
@@ -2096,6 +2096,7 @@ const Quotation = () => {
                                                             </span>
                                                         </div>
                                                     </div>
+                                                    */}
                                                     <div className="Quotation-t-row">
                                                         <span>Tax Total:</span>
                                                         <span>{formatCurrency(totals.tax)}</span>

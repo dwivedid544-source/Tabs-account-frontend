@@ -412,7 +412,7 @@ const PurchaseBill = () => {
     const [editingId, setEditingId] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [viewBill, setViewBill] = useState(null);
-    const viewRate = getSyncRate(viewBill?.currency || 'USD', companySettings?.currency || 'EUR');
+    const viewRate = getSyncRate((viewBill?.currency && viewBill?.currency !== 'USD') ? viewBill.currency : (companySettings?.currency || 'EUR'), companySettings?.currency || 'EUR');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteId, setDeleteId] = useState(null);
     const [showUnpayModal, setShowUnpayModal] = useState(false);
@@ -3550,7 +3550,7 @@ const PurchaseBill = () => {
             'Paid Amount': b.paidAmount || 0,
             'Balance Due': b.balanceAmount || 0,
             'Status': b.status || 'UNPAID',
-            'Currency': b.currency || 'USD'
+            'Currency': (b.currency && b.currency !== 'USD') ? b.currency : (companySettings?.currency || 'EUR')
         }));
         exportToExcel(exportData, 'Purchase_Bills_Export.xlsx', 'PurchaseBills');
         toast.success(`Exported ${exportData.length} purchase bills to Excel.`);
@@ -3702,7 +3702,8 @@ const PurchaseBill = () => {
                                                     latestDueDate: b.dueDate
                                                 };
                                             }
-                                            const rate = getSyncRate(b.currency || 'USD', companySettings?.currency || 'EUR');
+                                            const bCurr = (b.currency && b.currency !== 'USD') ? b.currency : (companySettings?.currency || 'EUR');
+                                            const rate = getSyncRate(bCurr, companySettings?.currency || 'EUR');
                                             groupedMap[key].bills.push(b);
 
                                             const bSubtotal = (b.subtotal !== undefined && b.subtotal !== null && parseFloat(b.subtotal) > 0)
@@ -3736,7 +3737,8 @@ const PurchaseBill = () => {
                                             if (b.purchasereturn) {
                                                 b.purchasereturn.forEach(ret => {
                                                     groupedMap[key].returns.push(ret);
-                                                    const retRate = getSyncRate(ret.currency || b.currency || 'USD', companySettings?.currency || 'EUR');
+                                                    const retCurr = (ret.currency && ret.currency !== 'USD') ? ret.currency : bCurr;
+                                                    const retRate = getSyncRate(retCurr, companySettings?.currency || 'EUR');
                                                     groupedMap[key].totalReturnAmount += (ret.totalAmount || 0) * retRate;
                                                 });
                                             }
@@ -3883,7 +3885,8 @@ const PurchaseBill = () => {
                                                                         </thead>
                                                                         <tbody>
                                                                             {group.bills.map(pb => {
-                                                                                const subRate = getSyncRate(pb.currency || 'USD', companySettings?.currency || 'EUR');
+                                                                                const pbCurr = (pb.currency && pb.currency !== 'USD') ? pb.currency : (companySettings?.currency || 'EUR');
+                                                                                const subRate = getSyncRate(pbCurr, companySettings?.currency || 'EUR');
                                                                                 return (
                                                                                     <tr key={`pb-${pb.id}`} style={{ borderTop: '1px solid #f1f5f9' }}>
                                                                                         <td style={{ padding: '10px', fontWeight: 'bold', color: '#64748b' }}>BILL</td>

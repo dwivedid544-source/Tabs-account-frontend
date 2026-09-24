@@ -367,6 +367,9 @@ const SalesReport = () => {
         return reportData.filter(item => !item.isReturn && (
             String(item.status).toUpperCase() === 'PAID' ||
             String(item.status).toUpperCase() === 'FULLY_PAID' ||
+            String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
+            String(item.status).toUpperCase() === 'PARTIAL' ||
+            (parseFloat(item.paidAmount) > 0.01) ||
             (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
         ));
     }, [reportData]);
@@ -378,9 +381,16 @@ const SalesReport = () => {
     const salesRecordsCount = salesRecords.length;
 
     const calculatedPaidSales = useMemo(() => {
-        const sum = paidRecords.reduce((s, item) => s + (parseFloat(item.paidAmount || item.totalAmount || item.amount) || 0), 0);
-        return sum > 0 ? sum : (summaryStats.totalPaid || 0);
-    }, [paidRecords, summaryStats.totalPaid]);
+        const sum = paidRecords.reduce((s, item) => {
+            const paid = parseFloat(item.paidAmount);
+            if (!isNaN(paid) && paid > 0) return s + paid;
+            if (String(item.status).toUpperCase() === 'PAID' || String(item.status).toUpperCase() === 'FULLY_PAID' || (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01)) {
+                return s + (parseFloat(item.totalAmount || item.amount) || 0);
+            }
+            return s;
+        }, 0);
+        return sum > 0 ? sum : (summaryStats.totalPaid || summaryStats.netRevenue || 0);
+    }, [paidRecords, summaryStats.totalPaid, summaryStats.netRevenue]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
@@ -393,10 +403,13 @@ const SalesReport = () => {
             // Filter to All Sales invoices (excluding returns)
             if (item.isReturn) return false;
         } else if (activeCardFilter === 'NET_REVENUE') {
-            // Filter to Paid / Collected Revenue invoices
+            // Filter to Paid / Collected Revenue invoices (including partially paid)
             const isPaid = !item.isReturn && (
                 String(item.status).toUpperCase() === 'PAID' ||
                 String(item.status).toUpperCase() === 'FULLY_PAID' ||
+                String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
+                String(item.status).toUpperCase() === 'PARTIAL' ||
+                (parseFloat(item.paidAmount) > 0.01) ||
                 (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
             );
             if (!isPaid) return false;

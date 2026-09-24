@@ -2041,7 +2041,7 @@ const PurchaseQuotation = () => {
                                                  <span>{formatCurrency(totalsData.tax)}</span>
                                              </div>
 
-                                             <div className="PurchaseQuotation-t-row PurchaseQuotation-overall-discount-row">
+                                             {/* <div className="PurchaseQuotation-t-row PurchaseQuotation-overall-discount-row">
                                                  <span>Overall Discount:</span>
                                                  <div className="PurchaseQuotation-discount-group">
                                                      <input
@@ -2075,7 +2075,7 @@ const PurchaseQuotation = () => {
                                                          <option value="fixed">Fixed</option>
                                                      </select>
                                                  </div>
-                                             </div>
+                                             </div> */}
 
                                              <div className="PurchaseQuotation-t-row PurchaseQuotation-total">
                                                  <span>Grand Total:</span>

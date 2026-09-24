@@ -438,11 +438,16 @@ const ProfitLoss = () => {
                                         <div className="statement-final-spacer" />
                                         <div className="net-income-box-premium">
                                             <div className="net-income-label">
-                                                <span className="main-label">NET PROFIT / (LOSS)</span>
+                                                <span className="main-label">
+                                                    {netProfitValue < 0 ? 'NET LOSS' : (netProfitValue > 0 ? 'NET PROFIT' : 'NET PROFIT / (LOSS)')}
+                                                </span>
                                                 <span className="sub-label">Total bottom-line earnings after adjustments</span>
                                             </div>
                                             <div className="net-income-value-wrapper">
-                                                <span className={`net-income-value ${netProfitValue < 0 ? 'text-danger' : 'text-success'}`}>
+                                                <span 
+                                                    className={`net-income-value ${netProfitValue < 0 ? 'text-danger' : 'text-success'}`}
+                                                    style={{ color: netProfitValue < 0 ? '#ef4444' : '#10b981' }}
+                                                >
                                                     {netProfitValue < 0 ? `(${formatCurrency(Math.abs(netProfitValue))})` : formatCurrency(netProfitValue)}
                                                 </span>
                                             </div>

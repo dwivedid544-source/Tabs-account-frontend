@@ -528,7 +528,7 @@ const Vendors = () => {
                                             placeholder="Enter Name"
                                         />
                                     </div>
-                                    <div className="Vendors-form-group Vendors-half-width">
+                                    {/* <div className="Vendors-form-group Vendors-half-width">
                                         <label className="Vendors-form-label">Name (Arabic)</label>
                                         <input
                                             type="text"
@@ -539,7 +539,7 @@ const Vendors = () => {
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Name (Arabic)"
                                         />
-                                    </div>
+                                    </div> */}
                                 </div>
 
                                 <div className="Vendors-form-row Vendors-mixed-col">

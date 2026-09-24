@@ -1117,40 +1117,30 @@
 }
 
 /* Print Overrides */
-/* Print Overrides */
 @media print {
-    body * {
-        visibility: hidden;
+    /* When printing from the dedicated popup window, hide nothing —
+       the popup contains only the receipt content. */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
     }
 
-    #print-area,
-    #print-area * {
-        visibility: visible;
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
-    #print-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-    }
-
-    .companypos-modal-overlay {
-        background: white;
-    }
-
+    .companypos-modal-overlay,
     .companypos-modal-content {
-        box-shadow: none;
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
+        box-shadow: none !important;
+        border: none !important;
     }
 
     .POS-invoice-preview-container {
-        border: none;
-        box-shadow: none;
+        border: none !important;
+        box-shadow: none !important;
     }
 }
 
