@@ -380,8 +380,13 @@ const SalesReport = () => {
     }, [reportData]);
     const salesRecordsCount = salesRecords.length;
 
+    const calculatedGrossSales = useMemo(() => {
+        const sum = salesRecords.reduce((s, item) => s + (parseFloat(item.totalAmount || item.amount) || 0), 0);
+        return sum > 0 ? sum : (summaryStats.totalSales || summaryStats.totalAmount || 0);
+    }, [salesRecords, summaryStats.totalSales, summaryStats.totalAmount]);
+
     const calculatedPaidSales = useMemo(() => {
-        const sum = paidRecords.reduce((s, item) => {
+        const sum = salesRecords.reduce((s, item) => {
             const paid = parseFloat(item.paidAmount);
             if (!isNaN(paid) && paid > 0) return s + paid;
             if (String(item.status).toUpperCase() === 'PAID' || String(item.status).toUpperCase() === 'FULLY_PAID' || (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01)) {
@@ -390,7 +395,7 @@ const SalesReport = () => {
             return s;
         }, 0);
         return sum > 0 ? sum : (summaryStats.totalPaid || summaryStats.netRevenue || 0);
-    }, [paidRecords, summaryStats.totalPaid, summaryStats.netRevenue]);
+    }, [salesRecords, summaryStats.totalPaid, summaryStats.netRevenue]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
@@ -582,7 +587,7 @@ const SalesReport = () => {
                     >
                         <div className="card-content">
                             <span className="card-label">Gross Sales</span>
-                            <h3 className="card-value">{formatCurrency(summaryStats.totalSales || summaryStats.totalAmount)}</h3>
+                            <h3 className="card-value">{formatCurrency(calculatedGrossSales)}</h3>
                             <span className="card-filter-hint">
                                 {activeCardFilter === 'GROSS_SALES'
                                     ? `● Filtering sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
