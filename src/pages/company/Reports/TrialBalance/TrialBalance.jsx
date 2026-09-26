@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Calendar, Download, Search, Filter,
     CheckCircle2, BookOpen, Layers, ArrowUpCircle, ArrowDownCircle, AlertCircle
@@ -13,6 +14,8 @@ import './TrialBalance.css';
 
 const TrialBalance = () => {
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     // Filter States (Empty by default = ALL DATA)
     const [startDate, setStartDate] = useState('');
@@ -55,6 +58,20 @@ const TrialBalance = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleAccountDrillDown = (account) => {
+        if (!account?.id) return;
+        navigate('/company/reports/ledger', {
+            state: {
+                accountId: account.id,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                from: location.pathname + location.search,
+                sourceName: 'Trial Balance',
+                fromReport: true
+            }
+        });
     };
 
     const handleApplyFilters = () => {
@@ -375,8 +392,26 @@ const TrialBalance = () => {
                                     else if (typeLower.includes('expense') || typeLower.includes('cost')) badgeClass += ' expense';
 
                                     return (
-                                        <tr key={row.id}>
-                                            <td className="font-medium text-slate-700">{row.name}</td>
+                                        <tr 
+                                            key={row.id}
+                                            onDoubleClick={() => handleAccountDrillDown(row)}
+                                            title="Double-click to view ledger transactions"
+                                            style={{ cursor: 'pointer' }}
+                                            className="hover:bg-slate-50 transition-colors"
+                                        >
+                                            <td className="font-medium text-slate-700">
+                                                <span 
+                                                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 font-semibold"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleAccountDrillDown(row);
+                                                    }}
+                                                    title="Click to view ledger details"
+                                                >
+                                                    {row.name}
+                                                    <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>↗</span>
+                                                </span>
+                                            </td>
                                             <td>
                                                 <span className={badgeClass}>
                                                     {row.type}

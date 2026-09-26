@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Download, Receipt, CreditCard,
     Clock, CheckCircle2, X
@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 
 const POSReport = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
     const [transactionFilter, setTransactionFilter] = useState('ALL'); // 'ALL', 'SALES', 'RETURNS'
     const [activeCardFilter, setActiveCardFilter] = useState(null); // 'GROSS_POS_SALES', 'OVERDUE', 'NET_POS_SALES', null
@@ -218,6 +219,37 @@ const POSReport = () => {
             row.status?.toLowerCase().includes(searchLower)
         );
     });
+
+    const handleInvoiceClick = (row) => {
+        if (!row) return;
+        if (row.isReturn) {
+            navigate('/company/sales/return', {
+                state: {
+                    targetReturnId: row.invoiceId || row.id,
+                    from: location.pathname + location.search,
+                    sourceName: 'POS Report',
+                    fromReport: true
+                }
+            });
+            return;
+        }
+
+        const targetInvoiceId = row.invoiceId || row.id;
+        if (targetInvoiceId) {
+            navigate('/company/pos/all-invoices', {
+                state: {
+                    targetInvoiceId: parseInt(targetInvoiceId),
+                    from: location.pathname + location.search,
+                    sourceName: 'POS Report',
+                    fromReport: true
+                }
+            });
+        }
+    };
+
+    const handleRowDoubleClick = (row) => {
+        handleInvoiceClick(row);
+    };
 
     const exportToExcel = () => {
         const worksheetData = filteredReportData.map(row => ({
@@ -442,8 +474,25 @@ const POSReport = () => {
                             </thead>
                             <tbody>
                                 {filteredReportData.map((row, idx) => (
-                                    <tr key={idx}>
-                                        <td className="font-mono font-bold text-theme">{row.invoiceNo}</td>
+                                    <tr
+                                        key={idx}
+                                        onDoubleClick={() => handleRowDoubleClick(row)}
+                                        title={row.isReturn ? "Double-click to view POS Return" : "Double-click to view POS Invoice"}
+                                        style={{ cursor: 'pointer' }}
+                                        className="hover:bg-slate-50 transition-colors"
+                                    >
+                                        <td className="font-mono font-bold text-theme">
+                                            <span
+                                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleInvoiceClick(row);
+                                                }}
+                                                title="Click to view details"
+                                            >
+                                                {row.invoiceNo}
+                                            </span>
+                                        </td>
                                         <td>
                                             <span style={{
                                                 padding: '3px 8px',

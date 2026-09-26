@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     AreaChart, Area
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../../../api/axiosInstance';
 import GetCompanyId from '../../../../api/GetCompanyId';
-import { useContext } from 'react';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -20,6 +19,7 @@ import './ProfitLoss.css';
 const ProfitLoss = () => {
     const { formatCurrency, fetchCompanySettings, companySettings } = useContext(CompanyContext);
     const navigate = useNavigate();
+    const location = useLocation();
     const currentYear = new Date().getFullYear();
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -164,19 +164,53 @@ const ProfitLoss = () => {
         doc.save(`Profit_Loss_Statement_${startDate}_to_${endDate}.pdf`);
     };
 
-    const StatementRow = ({ name, value, isTotal = false, isHeader = false, indent = false, totalRevenue = 0, type = '' }) => {
+    const handleAccountDrillDown = (item) => {
+        if (!item?.id) return;
+        navigate('/company/reports/ledger', {
+            state: {
+                accountId: item.id,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                from: location.pathname + location.search,
+                sourceName: 'Profit & Loss Statement',
+                fromReport: true
+            }
+        });
+    };
+
+    const StatementRow = ({ name, value, isTotal = false, isHeader = false, indent = false, totalRevenue = 0, type = '', onDrillDown = null, accountId = null }) => {
         const percentage = (totalRevenue > 0 && value !== undefined) ? ((value / totalRevenue) * 100).toFixed(1) : null;
         
         // Accounting Logic: Red if it's a negative result or an expense being added
         const isNegative = value < 0;
         const colorClass = isNegative ? 'text-danger' : (isTotal && value > 0 ? 'text-success' : '');
+        const isClickable = !isHeader && !isTotal && Boolean(accountId || onDrillDown);
 
         return (
-            <div className={`statement-row ${isTotal ? 'total-row' : ''} ${isHeader ? 'header-row' : ''} ${indent ? 'indent' : ''} type-${type}`}>
+            <div 
+                className={`statement-row ${isTotal ? 'total-row' : ''} ${isHeader ? 'header-row' : ''} ${indent ? 'indent' : ''} type-${type} ${isClickable ? 'clickable-statement-row' : ''}`}
+                onDoubleClick={() => {
+                    if (isClickable && onDrillDown) onDrillDown();
+                }}
+                title={isClickable ? "Double-click to view ledger transactions" : ""}
+                style={{ cursor: isClickable ? 'pointer' : 'default' }}
+            >
                 <span className="row-name">
                     {!isHeader && !isTotal && type === 'add' && <span className="math-prefix">+</span>}
                     {!isHeader && !isTotal && type === 'sub' && <span className="math-prefix">-</span>}
                     {name}
+                    {isClickable && (
+                        <span 
+                            className="drilldown-link-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onDrillDown) onDrillDown();
+                            }}
+                            title="Click to view ledger details"
+                        >
+                            ↗
+                        </span>
+                    )}
                 </span>
                 <div className="row-data">
                     {percentage !== null && !isHeader && !isTotal && (
@@ -422,7 +456,15 @@ const ProfitLoss = () => {
                                         {/* Section 1: Income */}
                                         <StatementRow name="INCOME ACCOUNTS" isHeader type="add" />
                                         {allIncomeItems.map(item => (
-                                            <StatementRow key={item.id} name={item.name} value={item.value} indent type="add" />
+                                            <StatementRow 
+                                                key={item.id} 
+                                                name={item.name} 
+                                                value={item.value} 
+                                                indent 
+                                                type="add" 
+                                                accountId={item.id}
+                                                onDrillDown={() => handleAccountDrillDown(item)}
+                                            />
                                         ))}
                                         <StatementRow name="Total Income" value={totalIncomeValue} isTotal type="result" />
 
@@ -431,7 +473,15 @@ const ProfitLoss = () => {
                                         {/* Section 2: Expenses */}
                                         <StatementRow name="EXPENSE ACCOUNTS" isHeader type="sub" />
                                         {allExpenseItems.map(item => (
-                                            <StatementRow key={item.id} name={item.name} value={item.value} indent type="sub" />
+                                            <StatementRow 
+                                                key={item.id} 
+                                                name={item.name} 
+                                                value={item.value} 
+                                                indent 
+                                                type="sub" 
+                                                accountId={item.id}
+                                                onDrillDown={() => handleAccountDrillDown(item)}
+                                            />
                                         ))}
                                         <StatementRow name="Total Expenses" value={totalExpenseValue} isTotal type="result" />
 

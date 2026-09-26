@@ -3,7 +3,7 @@ import {
     Calendar, Download, Printer, Share2,
     ChevronDown, ChevronRight, TrendingUp
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './BalanceSheet.css';
 import axiosInstance from '../../../../api/axiosInstance';
 import GetCompanyId from '../../../../api/GetCompanyId';
@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx';
 const BalanceSheet = () => {
     const { formatCurrency, fetchCompanySettings } = useContext(CompanyContext);
     const navigate = useNavigate();
+    const location = useLocation();
     const [expandedSections, setExpandedSections] = useState({
         currentAssets: true,
         fixedAssets: true,
@@ -264,18 +265,31 @@ const BalanceSheet = () => {
 
     const RowItem = ({ item }) => {
         const isNegative = item.value < 0;
+        const handleDrillDown = () => {
+            if (item.id) {
+                navigate('/company/reports/ledger', {
+                    state: {
+                        accountId: item.id,
+                        endDate: asOfDate,
+                        from: location.pathname + location.search,
+                        sourceName: 'Balance Sheet',
+                        fromReport: true
+                    }
+                });
+            }
+        };
+
         return (
             <div
                 className={`bs-row ${item.id ? 'clickable-row' : ''}`}
                 style={{ cursor: item.id ? 'pointer' : 'default' }}
-                onClick={() => {
-                    if (item.id) {
-                        navigate('/company/reports/ledger', { state: { accountId: item.id } });
-                    }
-                }}
+                onClick={handleDrillDown}
+                onDoubleClick={handleDrillDown}
+                title={item.id ? "Click or double-click to view ledger details" : ""}
             >
-                <span className="bs-row-name" style={{ color: item.id ? '#2563eb' : 'inherit', textDecoration: 'none' }}>
+                <span className="bs-row-name" style={{ color: item.id ? '#2563eb' : 'inherit', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     {item.name}
+                    {item.id && <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>↗</span>}
                 </span>
                 <span className={`bs-row-value ${isNegative ? 'text-danger' : ''}`}>
                     {isNegative ? `(${formatCurrency(Math.abs(item.value))})` : formatCurrency(item.value)}

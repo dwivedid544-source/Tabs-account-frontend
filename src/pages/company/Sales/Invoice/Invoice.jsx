@@ -8,7 +8,7 @@ import {
     FileText, ShoppingCart, Truck, Receipt, CreditCard,
     CheckCircle2, Clock, ArrowRight, Download, Send, Printer,
     Eye, Copy, ArrowLeft, AlertTriangle, RotateCcw, Mail, FileSpreadsheet, Shield,
-    Lock, EyeOff, AlertCircle
+    Lock, EyeOff, AlertCircle, Package, Briefcase
 } from 'lucide-react';
 import './Invoice.css';
 import salesInvoiceService from '../../../../api/salesInvoiceService';
@@ -553,6 +553,57 @@ const Invoice = () => {
     const anyFileRef = useRef();
 
     const [showAddProductModal, setShowAddProductModal] = useState(false);
+    const [itemModalTab, setItemModalTab] = useState('PRODUCT'); // 'PRODUCT' | 'SERVICE'
+    const [showAddItemMenu, setShowAddItemMenu] = useState(false);
+    const addItemMenuRef = useRef(null);
+
+    const [serviceFormData, setServiceFormData] = useState({
+        name: '',
+        sku: '',
+        description: '',
+        uomId: '',
+        price: '',
+        taxRate: '',
+        allowInInvoices: true,
+        remarks: ''
+    });
+    const [serviceSubmitting, setServiceSubmitting] = useState(false);
+
+    const handleServiceInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setServiceFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const resetServiceForm = () => {
+        setServiceFormData({
+            name: '',
+            sku: '',
+            description: '',
+            uomId: '',
+            price: '',
+            taxRate: '',
+            allowInInvoices: true,
+            remarks: ''
+        });
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (addItemMenuRef.current && !addItemMenuRef.current.contains(event.target)) {
+                setShowAddItemMenu(false);
+            }
+        };
+        if (showAddItemMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showAddItemMenu]);
+
     const [productFormData, setProductFormData] = useState({
         name: '', sku: '', hsn: '', barcode: '', categoryId: '',
         uomId: '', purchaseUomId: '', salesUomId: '', unit: '', description: '', asOfDate: new Date().toISOString().split('T')[0],
@@ -1727,9 +1778,117 @@ const Invoice = () => {
             } else if (Array.isArray(prodRes)) {
                 setAllProducts(prodRes);
             }
+
+            // Auto-append product to line items if found
+            const allFetched = prodRes?.data?.data || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
+            const createdProd = allFetched.find(p => p.name?.toLowerCase() === productFormData.name?.toLowerCase());
+            if (createdProd) {
+                const rateVal = parseFloat(createdProd.salePrice) || 0;
+                const pTax = parseFloat(createdProd.taxRate) || defaultVat || 0;
+                const pDisc = parseFloat(createdProd.discount) || 0;
+                const lineGross = 1 * rateVal;
+                const discAmt = (lineGross * Math.min(100, Math.max(0, pDisc))) / 100;
+                const lineTotal = Math.max(0, lineGross - discAmt);
+                const newItem = {
+                    id: Date.now(),
+                    productId: String(createdProd.id),
+                    serviceId: '',
+                    uomId: createdProd.salesUomId || createdProd.uomId || '',
+                    rate: rateVal,
+                    qty: 1,
+                    tax: pTax,
+                    discount: pDisc,
+                    discountType: 'percentage',
+                    total: Number(lineTotal.toFixed(2)) || 0,
+                    description: createdProd.description || createdProd.name,
+                    warehouseId: productWarehouseRows[0]?.warehouseId ? String(productWarehouseRows[0].warehouseId) : ''
+                };
+                setItems(prev => {
+                    const last = prev[prev.length - 1];
+                    if (last && !last.productId && !last.serviceId) {
+                        return prev.map((it, idx) => idx === prev.length - 1 ? { ...it, ...newItem, id: it.id } : it);
+                    }
+                    return [...prev, newItem];
+                });
+            }
         } catch (error) {
             console.error(error);
             toast.error(error.response?.data?.message || 'Failed to create product');
+        }
+    };
+
+    const handleServiceSubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!serviceFormData.name || !serviceFormData.name.trim()) {
+            toast.error('Service Name is required');
+            return;
+        }
+        try {
+            setServiceSubmitting(true);
+            const companyId = GetCompanyId();
+            const payload = {
+                name: serviceFormData.name.trim(),
+                sku: serviceFormData.sku?.trim() || null,
+                description: serviceFormData.description?.trim() || null,
+                uomId: serviceFormData.uomId ? parseInt(serviceFormData.uomId) : null,
+                price: (serviceFormData.price !== '' && serviceFormData.price !== undefined) ? (parseFloat(serviceFormData.price) || 0) : 0,
+                taxRate: (serviceFormData.taxRate !== '' && serviceFormData.taxRate !== undefined) ? (parseFloat(serviceFormData.taxRate) || 0) : 0,
+                allowInInvoices: serviceFormData.allowInInvoices ?? true,
+                remarks: serviceFormData.remarks?.trim() || null,
+                companyId: parseInt(companyId)
+            };
+            const res = await servicesService.createService(payload);
+            if (res && (res.success || res.data)) {
+                const createdService = res.data;
+                toast.success('Service created successfully!');
+                setShowAddProductModal(false);
+                resetServiceForm();
+
+                // Refresh services list
+                const servRes = await servicesService.getAll(companyId);
+                if (servRes?.data?.success) {
+                    setAllServices(servRes.data.data);
+                } else if (servRes?.data) {
+                    setAllServices(servRes.data);
+                } else if (Array.isArray(servRes)) {
+                    setAllServices(servRes);
+                }
+
+                // Automatically add as a line item on invoice
+                if (createdService) {
+                    const sRate = parseFloat(createdService.price) || 0;
+                    const sTax = (createdService.taxRate !== undefined && createdService.taxRate !== null && createdService.taxRate !== '' && parseFloat(createdService.taxRate) > 0)
+                        ? parseFloat(createdService.taxRate)
+                        : (defaultVat || 0);
+                    const newItem = {
+                        id: Date.now(),
+                        serviceId: String(createdService.id),
+                        productId: '',
+                        uomId: createdService.uomId ? String(createdService.uomId) : '',
+                        rate: sRate,
+                        qty: 1,
+                        tax: sTax,
+                        discount: 0,
+                        discountType: 'percentage',
+                        total: sRate,
+                        description: createdService.description || createdService.name
+                    };
+                    setItems(prev => {
+                        const last = prev[prev.length - 1];
+                        if (last && !last.productId && !last.serviceId) {
+                            return prev.map((it, idx) => idx === prev.length - 1 ? { ...it, ...newItem, id: it.id } : it);
+                        }
+                        return [...prev, newItem];
+                    });
+                }
+            } else {
+                toast.error(res?.message || 'Failed to create service');
+            }
+        } catch (error) {
+            console.error('Error creating service:', error);
+            toast.error(error.response?.data?.message || 'Failed to create service');
+        } finally {
+            setServiceSubmitting(false);
         }
     };
 
@@ -2066,6 +2225,22 @@ const Invoice = () => {
     const removeItem = (id) => {
         if (items.length > 1) {
             setItems(items.filter(item => item.id !== id));
+        } else {
+            const defWh = allWarehouses?.[0]?.id ? String(allWarehouses[0].id) : '';
+            setItems([{
+                id: Date.now(),
+                productId: '',
+                serviceId: '',
+                warehouseId: defWh,
+                qty: 1,
+                uomId: '',
+                rate: 0,
+                discount: 0,
+                discountType: 'percentage',
+                tax: defaultVat || 0,
+                total: 0,
+                description: ''
+            }]);
         }
     };
 
@@ -3567,6 +3742,10 @@ const Invoice = () => {
         return invoices.filter(inv => {
             if (!inv) return false;
 
+            // Exclude CANCELLED invoices — consistent with Sales Report Gross Sales (which excludes them via backend)
+            const _exportStatus = String(inv.status || '').toUpperCase();
+            if (_exportStatus === 'CANCELLED') return false;
+
             // Search filter
             let matchesSearch = true;
             if (term) {
@@ -3648,7 +3827,7 @@ const Invoice = () => {
 
             const hasActiveFilters = Boolean(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter));
             let targetInvoices = (scope === 'all' || !hasActiveFilters)
-                ? invoices
+                ? invoices.filter(i => i && String(i.status || '').toUpperCase() !== 'CANCELLED')
                 : getInvoicesForExport();
 
             if ((!targetInvoices || !targetInvoices.length) && scope === 'all') {
@@ -3658,7 +3837,7 @@ const Invoice = () => {
                         const res = await salesInvoiceService.getAll(companyId);
                         const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
                         if (Array.isArray(fetched) && fetched.length > 0) {
-                            targetInvoices = fetched;
+                            targetInvoices = fetched.filter(i => i && String(i.status || '').toUpperCase() !== 'CANCELLED');
                             setInvoices(fetched);
                         }
                     } catch (fetchErr) {
@@ -3697,6 +3876,16 @@ const Invoice = () => {
                     paymentDateDisplay = isNaN(d.getTime()) ? String(inv.paymentDate).slice(0, 10) : d.toLocaleDateString();
                 }
 
+                let otherCharges = parseFloat(inv.otherChargesTotal || 0);
+                if (!otherCharges && inv.customFields) {
+                    try {
+                        const cf = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
+                        if (Array.isArray(cf?._otherCharges)) {
+                            otherCharges = cf._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+                        }
+                    } catch (e) {}
+                }
+
                 return {
                     'Invoice #': inv.invoiceNumber || 'N/A',
                     'Purchase Order #': inv.poNumber || '',
@@ -3708,6 +3897,7 @@ const Invoice = () => {
                     'Subtotal': parseFloat(inv.subtotal || 0),
                     'Discount': parseFloat(inv.discountAmount || 0),
                     'Tax Amount': parseFloat(inv.taxAmount || 0),
+                    'Other Charges': otherCharges,
                     'Total Amount': tot,
                     'Paid Amount': paid,
                     'Balance Due': bal,
@@ -3742,7 +3932,7 @@ const Invoice = () => {
 
             const hasActiveFilters = Boolean(searchTerm || startDate || endDate || (customerViewOption === 'single' && selectedCustomerIdFilter));
             let targetInvoices = (scope === 'all' || !hasActiveFilters)
-                ? invoices
+                ? invoices.filter(i => i && String(i.status || '').toUpperCase() !== 'CANCELLED')
                 : getInvoicesForExport();
 
             if ((!targetInvoices || !targetInvoices.length) && scope === 'all') {
@@ -3752,7 +3942,7 @@ const Invoice = () => {
                         const res = await salesInvoiceService.getAll(companyId);
                         const fetched = res?.data?.data || (Array.isArray(res?.data) ? res.data : []);
                         if (Array.isArray(fetched) && fetched.length > 0) {
-                            targetInvoices = fetched;
+                            targetInvoices = fetched.filter(i => i && String(i.status || '').toUpperCase() !== 'CANCELLED');
                             setInvoices(fetched);
                         }
                     } catch (fetchErr) {
@@ -6921,7 +7111,7 @@ const Invoice = () => {
                                                                     discount: pDiscount,
                                                                     discountType: 'percentage',
                                                                     total: Number(lineTotal.toFixed(2)) || 0,
-                                                                    description: p.name,
+                                                                    description: p.description || p.name,
                                                                     warehouseId: autoWarehouseId
                                                                 };
                                                                 setItems(prev => {
@@ -6959,7 +7149,7 @@ const Invoice = () => {
                                                                     discount: sDiscount,
                                                                     discountType: 'percentage',
                                                                     total: Number(sTotal.toFixed(2)) || 0,
-                                                                    description: s.name
+                                                                    description: s.description || s.name
                                                                 };
                                                                 setItems(prev => {
                                                                     const last = prev[prev.length - 1];
@@ -6980,39 +7170,146 @@ const Invoice = () => {
                                                 clearable={true}
                                             />
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setProductWarehouseRows(allWarehouses.map(wh => ({
-                                                    id: wh.id,
-                                                    warehouseId: wh.id,
-                                                    quantity: 0,
-                                                    minOrderQty: 0,
-                                                    initialQty: 0
-                                                })));
-                                                setShowAddProductModal(true);
-                                            }}
-                                            title="Add Product"
-                                            style={{
-                                                backgroundColor: '#1e293b',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                borderRadius: '6px',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                height: '34px',
-                                                width: '34px',
-                                                minWidth: '34px',
-                                                flexShrink: 0,
-                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                        >
-                                            <Plus size={18} strokeWidth={2.5} />
-                                        </button>
+                                        <div style={{ position: 'relative' }} ref={addItemMenuRef}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAddItemMenu(prev => !prev)}
+                                                title="Add Product or Service"
+                                                style={{
+                                                    backgroundColor: '#1e293b',
+                                                    color: '#ffffff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    height: '34px',
+                                                    width: '34px',
+                                                    minWidth: '34px',
+                                                    flexShrink: 0,
+                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                            >
+                                                <Plus size={18} strokeWidth={2.5} />
+                                            </button>
+
+                                            {showAddItemMenu && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '40px',
+                                                    right: 0,
+                                                    backgroundColor: '#ffffff',
+                                                    borderRadius: '8px',
+                                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                                    border: '1px solid #e2e8f0',
+                                                    width: '215px',
+                                                    zIndex: 9999,
+                                                    overflow: 'hidden',
+                                                    padding: '6px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '3px'
+                                                }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowAddItemMenu(false);
+                                                            setItemModalTab('PRODUCT');
+                                                            setProductWarehouseRows(allWarehouses.map(wh => ({
+                                                                id: wh.id,
+                                                                warehouseId: wh.id,
+                                                                quantity: 0,
+                                                                minOrderQty: 0,
+                                                                initialQty: 0
+                                                            })));
+                                                            setShowAddProductModal(true);
+                                                        }}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '10px',
+                                                            width: '100%',
+                                                            padding: '8px 10px',
+                                                            border: 'none',
+                                                            borderRadius: '6px',
+                                                            backgroundColor: 'transparent',
+                                                            color: '#1e293b',
+                                                            fontSize: '13px',
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                    >
+                                                        <div style={{
+                                                            width: '28px',
+                                                            height: '28px',
+                                                            borderRadius: '6px',
+                                                            backgroundColor: '#e0f2fe',
+                                                            color: '#0284c7',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}>
+                                                            <Package size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <div>Add Product</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>Physical goods & stock</div>
+                                                        </div>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowAddItemMenu(false);
+                                                            setItemModalTab('SERVICE');
+                                                            setShowAddProductModal(true);
+                                                        }}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '10px',
+                                                            width: '100%',
+                                                            padding: '8px 10px',
+                                                            border: 'none',
+                                                            borderRadius: '6px',
+                                                            backgroundColor: 'transparent',
+                                                            color: '#1e293b',
+                                                            fontSize: '13px',
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                    >
+                                                        <div style={{
+                                                            width: '28px',
+                                                            height: '28px',
+                                                            borderRadius: '6px',
+                                                            backgroundColor: '#fef3c7',
+                                                            color: '#d97706',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}>
+                                                            <Briefcase size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <div>Add Service</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>Labor, consulting & fees</div>
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -7079,7 +7376,7 @@ const Invoice = () => {
                                                                                     : defaultVat),
                                                                             discount: pDiscount,
                                                                             discountType: 'percentage',
-                                                                            description: item.description || p.name,
+                                                                            description: p.description || p.name,
                                                                             warehouseId: autoWarehouseId
                                                                         });
                                                                     }
@@ -7101,7 +7398,7 @@ const Invoice = () => {
                                                                                 : defaultVat,
                                                                             discount: sDiscount,
                                                                             discountType: 'percentage',
-                                                                            description: item.description || s.name
+                                                                            description: s.description || s.name
                                                                         });
                                                                     }
                                                                 } else {
@@ -7235,7 +7532,12 @@ const Invoice = () => {
                                                         />
                                                     </td>
                                                     <td className="text-center">
-                                                        <button className="Invoice-btn-delete-row-compact" onClick={() => removeItem(item.id)}>
+                                                        <button
+                                                            type="button"
+                                                            className="Invoice-btn-delete-row-compact"
+                                                            title="Delete line item"
+                                                            onClick={() => removeItem(item.id)}
+                                                        >
                                                             <Trash2 size={14} />
                                                         </button>
                                                     </td>
@@ -8813,13 +9115,203 @@ const Invoice = () => {
                     {showAddProductModal && (
                         <div className="Zirak-Inventory-modal-overlay" style={{ zIndex: 20000 }}>
                             <div className="Zirak-Inventory-modal-content Zirak-Inventory-modal" style={{ textAlign: 'left' }}>
-                                <div className="Zirak-Inventory-modal-header">
-                                    <h2 className="Zirak-Inventory-modal-title">Add Product</h2>
+                                <div className="Zirak-Inventory-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <h2 className="Zirak-Inventory-modal-title" style={{ margin: 0 }}>
+                                            {itemModalTab === 'PRODUCT' ? 'Add Product' : 'Add Service'}
+                                        </h2>
+                                        <div style={{
+                                            display: 'inline-flex',
+                                            backgroundColor: '#f1f5f9',
+                                            padding: '3px',
+                                            borderRadius: '8px',
+                                            gap: '3px'
+                                        }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setItemModalTab('PRODUCT')}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    padding: '5px 14px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    fontSize: '13px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: itemModalTab === 'PRODUCT' ? 600 : 500,
+                                                    backgroundColor: itemModalTab === 'PRODUCT' ? '#ffffff' : 'transparent',
+                                                    color: itemModalTab === 'PRODUCT' ? '#0f172a' : '#64748b',
+                                                    boxShadow: itemModalTab === 'PRODUCT' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                            >
+                                                <Package size={15} />
+                                                <span>Product</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setItemModalTab('SERVICE')}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    padding: '5px 14px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    fontSize: '13px',
+                                                    cursor: 'pointer',
+                                                    fontWeight: itemModalTab === 'SERVICE' ? 600 : 500,
+                                                    backgroundColor: itemModalTab === 'SERVICE' ? '#ffffff' : 'transparent',
+                                                    color: itemModalTab === 'SERVICE' ? '#0f172a' : '#64748b',
+                                                    boxShadow: itemModalTab === 'SERVICE' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                            >
+                                                <Briefcase size={15} />
+                                                <span>Service</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <button className="Zirak-Inventory-close-btn" onClick={() => setShowAddProductModal(false)}>
                                         <X size={20} />
                                     </button>
                                 </div>
-                                <form onSubmit={handleFullProductSubmit}>
+
+                                {itemModalTab === 'SERVICE' ? (
+                                    <form onSubmit={handleServiceSubmit}>
+                                        <div className="Zirak-Inventory-modal-body">
+                                            <div className="Zirak-Inventory-form-grid">
+                                                <div className="Zirak-Inventory-form-group">
+                                                    <label className="Zirak-Inventory-form-label">Service Name <span style={{ color: '#ef4444' }}>*</span></label>
+                                                    <input
+                                                        type="text"
+                                                        name="name"
+                                                        className="Zirak-Inventory-form-input"
+                                                        placeholder="Enter service name (e.g. Design Consulting, Maintenance)"
+                                                        value={serviceFormData.name}
+                                                        onChange={handleServiceInputChange}
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="Zirak-Inventory-form-group">
+                                                    <label className="Zirak-Inventory-form-label">SKU / Service Code</label>
+                                                    <input
+                                                        type="text"
+                                                        name="sku"
+                                                        className="Zirak-Inventory-form-input"
+                                                        placeholder="Enter SKU (optional)"
+                                                        value={serviceFormData.sku}
+                                                        onChange={handleServiceInputChange}
+                                                    />
+                                                </div>
+
+                                                <div className="Zirak-Inventory-form-group">
+                                                    <label className="Zirak-Inventory-form-label">Unit of Measure (Optional)</label>
+                                                    <select
+                                                        name="uomId"
+                                                        className="Zirak-Inventory-form-input"
+                                                        value={serviceFormData.uomId}
+                                                        onChange={handleServiceInputChange}
+                                                    >
+                                                        <option value="">Select UOM (Optional)</option>
+                                                        {(allUoms || []).map(uom => (
+                                                            <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.category || uom.uomType || 'Unit'})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="Zirak-Inventory-form-group">
+                                                    <label className="Zirak-Inventory-form-label">Price / Rate (Optional)</label>
+                                                    <input
+                                                        type="number"
+                                                        name="price"
+                                                        step="0.01"
+                                                        className="Zirak-Inventory-form-input"
+                                                        placeholder="0.00 (Can be adjusted in invoice)"
+                                                        value={serviceFormData.price}
+                                                        onChange={handleServiceInputChange}
+                                                    />
+                                                </div>
+
+                                                <div className="Zirak-Inventory-form-group">
+                                                    <label className="Zirak-Inventory-form-label">Default Tax / VAT %</label>
+                                                    <input
+                                                        type="number"
+                                                        name="taxRate"
+                                                        step="0.01"
+                                                        className="Zirak-Inventory-form-input"
+                                                        placeholder={`e.g. ${defaultVat || 23}`}
+                                                        value={serviceFormData.taxRate}
+                                                        onChange={handleServiceInputChange}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="Zirak-Inventory-form-group Zirak-Inventory-full-width" style={{ marginTop: '15px' }}>
+                                                <label className="Zirak-Inventory-form-label">Service Description</label>
+                                                <textarea
+                                                    name="description"
+                                                    className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
+                                                    placeholder="Describe the scope of the service"
+                                                    rows={3}
+                                                    value={serviceFormData.description}
+                                                    onChange={handleServiceInputChange}
+                                                />
+                                            </div>
+
+                                            <div className="Zirak-Inventory-form-group" style={{ marginTop: '15px' }}>
+                                                <label className="Zirak-Inventory-form-label">Internal Remarks</label>
+                                                <textarea
+                                                    name="remarks"
+                                                    className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
+                                                    placeholder="Internal notes (not visible to customers)"
+                                                    rows={2}
+                                                    value={serviceFormData.remarks}
+                                                    onChange={handleServiceInputChange}
+                                                />
+                                                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Remarks are for internal use only.</p>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '15px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id="allowInInvoicesCheck"
+                                                    name="allowInInvoices"
+                                                    checked={serviceFormData.allowInInvoices}
+                                                    onChange={handleServiceInputChange}
+                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                                />
+                                                <label htmlFor="allowInInvoicesCheck" style={{ fontSize: '13px', color: '#334155', cursor: 'pointer', margin: 0, fontWeight: 500 }}>
+                                                    Allow this service to be selected in invoices
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div className="Zirak-Inventory-modal-footer">
+                                            <button
+                                                type="button"
+                                                className="Zirak-Inventory-btn-cancel"
+                                                onClick={() => {
+                                                    setShowAddProductModal(false);
+                                                    resetServiceForm();
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                className="Zirak-Inventory-btn-submit"
+                                                disabled={serviceSubmitting}
+                                                style={{ backgroundColor: '#1e293b' }}
+                                            >
+                                                {serviceSubmitting ? 'Saving...' : 'Save Service'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <form onSubmit={handleFullProductSubmit}>
                                     <div className="Zirak-Inventory-modal-body">
                                         <div className="Zirak-Inventory-form-grid">
                                             <div className="Zirak-Inventory-form-group">
@@ -9131,6 +9623,7 @@ const Invoice = () => {
                                         <button type="submit" className="Zirak-Inventory-btn-submit" disabled={uploadingImage}>Save</button>
                                     </div>
                                 </form>
+                                )}
                             </div>
                         </div>
                     )}

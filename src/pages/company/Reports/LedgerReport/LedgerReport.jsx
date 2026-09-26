@@ -1634,10 +1634,19 @@ const LedgerReport = () => {
                                     <React.Fragment key={group.groupKey}>
                                         <tr
                                             className={`${group.items.length > 1 ? 'Ledger-grouped-row' : ''} ${hasItems ? 'Ledger-hoverable-row' : ''}`}
-                                            style={enableColors ? (() => {
-                                                const colorStyle = getTransactionColor(group.items && group.items[0]);
-                                                return colorStyle ? { backgroundColor: colorStyle.background } : null;
-                                            })() : null}
+                                            style={{
+                                                ...(enableColors ? (() => {
+                                                    const colorStyle = getTransactionColor(group.items && group.items[0]);
+                                                    return colorStyle ? { backgroundColor: colorStyle.background } : {};
+                                                })() : {}),
+                                                cursor: (group.items && group.items[0]) ? 'pointer' : 'default'
+                                            }}
+                                            onDoubleClick={() => {
+                                                if (group.items && group.items[0]) {
+                                                    handleVoucherRedirect(group.typeLabel, group.items[0]);
+                                                }
+                                            }}
+                                            title="Double-click to view source transaction"
                                             onMouseEnter={(e) => handleMouseEnter(e, group.items && group.items[0], `${formatVoucherType(group.typeLabel)} #${group.refNo}`)}
                                             onMouseMove={handleMouseMove}
                                             onMouseLeave={handleMouseLeave}

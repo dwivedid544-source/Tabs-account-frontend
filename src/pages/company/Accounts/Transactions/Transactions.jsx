@@ -379,7 +379,18 @@ const Transactions = () => {
         const warehouseMatch = !filterWarehouse || (item.warehouses && item.warehouses.includes(filterWarehouse));
         const balanceTypeMatch = !filterBalanceType || item.balanceType === filterBalanceType;
         const sourceModuleMatch = !filterSourceModule || item.sourceModule === filterSourceModule;
-        const statusMatch = !filterStatus || item.status === filterStatus;
+        
+        const isTxnOverdue = item.status === 'OVERDUE' || item.isOverdue || (
+            item.dueDate &&
+            new Date(item.dueDate) < new Date() &&
+            parseFloat(item.balanceAmount !== undefined ? item.balanceAmount : (item.amount || 0)) > 0.01 &&
+            item.status !== 'PAID' &&
+            item.status !== 'CANCELLED'
+        );
+
+        const statusMatch = !filterStatus ||
+            item.status === filterStatus ||
+            (filterStatus === 'OVERDUE' && isTxnOverdue);
 
         let amountMatch = true;
         const amt = parseFloat(item.amount);
@@ -395,7 +406,7 @@ const Transactions = () => {
     const uniqueAccounts = [...new Set(transactions.flatMap(t => [t.debitAccount, t.creditAccount]))].filter(a => a && a !== '-');
     const uniqueWarehouses = [...new Set(transactions.flatMap(t => (t.warehouses || '').split(', ')))].filter(w => w && w !== '-');
     const uniqueModules = [...new Set(transactions.map(t => t.sourceModule))].filter(Boolean);
-    const uniqueStatuses = [...new Set(transactions.map(t => t.status))].filter(Boolean);
+    const uniqueStatuses = [...new Set([...transactions.map(t => t.status), 'OVERDUE'])].filter(Boolean);
 
     // Sorting implementation
     const sortedTransactions = [...filteredTransactions].sort((a, b) => {
@@ -966,7 +977,13 @@ const Transactions = () => {
                                     </td>
                                 </tr>
                             ) : currentEntries.map((txn, index) => (
-                                <tr key={txn.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <tr
+                                    key={txn.id}
+                                    style={{ borderBottom: '1px solid #e2e8f0', cursor: txn.targetId ? 'pointer' : 'default' }}
+                                    onDoubleClick={() => handleVoucherRedirect(txn)}
+                                    title={txn.targetId ? "Double-click to view source transaction" : ""}
+                                    className="hover:bg-slate-50 transition-colors"
+                                >
                                     <td>{indexOfFirstEntry + index + 1}</td>
                                     <td>{formatDate(txn.date)}</td>
                                     <td>

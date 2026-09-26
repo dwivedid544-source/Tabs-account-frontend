@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Download, Calendar,
     User, Truck, CheckCircle2, AlertCircle,
     ChevronDown, ChevronUp, FileText, DollarSign,
-    Layers, ShoppingBag, Eye
+    Layers, ShoppingBag, Eye, X
 } from 'lucide-react';
 import './AgentReport.css';
 import axiosInstance from '../../../../api/axiosInstance';
@@ -14,6 +15,8 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const AgentReport = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const { formatCurrency, companySettings, fetchCompanySettings } = useContext(CompanyContext);
     
     // UI Navigation State
@@ -23,6 +26,7 @@ const AgentReport = () => {
     const [loading, setLoading] = useState(true);
 
     // Filtering State
+    const [activeCardFilter, setActiveCardFilter] = useState(null); // 'TOTAL_SALES', 'TOTAL_PURCHASES', 'COLLECTED', 'OUTSTANDING', null
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [tempStartDate, setTempStartDate] = useState('');
@@ -290,6 +294,65 @@ const AgentReport = () => {
         setStatusFilter('all');
         setItemFilter('all');
         setWarehouseFilter('all');
+        setActiveCardFilter(null);
+    };
+
+    const handleDocClick = (doc) => {
+        if (!doc) return;
+        const docType = doc.type || '';
+        const targetId = doc.id;
+
+        if (docType === 'Sale') {
+            navigate('/company/sales/invoice', {
+                state: {
+                    targetInvoiceId: parseInt(targetId),
+                    type: 'TAX_INVOICE',
+                    from: location.pathname + location.search,
+                    sourceName: 'Agent Report',
+                    fromReport: true
+                }
+            });
+        } else if (docType === 'POS Sale') {
+            navigate('/company/pos/all-invoices', {
+                state: {
+                    targetInvoiceId: parseInt(targetId),
+                    from: location.pathname + location.search,
+                    sourceName: 'Agent Report',
+                    fromReport: true
+                }
+            });
+        } else if (docType === 'Purchase') {
+            navigate('/company/purchases/bill', {
+                state: {
+                    targetBillId: targetId,
+                    from: location.pathname + location.search,
+                    sourceName: 'Agent Report',
+                    fromReport: true
+                }
+            });
+        } else if (docType === 'Purchase Return') {
+            navigate('/company/purchases/return', {
+                state: {
+                    targetReturnId: targetId,
+                    from: location.pathname + location.search,
+                    sourceName: 'Agent Report',
+                    fromReport: true
+                }
+            });
+        } else if (docType === 'Sales Return' || docType === 'POS Return') {
+            navigate('/company/sales/return', {
+                state: {
+                    targetReturnId: targetId,
+                    from: location.pathname + location.search,
+                    sourceName: 'Agent Report',
+                    fromReport: true
+                }
+            });
+        }
+    };
+
+    const handleRowDoubleClick = (doc) => {
+        handleDocClick(doc);
     };
 
     const toggleRow = (docNumber) => {
@@ -357,16 +420,21 @@ const AgentReport = () => {
     const uniqueItems = Array.from(new Set(aggregatedItems.map(item => item.productName))).filter(Boolean).sort();
     const uniqueWarehouses = Array.from(new Set(aggregatedItems.map(item => item.warehouseName))).filter(Boolean).sort();
 
-    // Compute metrics based on currently filtered documents
-    const filteredDocsList = getFilteredDocs();
-    const filteredItemsList = getFilteredItems();
+    // Base documents list before activeCardFilter
+    const baseDocsList = getFilteredDocs();
+    const baseItemsList = getFilteredItems();
 
     let totalSales = 0;
     let totalPurchases = 0;
     let totalPaid = 0;
     let totalUnpaid = 0;
 
-    filteredDocsList.forEach(d => {
+    let salesRecordsCount = 0;
+    let purchaseRecordsCount = 0;
+    let paidRecordsCount = 0;
+    let unpaidRecordsCount = 0;
+
+    baseDocsList.forEach(d => {
         const isSaleType = d.type === 'Sale' || d.type === 'POS Sale';
         const isSalesReturn = d.type === 'Sales Return' || d.type === 'POS Return';
         const isPurchaseType = d.type === 'Purchase';
@@ -374,19 +442,60 @@ const AgentReport = () => {
 
         if (isSaleType) {
             totalSales += d.totalAmount;
+            salesRecordsCount++;
             totalPaid += (d.paidAmount || 0);
             totalUnpaid += (d.balanceAmount || 0);
+            if (d.paidAmount > 0.01 || d.status?.toLowerCase() === 'paid') paidRecordsCount++;
+            if (d.balanceAmount > 0.01 || d.status?.toLowerCase() === 'unpaid' || d.status?.toLowerCase() === 'partial') unpaidRecordsCount++;
         } else if (isSalesReturn) {
             totalSales -= Math.abs(d.totalAmount || 0);
         } else if (isPurchaseType) {
             totalPurchases += d.totalAmount;
-            if (typeFilter === 'Purchase') {
-                totalPaid += (d.paidAmount || 0);
-                totalUnpaid += (d.balanceAmount || 0);
-            }
+            purchaseRecordsCount++;
+            totalPaid += (d.paidAmount || 0);
+            totalUnpaid += (d.balanceAmount || 0);
+            if (d.paidAmount > 0.01 || d.status?.toLowerCase() === 'paid') paidRecordsCount++;
+            if (d.balanceAmount > 0.01 || d.status?.toLowerCase() === 'unpaid' || d.status?.toLowerCase() === 'partial') unpaidRecordsCount++;
         } else if (isPurchaseReturn) {
             totalPurchases -= Math.abs(d.totalAmount || 0);
         }
+    });
+
+    // Apply activeCardFilter to docs & items for table rendering:
+    const filteredDocsList = baseDocsList.filter(d => {
+        if (!activeCardFilter) return true;
+        if (activeCardFilter === 'TOTAL_SALES') {
+            return d.type === 'Sale' || d.type === 'POS Sale' || d.type === 'Sales Return' || d.type === 'POS Return';
+        }
+        if (activeCardFilter === 'TOTAL_PURCHASES') {
+            return d.type === 'Purchase' || d.type === 'Purchase Return';
+        }
+        if (activeCardFilter === 'COLLECTED') {
+            return (d.paidAmount > 0.01) || d.status?.toLowerCase() === 'paid' || d.status?.toLowerCase() === 'partial';
+        }
+        if (activeCardFilter === 'OUTSTANDING') {
+            return (d.balanceAmount > 0.01) || d.status?.toLowerCase() === 'unpaid' || d.status?.toLowerCase() === 'partial';
+        }
+        return true;
+    });
+
+    const filteredItemsList = baseItemsList.filter(i => {
+        if (!activeCardFilter) return true;
+        const doc = aggregatedDocs.find(d => d.docNumber === i.docNumber);
+        if (!doc) return true;
+        if (activeCardFilter === 'TOTAL_SALES') {
+            return doc.type === 'Sale' || doc.type === 'POS Sale' || doc.type === 'Sales Return' || doc.type === 'POS Return';
+        }
+        if (activeCardFilter === 'TOTAL_PURCHASES') {
+            return doc.type === 'Purchase' || doc.type === 'Purchase Return';
+        }
+        if (activeCardFilter === 'COLLECTED') {
+            return (doc.paidAmount > 0.01) || doc.status?.toLowerCase() === 'paid' || doc.status?.toLowerCase() === 'partial';
+        }
+        if (activeCardFilter === 'OUTSTANDING') {
+            return (doc.balanceAmount > 0.01) || doc.status?.toLowerCase() === 'unpaid' || doc.status?.toLowerCase() === 'partial';
+        }
+        return true;
     });
 
     const docCount = filteredDocsList.length;
@@ -790,31 +899,82 @@ const AgentReport = () => {
 
             {/* Summary Cards */}
             <div className="summary-grid">
-                <div className="summary-card card-blue">
+                <div 
+                    className={`summary-card card-blue clickable-summary-card ${activeCardFilter === 'TOTAL_SALES' ? 'active-card-blue' : ''}`}
+                    onClick={() => setActiveCardFilter(prev => prev === 'TOTAL_SALES' ? null : 'TOTAL_SALES')}
+                    title="Click to filter table by Sales"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'TOTAL_SALES' ? null : 'TOTAL_SALES'); }}
+                >
                     <div className="card-content">
                         <span className="card-label">Total Sales Volume</span>
                         <h3 className="card-value">{formatCurrency(totalSales)}</h3>
+                        <span className="card-filter-hint">
+                            {activeCardFilter === 'TOTAL_SALES' 
+                                ? `● Filtering sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'doc' : 'docs'} • Click to reset)` 
+                                : `${salesRecordsCount} ${salesRecordsCount === 1 ? 'sales doc' : 'sales docs'} • Click to filter`}
+                        </span>
                     </div>
                     <div className="card-icon icon-blue"><ShoppingBag size={24} /></div>
                 </div>
-                <div className="summary-card card-purple">
+
+                <div 
+                    className={`summary-card card-purple clickable-summary-card ${activeCardFilter === 'TOTAL_PURCHASES' ? 'active-card-purple' : ''}`}
+                    onClick={() => setActiveCardFilter(prev => prev === 'TOTAL_PURCHASES' ? null : 'TOTAL_PURCHASES')}
+                    title="Click to filter table by Purchases"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'TOTAL_PURCHASES' ? null : 'TOTAL_PURCHASES'); }}
+                >
                     <div className="card-content">
                         <span className="card-label">Total Purchase Volume</span>
                         <h3 className="card-value">{formatCurrency(totalPurchases)}</h3>
+                        <span className="card-filter-hint">
+                            {activeCardFilter === 'TOTAL_PURCHASES' 
+                                ? `● Filtering purchases (${purchaseRecordsCount} ${purchaseRecordsCount === 1 ? 'doc' : 'docs'} • Click to reset)` 
+                                : `${purchaseRecordsCount} ${purchaseRecordsCount === 1 ? 'purchase doc' : 'purchase docs'} • Click to filter`}
+                        </span>
                     </div>
                     <div className="card-icon icon-purple"><FileText size={24} /></div>
                 </div>
-                <div className="summary-card card-green">
+
+                <div 
+                    className={`summary-card card-green clickable-summary-card ${activeCardFilter === 'COLLECTED' ? 'active-card-green' : ''}`}
+                    onClick={() => setActiveCardFilter(prev => prev === 'COLLECTED' ? null : 'COLLECTED')}
+                    title="Click to filter table by Collected Amount"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'COLLECTED' ? null : 'COLLECTED'); }}
+                >
                     <div className="card-content">
                         <span className="card-label">Collected Amount</span>
                         <h3 className="card-value">{formatCurrency(totalPaid)}</h3>
+                        <span className="card-filter-hint">
+                            {activeCardFilter === 'COLLECTED' 
+                                ? `● Filtering collected (${paidRecordsCount} ${paidRecordsCount === 1 ? 'doc' : 'docs'} • Click to reset)` 
+                                : `${paidRecordsCount} ${paidRecordsCount === 1 ? 'collected doc' : 'collected docs'} • Click to filter`}
+                        </span>
                     </div>
                     <div className="card-icon icon-green"><CheckCircle2 size={24} /></div>
                 </div>
-                <div className="summary-card card-red">
+
+                <div 
+                    className={`summary-card card-red clickable-summary-card ${activeCardFilter === 'OUTSTANDING' ? 'active-card-red' : ''}`}
+                    onClick={() => setActiveCardFilter(prev => prev === 'OUTSTANDING' ? null : 'OUTSTANDING')}
+                    title="Click to filter table by Outstanding Balance"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'OUTSTANDING' ? null : 'OUTSTANDING'); }}
+                >
                     <div className="card-content">
                         <span className="card-label">Outstanding Balance</span>
                         <h3 className="card-value">{formatCurrency(totalUnpaid)}</h3>
+                        <span className="card-filter-hint">
+                            {activeCardFilter === 'OUTSTANDING' 
+                                ? `● Filtering outstanding (${unpaidRecordsCount} ${unpaidRecordsCount === 1 ? 'doc' : 'docs'} • Click to reset)` 
+                                : `${unpaidRecordsCount} ${unpaidRecordsCount === 1 ? 'due doc' : 'due docs'} • Click to filter`}
+                        </span>
                     </div>
                     <div className="card-icon icon-red"><AlertCircle size={24} /></div>
                 </div>
@@ -833,6 +993,25 @@ const AgentReport = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    {activeCardFilter && (
+                        <div className="active-card-filter-pill">
+                            <span>
+                                Filter: <strong>{
+                                    activeCardFilter === 'TOTAL_SALES' ? `Sales Volume (${salesRecordsCount} docs)` :
+                                    activeCardFilter === 'TOTAL_PURCHASES' ? `Purchase Volume (${purchaseRecordsCount} docs)` :
+                                    activeCardFilter === 'COLLECTED' ? `Collected Amount (${paidRecordsCount} docs)` :
+                                    `Outstanding Balance (${unpaidRecordsCount} docs)`
+                                }</strong>
+                            </span>
+                            <button 
+                                className="btn-clear-card-filter" 
+                                onClick={() => setActiveCardFilter(null)}
+                                title="Reset filter"
+                            >
+                                <X size={14} /> Clear Filter
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="table-container">
@@ -862,13 +1041,29 @@ const AgentReport = () => {
                                 ) : (
                                     filteredDocsList.map((doc) => (
                                         <React.Fragment key={doc.docNumber}>
-                                            <tr>
+                                            <tr
+                                                onDoubleClick={() => handleRowDoubleClick(doc)}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Double-click to view source transaction"
+                                                className="hover:bg-slate-50 transition-colors"
+                                            >
                                                 <td>
                                                     <button className="btn-details-toggle" onClick={() => toggleRow(doc.docNumber)}>
                                                         {expandedRows[doc.docNumber] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                     </button>
                                                 </td>
-                                                <td className="font-mono font-medium">{doc.docNumber}</td>
+                                                <td className="font-mono font-medium">
+                                                    <span
+                                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 font-bold"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDocClick(doc);
+                                                        }}
+                                                        title="Click to view details"
+                                                    >
+                                                        {doc.docNumber}
+                                                    </span>
+                                                </td>
                                                 <td>{doc.date}</td>
                                                 <td>
                                                     <span className={`type-badge ${doc.type.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -978,9 +1173,28 @@ const AgentReport = () => {
                                         <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>No transacted items found.</td>
                                     </tr>
                                 ) : (
-                                    filteredItemsList.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td className="font-mono font-medium">{item.docNumber}</td>
+                                    filteredItemsList.map((item, idx) => {
+                                        const matchingDoc = aggregatedDocs.find(d => d.docNumber === item.docNumber);
+                                        return (
+                                            <tr
+                                                key={idx}
+                                                onDoubleClick={() => { if (matchingDoc) handleDocClick(matchingDoc); }}
+                                                style={{ cursor: matchingDoc ? 'pointer' : 'default' }}
+                                                title={matchingDoc ? "Double-click to view source transaction" : ""}
+                                                className="hover:bg-slate-50 transition-colors"
+                                            >
+                                                <td className="font-mono font-medium">
+                                                    <span
+                                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 font-bold"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (matchingDoc) handleDocClick(matchingDoc);
+                                                        }}
+                                                        title="Click to view details"
+                                                    >
+                                                        {item.docNumber}
+                                                    </span>
+                                                </td>
                                             <td>{item.date}</td>
                                             <td>
                                                 <span className={`type-badge ${item.type.toLowerCase()}`}>
@@ -1024,7 +1238,8 @@ const AgentReport = () => {
                                                 </span>
                                             </td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

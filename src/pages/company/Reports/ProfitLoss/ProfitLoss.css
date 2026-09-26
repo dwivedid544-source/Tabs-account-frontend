@@ -461,6 +461,36 @@
     transform: translateX(4px);
 }
 
+.statement-row.clickable-statement-row {
+    cursor: pointer;
+}
+
+.statement-row.clickable-statement-row:hover .row-name {
+    color: #2563eb;
+}
+
+.drilldown-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.8;
+    transition: all 0.2s;
+}
+
+.statement-row.clickable-statement-row:hover .drilldown-link-btn {
+    opacity: 1;
+    background: #2563eb;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
 .statement-row.header-row {
     background: #f1f5f9;
     padding: 0.85rem 1.75rem;

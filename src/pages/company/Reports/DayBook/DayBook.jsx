@@ -387,6 +387,8 @@ const DayBook = () => {
                                     <tr
                                         key={row.id}
                                         onClick={() => handleRowClick(row.source)}
+                                        onDoubleClick={() => handleRowClick(row.source)}
+                                        title="Double-click to view source transaction"
                                         className="clickable-row"
                                     >
                                         <td className="text-gray-500">{formatDate(row.date)}</td>

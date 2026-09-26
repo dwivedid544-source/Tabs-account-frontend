@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Download, Calendar,
     ShoppingBag, CheckCircle2, XCircle, AlertCircle,
@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx';
 const PurchaseReport = () => {
     const { formatCurrency, fetchCompanySettings } = React.useContext(CompanyContext);
     const navigate = useNavigate();
+    const location = useLocation();
     
     const [reportType, setReportType] = useState('general'); // general, item, vendor
     const [transactionFilter, setTransactionFilter] = useState('ALL'); // 'ALL', 'PURCHASE', 'RETURNS'
@@ -218,6 +219,53 @@ const PurchaseReport = () => {
             console.error("Error fetching report:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBillClick = (row) => {
+        if (row.isReturn) {
+            navigate('/company/purchases/return', {
+                state: {
+                    targetReturnId: row.billId || row.id,
+                    from: location.pathname + location.search,
+                    sourceName: 'Purchase Report',
+                    fromReport: true
+                }
+            });
+            return;
+        }
+        if (row.billId || row.id) {
+            navigate('/company/purchases/bill', {
+                state: {
+                    targetBillId: row.billId || row.id,
+                    from: location.pathname + location.search,
+                    sourceName: 'Purchase Report',
+                    fromReport: true,
+                    returnState: {
+                        reportType,
+                        transactionFilter,
+                        startDate,
+                        endDate,
+                        searchTerm
+                    }
+                }
+            });
+        }
+    };
+
+    const handleRowDoubleClick = (row) => {
+        if (reportType === 'general') {
+            handleBillClick(row);
+        } else if (reportType === 'vendor') {
+            if (row.vendorName) {
+                setSearchTerm(row.vendorName);
+                setReportType('general');
+            }
+        } else if (reportType === 'item') {
+            if (row.productName) {
+                setSearchTerm(row.productName);
+                setReportType('general');
+            }
         }
     };
 
@@ -566,11 +614,26 @@ const PurchaseReport = () => {
                             </thead>
                             <tbody>
                                 {filteredData.map((row, idx) => (
-                                    <tr key={idx}>
+                                    <tr
+                                        key={idx}
+                                        onDoubleClick={() => handleRowDoubleClick(row)}
+                                        title={reportType === 'general' ? (row.isReturn ? "Double-click to view Purchase Return" : "Double-click to view Purchase Bill") : (reportType === 'item' ? "Double-click to view bills for this product" : "Double-click to view bills for this vendor")}
+                                        style={{ cursor: 'pointer' }}
+                                        className="hover:bg-slate-50 transition-colors"
+                                    >
                                         {reportType === 'general' && (
                                             <>
-                                                <td className="font-mono text-theme cursor-pointer hover:underline" onClick={() => !row.isReturn && navigate('/company/purchases/bill', { state: { targetBillId: row.billId } })}>
-                                                    {row.billNumber}
+                                                <td className="font-mono">
+                                                    <span
+                                                        className="text-blue-600 hover:text-blue-800 hover:underline font-bold cursor-pointer inline-flex items-center gap-1"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleBillClick(row);
+                                                        }}
+                                                        title="Click to view details"
+                                                    >
+                                                        {row.billNumber}
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <span style={{
