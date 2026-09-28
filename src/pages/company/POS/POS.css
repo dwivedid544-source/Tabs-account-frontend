@@ -441,6 +441,7 @@
 
 .companypos-qty-input[type=number] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 .companypos-rate-input {
@@ -470,6 +471,7 @@
 
 .companypos-rate-input[type=number] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 .companypos-uom-select-container {
@@ -1129,7 +1131,6 @@
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        color-adjust: exact !important;
     }
 
     .companypos-modal-overlay,
@@ -1585,6 +1586,7 @@
 }
 .companypos-tax-dropdown[type="number"] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 /* ==========================================================================
