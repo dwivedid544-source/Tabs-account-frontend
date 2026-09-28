@@ -68,6 +68,53 @@ export const ENTITY_SCHEMAS = {
         ]
     },
 
+    services: {
+        name: 'Services',
+        fileName: 'Services_Template.xlsx',
+        fields: [
+            { key: 'name', label: 'Service Name', required: true, example: 'Interior design' },
+            { key: 'sku', label: 'SKU / Code', required: false, example: 'SRV-INT-01' },
+            { key: 'description', label: 'Service Description', required: false, example: 'Interior design and planning' },
+            { key: 'uomName', label: 'Unit of Measure', required: false, example: 'Service' },
+            { key: 'price', label: 'Price', required: false, example: 1000.00, type: 'number' },
+            { key: 'taxRate', label: 'Tax Rate %', required: false, example: 18, type: 'number' },
+            { key: 'allowInInvoices', label: 'Allow in Invoices (Yes / No)', required: false, example: 'Yes' },
+            { key: 'remarks', label: 'Remarks', required: false, example: 'Internal billing remarks' }
+        ],
+        sampleData: [
+            {
+                'Service Name': 'Interior design',
+                'SKU / Code': 'SRV-INT-01',
+                'Service Description': 'Interior design is the art and science of planning and shaping the inside of a building',
+                'Unit of Measure': 'Service',
+                'Price': 1000.00,
+                'Tax Rate %': 18,
+                'Allow in Invoices (Yes / No)': 'Yes',
+                'Remarks': 'Standard interior design project'
+            },
+            {
+                'Service Name': 'Fire Inspection',
+                'SKU / Code': 'SRV-FIRE-02',
+                'Service Description': 'Annual commercial building safety and fire inspection',
+                'Unit of Measure': 'Service',
+                'Price': 250.00,
+                'Tax Rate %': 18,
+                'Allow in Invoices (Yes / No)': 'Yes',
+                'Remarks': 'Compliant with safety regulations'
+            },
+            {
+                'Service Name': 'Cleaning & Sanitization',
+                'SKU / Code': 'SRV-CLN-03',
+                'Service Description': 'Deep cleaning and sanitization services',
+                'Unit of Measure': 'Hour',
+                'Price': 50.00,
+                'Tax Rate %': 18,
+                'Allow in Invoices (Yes / No)': 'Yes',
+                'Remarks': 'Hourly rate'
+            }
+        ]
+    },
+
     customers: {
         name: 'Customers & Clients',
         fileName: 'Customers_Template.xlsx',
@@ -343,8 +390,19 @@ export const downloadSampleTemplate = (entityType) => {
     // 3. Set column widths automatically
     const colWidths = schema.fields.map(field => {
         const headerLen = field.label.length;
-        const maxLen = Math.max(headerLen, 16);
-        return { wch: maxLen + 4 };
+        let maxLen = Math.max(headerLen, 16);
+        if (Array.isArray(schema.sampleData)) {
+            schema.sampleData.forEach(row => {
+                const val = row[field.label] !== undefined && row[field.label] !== null ? String(row[field.label]) : '';
+                if (val.length > maxLen) {
+                    maxLen = val.length;
+                }
+            });
+        }
+        const isLongText = /description|detail|note|remark|address|name|summary/i.test(field.label);
+        const minWidth = isLongText ? 20 : 12;
+        const maxWidth = isLongText ? 200 : 50;
+        return { wch: Math.min(Math.max(maxLen + 4, minWidth), maxWidth) };
     });
     ws['!cols'] = colWidths;
 
@@ -422,17 +480,27 @@ export const exportToExcel = (data, fileName = 'Export.xlsx', sheetName = 'Sheet
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(data);
 
-        // Auto-calculate column widths
+        // Auto-calculate column widths so descriptions and long text are fully visible
         const headers = Object.keys(data[0] || {});
         const colWidths = headers.map(header => {
+            if (options.columnWidths && options.columnWidths[header]) {
+                return { wch: options.columnWidths[header] };
+            }
             let maxLen = header.length;
             data.forEach(row => {
                 const cellVal = row[header] !== undefined && row[header] !== null ? String(row[header]) : '';
-                if (cellVal.length > maxLen) {
-                    maxLen = cellVal.length;
-                }
+                const lines = cellVal.split(/\r?\n/);
+                lines.forEach(line => {
+                    if (line.length > maxLen) {
+                        maxLen = line.length;
+                    }
+                });
             });
-            return { wch: Math.min(Math.max(maxLen + 3, 12), 50) };
+
+            const isLongText = /description|detail|note|remark|address|name|summary/i.test(header);
+            const minWidth = isLongText ? 20 : 12;
+            const maxWidth = isLongText ? 200 : 50;
+            return { wch: Math.min(Math.max(maxLen + 4, minWidth), maxWidth) };
         });
         ws['!cols'] = colWidths;
 
@@ -477,6 +545,11 @@ export const exportSingleInvoiceToExcel = (invoice, customFileName) => {
             'Line Total': parseFloat(item.amount || 0)
         }));
 
+        const baseCurrency = (invoice.company?.currency || 'EUR').toUpperCase();
+        const invCurrency = (currency || baseCurrency).toUpperCase();
+        const rate = (invoice.exchangeRate && parseFloat(invoice.exchangeRate) > 0) ? parseFloat(invoice.exchangeRate) : 1.0;
+        const isMulti = invCurrency !== baseCurrency && rate !== 1.0;
+
         // Format invoice summary sheet
         const summaryData = [
             { 'Invoice Field': 'Invoice Number', 'Value': invoice.invoiceNumber || 'Invoice' },
@@ -488,13 +561,19 @@ export const exportSingleInvoiceToExcel = (invoice, customFileName) => {
             { 'Invoice Field': 'Invoice Date', 'Value': invoice.date ? new Date(invoice.date).toLocaleDateString() : '' },
             { 'Invoice Field': 'Due Date', 'Value': invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A' },
             { 'Invoice Field': 'Status', 'Value': computedStatus },
-            { 'Invoice Field': 'Currency', 'Value': currency },
-            { 'Invoice Field': 'Subtotal', 'Value': subtotal },
-            { 'Invoice Field': 'Discount Amount', 'Value': discount },
-            { 'Invoice Field': 'Tax Amount', 'Value': tax },
-            { 'Invoice Field': 'Total Amount', 'Value': total },
-            { 'Invoice Field': 'Paid Amount', 'Value': paid },
-            { 'Invoice Field': 'Balance Due', 'Value': effectiveBal }
+            { 'Invoice Field': 'Currency', 'Value': invCurrency },
+            ...(isMulti ? [
+                { 'Invoice Field': 'Exchange Rate', 'Value': rate },
+                { 'Invoice Field': `Total in Base Currency (${baseCurrency})`, 'Value': parseFloat((total * rate).toFixed(2)) },
+                { 'Invoice Field': `Paid in Base Currency (${baseCurrency})`, 'Value': parseFloat((paid * rate).toFixed(2)) },
+                { 'Invoice Field': `Balance Due in Base Currency (${baseCurrency})`, 'Value': parseFloat((effectiveBal * rate).toFixed(2)) }
+            ] : []),
+            { 'Invoice Field': isMulti ? `Subtotal (${invCurrency})` : 'Subtotal', 'Value': subtotal },
+            { 'Invoice Field': isMulti ? `Discount Amount (${invCurrency})` : 'Discount Amount', 'Value': discount },
+            { 'Invoice Field': isMulti ? `Tax Amount (${invCurrency})` : 'Tax Amount', 'Value': tax },
+            { 'Invoice Field': isMulti ? `Total Amount (${invCurrency})` : 'Total Amount', 'Value': total },
+            { 'Invoice Field': isMulti ? `Paid Amount (${invCurrency})` : 'Paid Amount', 'Value': paid },
+            { 'Invoice Field': isMulti ? `Balance Due (${invCurrency})` : 'Balance Due', 'Value': effectiveBal }
         ];
 
         const wb = XLSX.utils.book_new();

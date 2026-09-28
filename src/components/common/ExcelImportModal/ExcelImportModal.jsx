@@ -20,6 +20,7 @@ import './ExcelImportModal.css';
 
 const ENDPOINTS_MAP = {
     products: '/bulk-import/products',
+    services: '/bulk-import/services',
     customers: '/bulk-import/customers',
     vendors: '/bulk-import/vendors',
     chartOfAccounts: '/bulk-import/chart-of-accounts',

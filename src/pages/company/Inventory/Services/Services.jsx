@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, X, Eye } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, Eye, Download, FileSpreadsheet } from 'lucide-react';
 import { useContext } from 'react';
 import { AuthContext } from '../../../../context/AuthContext';
 import servicesApi from '../../../../api/servicesService';
@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import './Services.css';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
+import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
+import { exportToExcel } from '../../../../utils/excelService';
 
 const Services = () => {
     const { formatCurrency } = useContext(CompanyContext);
@@ -21,6 +23,7 @@ const Services = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
 
     const [formData, setFormData] = useState({
@@ -163,6 +166,25 @@ const Services = () => {
         }
     };
 
+    const handleExportExcel = () => {
+        if (!services.length) {
+            toast.error('No services available to export');
+            return;
+        }
+        const exportData = services.map(s => ({
+            'Service Name': s.name,
+            'SKU / Code': s.sku || '',
+            'Service Description': s.description || '',
+            'Unit of Measure': s.uom?.unitName || '',
+            'Price': s.price || 0,
+            'Tax Rate %': s.taxRate || 0,
+            'Allow in Invoices (Yes / No)': s.allowInInvoices ? 'Yes' : 'No',
+            'Remarks': s.remarks || ''
+        }));
+        exportToExcel(exportData, 'Services_Export.xlsx', 'Services');
+        toast.success(`Exported ${exportData.length} services to Excel.`);
+    };
+
     const filteredServices = services.filter(service =>
         service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         service.sku?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -172,12 +194,32 @@ const Services = () => {
         <div className="Zirak-Services-page">
             <div className="Zirak-Services-page-header">
                 <h1 className="Zirak-Services-page-title">Services</h1>
-                {hasPermission('create services') && (
-                    <button className="Zirak-Services-btn-add" style={{ backgroundColor: '#1e293b' }} onClick={() => { resetForm(); setShowAddModal(true); }}>
-                        <Plus size={18} />
-                        Add Service
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button 
+                        className="Zirak-Services-btn-add" 
+                        style={{ background: '#334155' }}
+                        onClick={handleExportExcel}
+                    >
+                        <Download size={18} />
+                        Export Excel
                     </button>
-                )}
+                    {hasPermission('create services') && (
+                        <button 
+                            className="Zirak-Services-btn-add" 
+                            style={{ background: '#334155' }}
+                            onClick={() => setShowImportModal(true)}
+                        >
+                            <FileSpreadsheet size={18} />
+                            Import Excel
+                        </button>
+                    )}
+                    {hasPermission('create services') && (
+                        <button className="Zirak-Services-btn-add" style={{ backgroundColor: '#1e293b' }} onClick={() => { resetForm(); setShowAddModal(true); }}>
+                            <Plus size={18} />
+                            Add Service
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="Zirak-Services-card">
@@ -445,6 +487,17 @@ const Services = () => {
                     </div>
                 </div>
             )}
+
+            {/* Universal Excel Import Modal */}
+            <ExcelImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                entityType="services"
+                onSuccess={() => {
+                    fetchData();
+                    setShowImportModal(false);
+                }}
+            />
         </div>
     );
 };

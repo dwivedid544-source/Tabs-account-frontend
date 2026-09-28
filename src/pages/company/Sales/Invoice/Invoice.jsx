@@ -3853,6 +3853,8 @@ const Invoice = () => {
 
             toast.loading('Exporting invoices to Excel...', { id: 'export-excel-toast' });
 
+            const baseCurrency = (companySettings?.currency || 'EUR').toUpperCase();
+
             const exportData = targetInvoices.map(inv => {
                 const tot = parseFloat(inv.totalAmount || 0);
                 const paid = parseFloat(inv.paidAmount || 0);
@@ -3886,6 +3888,27 @@ const Invoice = () => {
                     } catch (e) {}
                 }
 
+                const invCurrency = (inv.currency || baseCurrency).toUpperCase();
+                const isBase = invCurrency === baseCurrency;
+                let rate = 1.0;
+                if (!isBase) {
+                    if (parseFloat(inv.exchangeRate) > 0) {
+                        rate = parseFloat(inv.exchangeRate);
+                    } else if (parseFloat(inv.conversionRate) > 0) {
+                        rate = parseFloat(inv.conversionRate);
+                    } else if (typeof getSyncRate === 'function' && getSyncRate(invCurrency, baseCurrency)) {
+                        rate = parseFloat(getSyncRate(invCurrency, baseCurrency));
+                    }
+                }
+
+                const totalBase = parseFloat((tot * rate).toFixed(2));
+                const paidBase = parseFloat((paid * rate).toFixed(2));
+                const balBase = parseFloat((bal * rate).toFixed(2));
+                const subtotalBase = parseFloat(((parseFloat(inv.subtotal) || 0) * rate).toFixed(2));
+                const discountBase = parseFloat(((parseFloat(inv.discountAmount) || 0) * rate).toFixed(2));
+                const taxBase = parseFloat(((parseFloat(inv.taxAmount) || 0) * rate).toFixed(2));
+                const otherChargesBase = parseFloat((otherCharges * rate).toFixed(2));
+
                 return {
                     'Invoice #': inv.invoiceNumber || 'N/A',
                     'Purchase Order #': inv.poNumber || '',
@@ -3894,16 +3917,29 @@ const Invoice = () => {
                     'Customer Phone': inv.customer?.phone || '',
                     'Date': dateDisplay,
                     'Due Date': dueDateDisplay,
-                    'Subtotal': parseFloat(inv.subtotal || 0),
-                    'Discount': parseFloat(inv.discountAmount || 0),
-                    'Tax Amount': parseFloat(inv.taxAmount || 0),
-                    'Other Charges': otherCharges,
-                    'Total Amount': tot,
-                    'Paid Amount': paid,
-                    'Balance Due': bal,
+
+                    // Original Multi-Currency Columns
+                    'Currency': invCurrency,
+                    'Exchange Rate': rate,
+                    'Subtotal (Original)': parseFloat(inv.subtotal || 0),
+                    'Discount (Original)': parseFloat(inv.discountAmount || 0),
+                    'Tax Amount (Original)': parseFloat(inv.taxAmount || 0),
+                    'Other Charges (Original)': otherCharges,
+                    'Total Amount (Original)': tot,
+                    'Paid Amount (Original)': paid,
+                    'Balance Due (Original)': bal,
+
+                    // Base Currency (EUR) Columns - 100% matched with Sales Report & Dashboard
+                    [`Subtotal (${baseCurrency})`]: subtotalBase,
+                    [`Discount (${baseCurrency})`]: discountBase,
+                    [`Tax Amount (${baseCurrency})`]: taxBase,
+                    [`Other Charges (${baseCurrency})`]: otherChargesBase,
+                    [`Total Amount (${baseCurrency})`]: totalBase,
+                    [`Paid Amount (${baseCurrency})`]: paidBase,
+                    [`Balance Due (${baseCurrency})`]: balBase,
+
                     'Status': inv.status === 'PARTIAL' ? 'PARTIALLY PAID' : (inv.status || 'UNPAID'),
-                    'Payment Date': paymentDateDisplay,
-                    'Currency': inv.currency || companySettings?.currency || 'EUR'
+                    'Payment Date': paymentDateDisplay
                 };
             });
 
