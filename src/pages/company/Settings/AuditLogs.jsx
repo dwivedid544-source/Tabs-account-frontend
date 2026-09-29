@@ -27,6 +27,7 @@ const AuditLogs = () => {
     const queryAction = searchParams.get('action') || '';
     const queryInvoiceNumber = searchParams.get('invoiceNumber') || '';
     const queryInvoiceType = searchParams.get('invoiceType') || searchParams.get('type') || '';
+    const queryCustomerId = searchParams.get('customerId') || '';
 
     const initialEntity = queryEntityType || (queryEntityId ? 'Invoice' : '');
     const initialEntityId = queryEntityId;
@@ -38,16 +39,30 @@ const AuditLogs = () => {
     const fromInvoiceParamId = queryEntityId;
     const fromInvoiceParamNumber = queryInvoiceNumber;
     const fromInvoiceParamType = queryInvoiceType;
+    const fromInvoiceParamCustomerId = queryCustomerId || fromInvoiceState?.customerId || '';
 
     // Consolidated invoice origin context
     const invoiceContext = fromInvoiceState || (fromInvoiceParamId || fromInvoiceParamNumber ? {
         id: fromInvoiceParamId ? (isNaN(parseInt(fromInvoiceParamId)) ? fromInvoiceParamId : parseInt(fromInvoiceParamId)) : undefined,
         invoiceNumber: fromInvoiceParamNumber || '',
-        type: fromInvoiceParamType || 'TAX_INVOICE'
+        type: fromInvoiceParamType || 'TAX_INVOICE',
+        customerId: fromInvoiceParamCustomerId || undefined
     } : null);
 
-    const [resolvedInvoiceId, setResolvedInvoiceId] = useState(invoiceContext?.id || (queryEntityId && !isNaN(parseInt(queryEntityId)) ? parseInt(queryEntityId) : null));
-    const [resolvedInvoiceNumber, setResolvedInvoiceNumber] = useState(invoiceContext?.invoiceNumber || queryInvoiceNumber || '');
+    const isCombinedTarget = Boolean(
+        (queryEntityId && String(queryEntityId).toLowerCase().includes('combined')) ||
+        (queryInvoiceNumber && String(queryInvoiceNumber).toLowerCase().includes('combined')) ||
+        (invoiceContext?.id && String(invoiceContext.id).toLowerCase().includes('combined')) ||
+        (invoiceContext?.invoiceNumber && String(invoiceContext.invoiceNumber).toLowerCase().includes('combined'))
+    );
+
+    const [resolvedInvoiceId, setResolvedInvoiceId] = useState(
+        invoiceContext?.id || (queryEntityId ? (isNaN(parseInt(queryEntityId)) ? queryEntityId : parseInt(queryEntityId)) : null)
+    );
+    const [resolvedInvoiceNumber, setResolvedInvoiceNumber] = useState(
+        invoiceContext?.invoiceNumber || queryInvoiceNumber || (isCombinedTarget ? (queryEntityId || invoiceContext?.id || '') : '')
+    );
+    const [targetCustomerId, setTargetCustomerId] = useState(fromInvoiceParamCustomerId);
 
     const [logs, setLogs] = useState([]);
     const [users, setUsers] = useState([]);
@@ -150,7 +165,9 @@ const AuditLogs = () => {
                     const parsed = JSON.parse(log.details);
                     detailText = parsed.summary || log.details;
                 }
-            } catch {}
+            } catch (err) {
+                void err;
+            }
 
             const row = [
                 new Date(log.createdAt).toLocaleString(),
@@ -300,6 +317,7 @@ const AuditLogs = () => {
         const pSearch = searchParams.get('search') || '';
         const pAction = searchParams.get('action') || '';
         const pInvoiceNum = searchParams.get('invoiceNumber') || '';
+        const pCustId = searchParams.get('customerId') || '';
 
         if (pEntityType || pEntityId) {
             setEntity(pEntityType || (pEntityId ? 'Invoice' : ''));
@@ -308,6 +326,7 @@ const AuditLogs = () => {
             if (pAction) setAction(pAction);
             if (pEntityId) setResolvedInvoiceId(isNaN(parseInt(pEntityId)) ? pEntityId : parseInt(pEntityId));
             if (pInvoiceNum) setResolvedInvoiceNumber(pInvoiceNum);
+            if (pCustId) setTargetCustomerId(pCustId);
             setPage(1);
         } else if (!searchParams.toString()) {
             setEntity('');
@@ -316,6 +335,7 @@ const AuditLogs = () => {
             setAction('');
             setResolvedInvoiceId(null);
             setResolvedInvoiceNumber('');
+            setTargetCustomerId('');
             setPage(1);
         }
     }, [searchParams]);
@@ -354,6 +374,12 @@ const AuditLogs = () => {
     const fetchAuditLogs = async () => {
         try {
             setLoading(true);
+            const isCombined = Boolean(
+                (entityId && String(entityId).toLowerCase().includes('combined')) ||
+                (queryEntityId && String(queryEntityId).toLowerCase().includes('combined')) ||
+                (resolvedInvoiceNumber && String(resolvedInvoiceNumber).toLowerCase().includes('combined'))
+            );
+
             const params = {
                 page,
                 limit,
@@ -362,6 +388,7 @@ const AuditLogs = () => {
                 entity: entity || undefined,
                 entityType: entity || undefined,
                 entityId: entityId.trim() || undefined,
+                customerId: targetCustomerId || searchParams.get('customerId') || undefined,
                 userId: userId || undefined,
                 companyId: selectedCompanyId || undefined,
                 startDate: startDate || undefined,
@@ -377,14 +404,14 @@ const AuditLogs = () => {
                     setTotalLogs(response.data.pagination.total || 0);
                 }
 
-                if (!resolvedInvoiceId && fetchedLogs.length > 0) {
+                if (!resolvedInvoiceId && fetchedLogs.length > 0 && !isCombined) {
                     const match = fetchedLogs.find(l => (l.entity === 'Invoice' || l.entityType === 'Invoice' || l.entity === 'Sales Invoice') && l.entityId);
                     if (match && match.entityId) {
                         setResolvedInvoiceId(match.entityId);
                     }
                 }
 
-                if (!resolvedInvoiceNumber && fetchedLogs.length > 0) {
+                if (!resolvedInvoiceNumber && fetchedLogs.length > 0 && !isCombined) {
                     for (const l of fetchedLogs) {
                         try {
                             const p = typeof l.details === 'string' ? JSON.parse(l.details) : l.details;
@@ -392,7 +419,9 @@ const AuditLogs = () => {
                                 setResolvedInvoiceNumber(p.invoiceNumber);
                                 break;
                             }
-                        } catch {}
+                        } catch (err) {
+                            void err;
+                        }
                     }
                 }
             }
@@ -422,6 +451,7 @@ const AuditLogs = () => {
         setPage(1);
         setResolvedInvoiceId(null);
         setResolvedInvoiceNumber('');
+        setTargetCustomerId('');
         setSearchParams({}, { replace: true });
     };
 
@@ -584,7 +614,7 @@ const AuditLogs = () => {
     const hasInvoiceContext = Boolean(resolvedInvoiceId || invoiceContext?.id || (entity === 'Invoice' && entityId) || activeInvoiceNumber);
 
     const handleBack = () => {
-        const targetInvoiceId = invoiceContext?.id || resolvedInvoiceId || (entity === 'Invoice' && !isNaN(parseInt(entityId)) ? parseInt(entityId) : undefined);
+        const targetInvoiceId = invoiceContext?.id || resolvedInvoiceId || (entity === 'Invoice' && entityId ? entityId : undefined);
         const targetInvoiceNumber = invoiceContext?.invoiceNumber || resolvedInvoiceNumber || activeInvoiceNumber;
         const targetType = invoiceContext?.type || searchParams.get('invoiceType') || searchParams.get('type') || 'TAX_INVOICE';
 
@@ -637,9 +667,14 @@ const AuditLogs = () => {
                         <div className="audit-meta-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Tag size={14} style={{ color: '#64748b' }} />
                             <span>{(() => {
+                                const isComb = String(entityId || '').toLowerCase().includes('combined');
                                 if (log.entity === 'Invoice' || log.entity === 'Sales Invoice') {
-                                    const num = parsed.invoiceNumber || parsed.record?.invoiceNumber || (activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
+                                    const num = parsed.invoiceNumber || parsed.record?.invoiceNumber || (!isComb && activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
                                     if (num) return `${log.entity} #${String(num).replace(/^#/, '')}`;
+                                }
+                                if (log.entity === 'Receipt' || log.entity === 'Sales Receipt' || log.entity === 'Payment') {
+                                    const rNum = parsed.receiptNumber || parsed.record?.receiptNumber;
+                                    if (rNum) return `${log.entity} #${String(rNum).replace(/^#/, '')}`;
                                 }
                                 return `${log.entity} #${log.entityId || 'N/A'}`;
                             })()}</span>
@@ -998,7 +1033,19 @@ const AuditLogs = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Info size={16} style={{ color: '#2563eb', flexShrink: 0 }} />
                         <span>
-                            Showing audit records for Invoice: <strong>{activeInvoiceNumber || `#${entityId}`}</strong> {entityId && <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>(ID: {entityId})</span>}
+                            {String(entityId).toLowerCase().includes('combined') ? (
+                                <>
+                                    Showing audit records for Combined Invoice: <strong>{activeInvoiceNumber || entityId}</strong>{' '}
+                                    <span style={{ color: '#475569', fontSize: '0.8rem', marginLeft: '4px' }}>
+                                        (All associated invoices & payment receipts)
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    Showing audit records for Invoice: <strong>{activeInvoiceNumber || `#${entityId}`}</strong>{' '}
+                                    {entityId && <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>(ID: {entityId})</span>}
+                                </>
+                            )}
                         </span>
                     </div>
                     <button
@@ -1230,11 +1277,17 @@ const AuditLogs = () => {
                                                 <td>
                                                     <span className="audit-entity-tag">
                                                         {(() => {
+                                                            let p = {};
+                                                            try { p = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}); } catch { p = {}; }
+                                                            const isComb = String(entityId || '').toLowerCase().includes('combined');
+
                                                             if (log.entity === 'Invoice' || log.entity === 'Sales Invoice') {
-                                                                let p = {};
-                                                                try { p = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}); } catch(e){}
-                                                                const num = p.invoiceNumber || p.record?.invoiceNumber || (activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
+                                                                const num = p.invoiceNumber || p.record?.invoiceNumber || (!isComb && activeInvoiceNumber && String(log.entityId) === String(resolvedInvoiceId) ? activeInvoiceNumber : null);
                                                                 if (num) return `${log.entity} #${String(num).replace(/^#/, '')}`;
+                                                            }
+                                                            if (log.entity === 'Receipt' || log.entity === 'Sales Receipt' || log.entity === 'Payment') {
+                                                                const rNum = p.receiptNumber || p.record?.receiptNumber;
+                                                                if (rNum) return `${log.entity} #${String(rNum).replace(/^#/, '')}`;
                                                             }
                                                             return `${log.entity} ${log.entityId ? '#' + log.entityId : ''}`;
                                                         })()}

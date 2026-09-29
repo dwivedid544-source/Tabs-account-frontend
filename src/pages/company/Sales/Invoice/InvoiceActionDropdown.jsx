@@ -110,15 +110,17 @@ const InvoiceActionDropdown = ({
             const invoiceId = invoice.id || invoice.invoiceId || '';
             const invoiceNum = invoice.invoiceNumber || invoice.number || '';
             const invoiceType = invoice.type || 'TAX_INVOICE';
+            const customerId = invoice.customerId || (invoice.customer && invoice.customer.id) || (typeof invoiceId === 'string' && invoiceId.includes('CUST-') ? invoiceId.split('CUST-')[1] : '');
 
             navigate(
-                `/company/settings/audit-logs?entityType=Invoice&entityId=${invoiceId}&invoiceNumber=${encodeURIComponent(invoiceNum)}`,
+                `/company/settings/audit-logs?entityType=Invoice&entityId=${invoiceId}&invoiceNumber=${encodeURIComponent(invoiceNum)}${customerId ? `&customerId=${customerId}` : ''}`,
                 {
                     state: {
                         fromInvoice: {
                             id: invoiceId,
                             invoiceNumber: invoiceNum,
-                            type: invoiceType
+                            type: invoiceType,
+                            customerId: customerId || undefined
                         }
                     }
                 }
