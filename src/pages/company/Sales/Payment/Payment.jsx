@@ -19,6 +19,8 @@ import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import posService from '../../../../services/posService';
 import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../../utils/logoUrl';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const Payment = () => {
 
@@ -26,6 +28,7 @@ const Payment = () => {
     const { companySettings, formatCurrency, getReceiptPaymentLabel, getReceiptPaymentHeader, getDocumentTitle, getSyncRate } = useContext(CompanyContext);
     const [receipts, setReceipts] = useState([]);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const formatDocCurrency = (amount, currencyCode) => {
         const docCurrency = currencyCode || companySettings?.currency || 'EUR';
@@ -565,12 +568,18 @@ const Payment = () => {
 
     const handleSave = async () => {
         try {
+            const newErrors = {};
             if (!customerId) {
-                toast.error('Please select a Customer (Received From)');
-                return;
+                newErrors.customerId = 'Please provide the Customer (Received From).';
             }
             if (!bankLedgerId) {
-                toast.error('Please select a Deposit To / Credit To account');
+                newErrors.bankLedgerId = 'Please provide the Deposit To / Credit To account.';
+            }
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
+                const firstKey = Object.keys(newErrors)[0];
+                toast.error(newErrors[firstKey]);
+                focusAndScrollToError(firstKey);
                 return;
             }
 
@@ -584,7 +593,7 @@ const Payment = () => {
             const totalAmount = parseFloat((netCashForAllocations + advanceVal).toFixed(2));
 
             if (totalAmount <= 0) {
-                toast.error('Please enter a valid received or advance amount');
+                toast.error('Please provide a valid received or advance amount.');
                 return;
             }
 

@@ -10,6 +10,8 @@ import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../../utils/excelService';
+import { executeFormValidation, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const Services = () => {
     const { formatCurrency } = useContext(CompanyContext);
@@ -25,6 +27,7 @@ const Services = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
+    const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
         name: '',
@@ -65,6 +68,9 @@ const Services = () => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+        if (errors[name]) {
+            clearFieldError(name, setErrors);
+        }
     };
 
     const resetForm = () => {
@@ -78,6 +84,7 @@ const Services = () => {
             allowInInvoices: true,
             remarks: ''
         });
+        setErrors({});
     };
 
     const handleView = (service) => {
@@ -107,6 +114,12 @@ const Services = () => {
 
     const handleAddSubmit = async (e) => {
         e.preventDefault();
+        const rules = [
+            { name: 'name', label: 'Service Name', required: true }
+        ];
+        if (!executeFormValidation(rules, formData, setErrors)) {
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const payload = {
@@ -129,6 +142,12 @@ const Services = () => {
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
+        const rules = [
+            { name: 'name', label: 'Service Name', required: true }
+        ];
+        if (!executeFormValidation(rules, formData, setErrors)) {
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const payload = {
@@ -309,11 +328,20 @@ const Services = () => {
                                 <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleAddSubmit}>
+                        <form onSubmit={handleAddSubmit} noValidate>
                             <div className="Zirak-Services-modal-body">
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">Service Name <span className="Zirak-Services-text-red">*</span></label>
-                                    <input name="name" type="text" className="Zirak-Services-form-input" placeholder="Enter service name" required value={formData.name} onChange={handleInputChange} />
+                                    <input
+                                        name="name"
+                                        type="text"
+                                        className={`Zirak-Services-form-input ${errors.name ? 'input-error' : ''}`}
+                                        placeholder="Enter service name"
+                                        data-field="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                    />
+                                    <FormFieldError error={errors.name} />
                                 </div>
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">SKU</label>
@@ -418,11 +446,19 @@ const Services = () => {
                                 <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleEditSubmit}>
+                        <form onSubmit={handleEditSubmit} noValidate>
                             <div className="Zirak-Services-modal-body">
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">Service Name <span className="Zirak-Services-text-red">*</span></label>
-                                    <input name="name" type="text" className="Zirak-Services-form-input" required value={formData.name} onChange={handleInputChange} />
+                                    <input
+                                        name="name"
+                                        type="text"
+                                        className={`Zirak-Services-form-input ${errors.name ? 'input-error' : ''}`}
+                                        data-field="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                    />
+                                    <FormFieldError error={errors.name} />
                                 </div>
                                 <div className="Zirak-Services-form-group">
                                     <label className="Zirak-Services-form-label">SKU</label>

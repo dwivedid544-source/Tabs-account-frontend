@@ -5,6 +5,8 @@ import { AuthContext } from '../../../../context/AuthContext';
 import uomService from '../../../../services/uomService';
 import toast from 'react-hot-toast';
 import GetCompanyId from '../../../../api/GetCompanyId';
+import { executeFormValidation, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import './UOM.css';
 
 const UOM = () => {
@@ -18,6 +20,7 @@ const UOM = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [uomToDelete, setUomToDelete] = useState(null);
+    const [errors, setErrors] = useState({});
 
     // Form State
     const [formData, setFormData] = useState({
@@ -128,10 +131,11 @@ const UOM = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        if (errors[name]) {
+            clearFieldError(name, setErrors);
+        }
         setFormData(prev => {
             const newState = { ...prev, [name]: value };
-            // Optional: Only reset unit if category is strictly different and from the known list
-            // For now, let's keep it simple to allow custom typing without annoying resets
             return newState;
         });
     };
@@ -182,6 +186,15 @@ const UOM = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const rules = [
+            { field: 'category', label: 'Measurement Category', required: true },
+            { field: 'unitName', label: 'Unit of Measurement', required: true }
+        ];
+
+        if (!executeFormValidation(rules, formData, setErrors)) {
+            return;
+        }
+
         try {
             const companyId = GetCompanyId();
             const payload = {
@@ -215,6 +228,7 @@ const UOM = () => {
 
     const handleEdit = (uom) => {
         setEditingUom(uom);
+        setErrors({});
         setFormData({
             category: uom.category,
             unitName: uom.unitName,
@@ -251,6 +265,7 @@ const UOM = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingUom(null);
+        setErrors({});
         setFormData({
             category: '',
             unitName: '',
@@ -419,18 +434,20 @@ const UOM = () => {
                             <h2>Unit Details</h2>
                             <button className="Zirak-UOM-close-btn" onClick={closeModal}><X size={20} /></button>
                         </div>
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleSubmit} noValidate>
                             <div className="Zirak-UOM-modal-body">
                                 <div className="Zirak-UOM-form-group">
                                     <label>Measurement Category*</label>
                                     <input
                                         list="category-suggestions"
                                         name="category"
+                                        data-field="category"
                                         placeholder="Select or type category"
                                         value={formData.category}
                                         onChange={handleInputChange}
-                                        required
+                                        className={errors.category ? 'input-error' : ''}
                                     />
+                                    <FormFieldError error={errors.category} />
                                     <datalist id="category-suggestions">
                                         {measurementCategories.map(cat => (
                                             <option key={cat} value={cat} />
@@ -441,9 +458,9 @@ const UOM = () => {
                                     <label>UOM Type*</label>
                                     <select
                                         name="uomType"
+                                        data-field="uomType"
                                         value={formData.uomType}
                                         onChange={handleInputChange}
-                                        required
                                     >
                                         <option value="Simple">Simple (Single Standalone Unit)</option>
                                         <option value="Compound">Compound (Pack of Simple Unit)</option>
@@ -455,10 +472,11 @@ const UOM = () => {
                                         <input
                                             list="unit-suggestions"
                                             name="unitName"
+                                            data-field="unitName"
                                             placeholder="Select or type UOM"
                                             value={formData.unitName}
                                             onChange={handleInputChange}
-                                            required
+                                            className={errors.unitName ? 'input-error' : ''}
                                         />
                                         <datalist id="unit-suggestions">
                                             {formData.category && unitsByCategory[formData.category] && unitsByCategory[formData.category].map(unit => (
@@ -466,16 +484,17 @@ const UOM = () => {
                                             ))}
                                         </datalist>
                                     </div>
+                                    <FormFieldError error={errors.unitName} />
                                 </div>
                                 {formData.uomType === 'Compound' && (
                                     <>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Base Unit* (Simple Unit to convert to)</label>
+                                            <label>Base Unit (Simple Unit to convert to)</label>
                                             <select
                                                 name="baseUnitId"
+                                                data-field="baseUnitId"
                                                 value={formData.baseUnitId}
                                                 onChange={handleInputChange}
-                                                required
                                             >
                                                 <option value="">-- Select Base Unit --</option>
                                                 {getUniqueCategories().map(cat => {
@@ -494,17 +513,17 @@ const UOM = () => {
                                             </select>
                                         </div>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Conversion Rate* (Multiplier)</label>
+                                            <label>Conversion Rate (Multiplier)</label>
                                             <div className="UOM-compound-formula-preview">
                                                 <span>1 {formData.unitName || 'Compound Unit'} = </span>
                                                 <input
                                                     type="number"
                                                     step="any"
                                                     name="conversionRate"
+                                                    data-field="conversionRate"
                                                     placeholder="Multiplier e.g. 24"
                                                     value={formData.conversionRate}
                                                     onChange={handleInputChange}
-                                                    required
                                                     min="0.0001"
                                                     style={{ width: '100px', display: 'inline-block', margin: '0 8px', padding: '6px' }}
                                                 />

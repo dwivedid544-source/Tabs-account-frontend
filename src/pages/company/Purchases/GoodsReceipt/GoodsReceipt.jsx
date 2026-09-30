@@ -33,6 +33,8 @@ import axiosInstance from '../../../../api/axiosInstance';
 import { Upload, Loader2 } from 'lucide-react';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
 import deliverypersonService from '../../../../services/deliverypersonService';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 
 const GoodsReceipt = () => {
@@ -48,6 +50,7 @@ const GoodsReceipt = () => {
     const [selectedGrnIds, setSelectedGrnIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
         try {
@@ -1112,8 +1115,20 @@ const GoodsReceipt = () => {
     };
 
     const handleSave = async () => {
-        if (!vendorId) return toast.error("Vendor is required");
-        if (items.some(i => !i.warehouseId || !i.productId)) return toast.error("Warehouse and Product required for all items");
+        const newErrors = {};
+        if (!vendorId) {
+            newErrors.vendorId = 'Please provide the Vendor.';
+        }
+        if (items.some(i => !i.productId)) {
+            newErrors.items = 'Please select a Product for all line items.';
+        }
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            toast.error(newErrors[firstKey]);
+            focusAndScrollToError(firstKey);
+            return;
+        }
 
         const companyId = GetCompanyId();
         const payload = {

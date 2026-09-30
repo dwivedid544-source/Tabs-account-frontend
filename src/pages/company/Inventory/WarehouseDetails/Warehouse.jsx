@@ -7,6 +7,8 @@ import { AuthContext } from '../../../../context/AuthContext';
 import inventoryService from '../../../../services/inventoryService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import './Warehouse.css';
+import { executeFormValidation, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const Warehouse = () => {
     const { hasPermission } = useContext(AuthContext);
@@ -18,6 +20,7 @@ const Warehouse = () => {
     const [selectedWarehouse, setSelectedWarehouse] = useState(null);
     const [warehouses, setWarehouses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [errors, setErrors] = useState({});
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -54,14 +57,20 @@ const Warehouse = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) {
+            clearFieldError(name, setErrors);
+        }
     };
 
     const handleCreate = async () => {
+        const rules = [
+            { name: 'name', label: 'Warehouse Name', required: true },
+            { name: 'location', label: 'Location', required: true }
+        ];
+        if (!executeFormValidation(rules, formData, setErrors)) {
+            return;
+        }
         try {
-            if (!formData.name || !formData.location) {
-                toast.error('Name and Location are required');
-                return;
-            }
             const companyId = GetCompanyId();
             await inventoryService.createWarehouse(formData, companyId);
             toast.success('Warehouse created successfully');
@@ -75,11 +84,14 @@ const Warehouse = () => {
     };
 
     const handleUpdate = async () => {
+        const rules = [
+            { name: 'name', label: 'Warehouse Name', required: true },
+            { name: 'location', label: 'Location', required: true }
+        ];
+        if (!executeFormValidation(rules, formData, setErrors)) {
+            return;
+        }
         try {
-            if (!formData.name || !formData.location) {
-                toast.error('Name and Location are required');
-                return;
-            }
             const companyId = GetCompanyId();
             await inventoryService.updateWarehouse(selectedWarehouse.id, formData, companyId);
             toast.success('Warehouse updated successfully');
@@ -137,6 +149,7 @@ const Warehouse = () => {
             country: ''
         });
         setSelectedWarehouse(null);
+        setErrors({});
     };
 
     // Filter
@@ -257,18 +270,24 @@ const Warehouse = () => {
                                 <div className="Zirak-Warehouse-form-group">
                                     <label className="Zirak-Warehouse-form-label">Warehouse Name <span className="Zirak-Warehouse-text-red">*</span></label>
                                     <input
-                                        type="text" name="name" className="Zirak-Warehouse-form-input"
+                                        type="text" name="name"
+                                        className={`Zirak-Warehouse-form-input ${errors.name ? 'input-error' : ''}`}
                                         placeholder="Enter warehouse name"
+                                        data-field="name"
                                         value={formData.name} onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.name} />
                                 </div>
                                 <div className="Zirak-Warehouse-form-group">
                                     <label className="Zirak-Warehouse-form-label">Location <span className="Zirak-Warehouse-text-red">*</span></label>
                                     <input
-                                        type="text" name="location" className="Zirak-Warehouse-form-input"
+                                        type="text" name="location"
+                                        className={`Zirak-Warehouse-form-input ${errors.location ? 'input-error' : ''}`}
                                         placeholder="Enter location"
+                                        data-field="location"
                                         value={formData.location} onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.location} />
                                 </div>
                             </div>
 
@@ -349,18 +368,24 @@ const Warehouse = () => {
                                 <div className="Zirak-Warehouse-form-group">
                                     <label className="Zirak-Warehouse-form-label">Warehouse Name <span className="Zirak-Warehouse-text-red">*</span></label>
                                     <input
-                                        type="text" name="name" className="Zirak-Warehouse-form-input"
+                                        type="text" name="name"
+                                        className={`Zirak-Warehouse-form-input ${errors.name ? 'input-error' : ''}`}
                                         placeholder="Enter warehouse name"
+                                        data-field="name"
                                         value={formData.name} onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.name} />
                                 </div>
                                 <div className="Zirak-Warehouse-form-group">
                                     <label className="Zirak-Warehouse-form-label">Location <span className="Zirak-Warehouse-text-red">*</span></label>
                                     <input
-                                        type="text" name="location" className="Zirak-Warehouse-form-input"
+                                        type="text" name="location"
+                                        className={`Zirak-Warehouse-form-input ${errors.location ? 'input-error' : ''}`}
                                         placeholder="Enter location"
+                                        data-field="location"
                                         value={formData.location} onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.location} />
                                 </div>
                             </div>
 

@@ -30,6 +30,8 @@ import smtpService from '../../../../api/smtpService';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
 import { toast } from 'react-hot-toast';
 import SearchableSelect from '../../../../components/SearchableSelect/SearchableSelect';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import '../../Customers/Customers.css';
 import '../../Inventory/ProductInventory/Inventory.css';
 import '../../Inventory/UOM/UOM.css';
@@ -881,6 +883,9 @@ const Invoice = () => {
 
     const handleUpdate = async () => {
         if (isSaving) return;
+        if (!validateInvoice()) {
+            return;
+        }
         setIsSaving(true);
         try {
             if (!editingId) return;
@@ -1059,10 +1064,67 @@ const Invoice = () => {
 
     const [customerId, setCustomerId] = useState('');
     const [selectedCustomerCreditPeriod, setSelectedCustomerCreditPeriod] = useState(0);
+    const [errors, setErrors] = useState({});
 
     const [items, setItems] = useState([
         { id: Date.now(), productId: '', serviceId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 23, discount: 0, discountType: 'percentage', total: 0, description: '' }
     ]);
+
+    const validateInvoice = () => {
+        const newErrors = {};
+
+        if (!customerId) {
+            newErrors.customerId = 'Please provide the Customer.';
+        }
+
+        if (!invoiceMeta.date || !String(invoiceMeta.date).trim()) {
+            newErrors.date = 'Please provide the Invoice Date.';
+        }
+
+        if (!items || items.length === 0) {
+            newErrors.items = 'Please add at least one line item.';
+        } else {
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (!it.productId && !it.serviceId) {
+                    newErrors[`item_${i}_product`] = `Please select a product or service for item #${i + 1}.`;
+                    break;
+                }
+                const qtyVal = parseFloat(it.qty);
+                if (isNaN(qtyVal) || qtyVal <= 0) {
+                    newErrors[`item_${i}_qty`] = `Please provide a valid quantity for item #${i + 1}.`;
+                    break;
+                }
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            const firstMsg = newErrors[firstKey];
+            toast.error(firstMsg);
+            focusAndScrollToError(firstKey);
+            return false;
+        }
+
+        // Validate line item discounts: discount percentage cannot exceed 100%
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const discVal = parseFloat(it.discount) || 0;
+            const discType = it.discountType || 'percentage';
+            if ((discType === 'percentage' || !discType) && discVal > 100) {
+                toast.error(`Line item #${i + 1} discount percentage cannot exceed 100%`);
+                return false;
+            }
+            if (discVal < 0) {
+                toast.error(`Line item #${i + 1} discount cannot be negative`);
+                return false;
+            }
+        }
+
+        setErrors({});
+        return true;
+    };
 
     const [billingDetails, setBillingDetails] = useState({
         name: '', address: '', city: '', state: '', zipCode: '', country: ''
@@ -1678,7 +1740,10 @@ const Invoice = () => {
     };
 
     const handleProductAddCategorySubmit = async () => {
-        if (!newCategoryName.trim()) return toast.error('Category name is required');
+        if (!newCategoryName.trim()) {
+            setShowCategoryModal(false);
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const res = await categoryService.createCategory({ name: newCategoryName, companyId });
@@ -1709,6 +1774,10 @@ const Invoice = () => {
 
     const handleUomSubmit = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
+        if (!uomFormData.unitName || !uomFormData.unitName.trim()) {
+            setShowUomModal(false);
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const payload = {
@@ -1982,6 +2051,7 @@ const Invoice = () => {
     };
 
     const resetForm = (keepViewMode = false) => {
+        setErrors({});
         setCustomerId('');
         setSelectedCustomerCreditPeriod(0);
         setSelectedCurrency(companySettings?.currency || 'EUR');
@@ -2435,6 +2505,9 @@ const Invoice = () => {
 
     const handleSave = async (forceAllowDuplicate = false, overrideManualRef = null) => {
         if (isSaving) return;
+        if (!validateInvoice()) {
+            return;
+        }
         setIsSaving(true);
         const isForce = forceAllowDuplicate === true;
         try {
@@ -6829,9 +6902,12 @@ const Invoice = () => {
                                     </div>
 
                                     <div className="Invoice-meta-col">
-                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>DATE</label>
+                                        <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>DATE *</label>
                                         <input type="date"
+                                            name="date"
+                                            data-field="date"
                                             value={invoiceMeta.date} onChange={(e) => {
+                                                if (errors.date) clearFieldError('date', setErrors);
                                                 const newDate = e.target.value;
                                                 let newDueDate = invoiceMeta.dueDate;
                                                 if (paymentTerm !== 'custom') {
@@ -6842,16 +6918,22 @@ const Invoice = () => {
                                                 setInvoiceMeta(prev => ({ ...prev, date: newDate, dueDate: newDueDate }));
                                             }}
                                             style={{ width: '100%', maxWidth: '280px' }}
-                                            className="Invoice-compact-input" />
+                                            className={`Invoice-compact-input ${errors.date ? 'input-error' : ''}`} />
+                                        <FormFieldError error={errors.date} />
                                     </div>
 
                                     <div className="Invoice-meta-col">
                                         <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>CUSTOMER / CASH *</label>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', maxWidth: '280px' }}>
                                             <SearchableSelect
+                                                name="customerId"
+                                                dataField="customerId"
+                                                error={errors.customerId}
+                                                hasError={!!errors.customerId}
                                                 options={customers}
                                                 value={customerId}
                                                 onChange={async (val) => {
+                                                    if (errors.customerId) clearFieldError('customerId', setErrors);
                                                     const id = val;
                                                     setCustomerId(id);
                                                     if (!id) {
@@ -6942,6 +7024,7 @@ const Invoice = () => {
                                                 </button>
                                             )}
                                         </div>
+                                        <FormFieldError error={errors.customerId} />
                                     </div>
                                 </div>
 
@@ -7350,6 +7433,7 @@ const Invoice = () => {
                                 </div>
 
                                 <div className="Invoice-table-responsive-compact">
+                                    <FormFieldError error={errors.items} />
                                     <table className="Invoice-compact-items-table">
                                         <thead>
                                             <tr>
@@ -7364,10 +7448,14 @@ const Invoice = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {items.map(item => (
+                                            {items.map((item, index) => (
                                                 <tr key={item.id}>
                                                     <td>
                                                         <SearchableSelect
+                                                            name={`item_${index}_product`}
+                                                            dataField={`item_${index}_product`}
+                                                            error={errors[`item_${index}_product`]}
+                                                            hasError={!!errors[`item_${index}_product`]}
                                                             options={[
                                                                 ...(Array.isArray(allProducts) ? allProducts : []).map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (${p.totalQuantity ?? 0})`, type: 'Products' })),
                                                                 ...(Array.isArray(allServices) ? allServices : []).map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
@@ -7377,6 +7465,7 @@ const Invoice = () => {
                                                                     item.serviceId ? `s-${item.serviceId}` : ''
                                                             }
                                                             onChange={(val) => {
+                                                                if (errors[`item_${index}_product`]) clearFieldError(`item_${index}_product`, setErrors);
                                                                 const eventValue = val;
                                                                 if (eventValue.startsWith('p-')) {
                                                                     const pId = eventValue.split('-')[1];
@@ -7457,6 +7546,7 @@ const Invoice = () => {
                                                             clearable={false}
                                                             onEnterPress={() => handleAutoAddNextRow(item.id)}
                                                         />
+                                                        <FormFieldError error={errors[`item_${index}_product`]} />
                                                     </td>
                                                     <td>
                                                         <input
@@ -7473,13 +7563,20 @@ const Invoice = () => {
                                                     </td>
                                                     {getInvoiceLabel('showQty') !== false && (
                                                         <td>
-                                                            <input type="number" className="Invoice-compact-input text-center" value={item.qty}
+                                                            <input type="number"
+                                                                data-field={`item_${index}_qty`}
+                                                                className={`Invoice-compact-input text-center ${errors[`item_${index}_qty`] ? 'input-error' : ''}`}
+                                                                value={item.qty}
                                                                 min="0"
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === '-' || e.key === 'e') e.preventDefault();
                                                                     if (e.key === 'Enter') { e.preventDefault(); handleAutoAddNextRow(item.id); }
                                                                 }}
-                                                                onChange={(e) => updateItem(item.id, 'qty', e.target.value.replace(/-/g, ''))} />
+                                                                onChange={(e) => {
+                                                                    if (errors[`item_${index}_qty`]) clearFieldError(`item_${index}_qty`, setErrors);
+                                                                    updateItem(item.id, 'qty', e.target.value.replace(/-/g, ''));
+                                                                }} />
+                                                            <FormFieldError error={errors[`item_${index}_qty`]} />
                                                         </td>
                                                     )}
 
@@ -9702,17 +9799,16 @@ const Invoice = () => {
                                     <h2>Unit Details</h2>
                                     <button className="Zirak-UOM-close-btn" onClick={() => setShowUomModal(false)}><X size={20} /></button>
                                 </div>
-                                <form onSubmit={handleUomSubmit}>
+                                <form onSubmit={handleUomSubmit} noValidate>
                                     <div className="Zirak-UOM-modal-body">
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Measurement Category*</label>
+                                            <label>Measurement Category</label>
                                             <input
                                                 list="category-suggestions"
                                                 name="category"
                                                 placeholder="Select or type category"
                                                 value={uomFormData.category}
                                                 onChange={handleUomInputChange}
-                                                required
                                                 className="Zirak-UOM-form-input"
                                             />
                                             <datalist id="category-suggestions">
@@ -9722,12 +9818,11 @@ const Invoice = () => {
                                             </datalist>
                                         </div>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>UOM Type*</label>
+                                            <label>UOM Type</label>
                                             <select
                                                 name="uomType"
                                                 value={uomFormData.uomType}
                                                 onChange={handleUomInputChange}
-                                                required
                                                 className="Zirak-UOM-form-select"
                                             >
                                                 <option value="Simple">Simple (Single Standalone Unit)</option>
@@ -9735,7 +9830,7 @@ const Invoice = () => {
                                             </select>
                                         </div>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Unit of Measurement (UOM)*</label>
+                                            <label>Unit of Measurement (UOM)</label>
                                             <div className="Zirak-UOM-input-with-button">
                                                 <input
                                                     list="unit-suggestions"
@@ -9743,7 +9838,6 @@ const Invoice = () => {
                                                     placeholder="Select or type UOM"
                                                     value={uomFormData.unitName}
                                                     onChange={handleUomInputChange}
-                                                    required
                                                     className="Zirak-UOM-form-input"
                                                 />
                                                 <datalist id="unit-suggestions">
@@ -9756,12 +9850,11 @@ const Invoice = () => {
                                         {uomFormData.uomType === 'Compound' && (
                                             <>
                                                 <div className="Zirak-UOM-form-group">
-                                                    <label>Base Unit* (Simple Unit to convert to)</label>
+                                                    <label>Base Unit (Simple Unit to convert to)</label>
                                                     <select
                                                         name="baseUnitId"
                                                         value={uomFormData.baseUnitId}
                                                         onChange={handleUomInputChange}
-                                                        required
                                                         className="Zirak-UOM-form-select"
                                                     >
                                                         <option value="">-- Select Base Unit --</option>
@@ -9781,7 +9874,7 @@ const Invoice = () => {
                                                     </select>
                                                 </div>
                                                 <div className="Zirak-UOM-form-group">
-                                                    <label>Conversion Rate* (Multiplier)</label>
+                                                    <label>Conversion Rate (Multiplier)</label>
                                                     <div className="UOM-compound-formula-preview">
                                                         <span>1 {uomFormData.unitName || 'Compound Unit'} = </span>
                                                         <input
@@ -9791,7 +9884,6 @@ const Invoice = () => {
                                                             placeholder="Multiplier e.g. 24"
                                                             value={uomFormData.conversionRate}
                                                             onChange={handleUomInputChange}
-                                                            required
                                                             min="0.0001"
                                                             style={{ width: '100px', display: 'inline-block', margin: '0 8px', padding: '6px' }}
                                                         />

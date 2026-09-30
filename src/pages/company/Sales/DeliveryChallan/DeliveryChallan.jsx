@@ -34,6 +34,8 @@ import deliverypersonService from '../../../../services/deliverypersonService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { Upload, Loader2 } from 'lucide-react';
 import axiosInstance from '../../../../api/axiosInstance';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const DeliveryChallan = () => {
     const { hasPermission } = useContext(AuthContext);
@@ -46,6 +48,7 @@ const DeliveryChallan = () => {
     const [allWarehouses, setAllWarehouses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
         try {
@@ -776,6 +779,66 @@ const DeliveryChallan = () => {
         setOrderSearchTerm('');
         setChallanFilterCustomerId('');
         setCustomFieldValues({});
+        setErrors({});
+    };
+
+    const validateDeliveryChallan = () => {
+        const newErrors = {};
+
+        if (!challanMeta.challanNo || !challanMeta.challanNo.trim()) {
+            newErrors.challanNo = 'Please provide the Challan Number.';
+        }
+        if (!challanMeta.date) {
+            newErrors.date = 'Please provide the Challan Date.';
+        }
+        if (!customerId) {
+            newErrors.customerId = 'Please provide the Customer.';
+        }
+        if (!challanMeta.vehicleNo || !challanMeta.vehicleNo.trim()) {
+            newErrors.vehicleNo = 'Please provide the Vehicle Number.';
+        }
+        if (!challanMeta.deliveryPersonName || !challanMeta.deliveryPersonName.trim()) {
+            newErrors.deliveryPersonName = 'Please provide the Delivery Person Name.';
+        }
+        if (!challanMeta.deliveryPersonMobile || !challanMeta.deliveryPersonMobile.trim()) {
+            newErrors.deliveryPersonMobile = 'Please provide the Delivery Person Mobile.';
+        }
+        if (!challanMeta.deliveryPersonEmail || !challanMeta.deliveryPersonEmail.trim()) {
+            newErrors.deliveryPersonEmail = 'Please provide the Delivery Person Email.';
+        }
+
+        if (!items || items.length === 0) {
+            newErrors.items = 'Please add at least one line item.';
+        } else {
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (!it.productId) {
+                    newErrors[`item_${i}_product`] = `Please select a product for item #${i + 1}.`;
+                    break;
+                }
+                if (!it.warehouseId) {
+                    newErrors[`item_${i}_warehouse`] = `Please select a warehouse for item #${i + 1}.`;
+                    break;
+                }
+                const qtyVal = parseFloat(it.delivered);
+                if (isNaN(qtyVal) || qtyVal <= 0) {
+                    newErrors[`item_${i}_qty`] = `Please provide a valid quantity for item #${i + 1}.`;
+                    break;
+                }
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            const firstMsg = newErrors[firstKey];
+            toast.error(firstMsg);
+            focusAndScrollToError(firstKey);
+            return false;
+        }
+
+        setErrors({});
+        return true;
     };
 
     const handleSelectAll = (e) => {
@@ -1180,48 +1243,10 @@ const DeliveryChallan = () => {
     };
 
     const handleSave = async (allowDuplicate = false) => {
+        if (!validateDeliveryChallan()) {
+            return;
+        }
         try {
-            if (!customerId) {
-                toast.error("Please select a customer.");
-                return;
-            }
-            if (!challanMeta.challanNo || !challanMeta.challanNo.trim()) {
-                toast.error("Please enter a Challan Number.");
-                return;
-            }
-            if (!challanMeta.date) {
-                toast.error("Please select a Date.");
-                return;
-            }
-            if (!challanMeta.vehicleNo || !challanMeta.vehicleNo.trim()) {
-                toast.error("Please enter a Vehicle Number.");
-                return;
-            }
-            if (!challanMeta.deliveryPersonName || !challanMeta.deliveryPersonName.trim()) {
-                toast.error("Please enter the Delivery Person Name.");
-                return;
-            }
-            if (!challanMeta.deliveryPersonMobile || !challanMeta.deliveryPersonMobile.trim()) {
-                toast.error("Please enter the Delivery Person Mobile.");
-                return;
-            }
-            if (items.some(i => !i.productId || !i.warehouseId)) {
-                toast.error("All items must have a product and a warehouse");
-                return;
-            }
-            if (!challanMeta.deliveryPersonName?.trim()) {
-                toast.error("Delivery Person Name is required.");
-                return;
-            }
-            if (!challanMeta.deliveryPersonMobile?.trim()) {
-                toast.error("Delivery Person Mobile is required.");
-                return;
-            }
-            if (!challanMeta.deliveryPersonEmail?.trim()) {
-                toast.error("Delivery Person Email is required.");
-                return;
-            }
-
             const companyId = GetCompanyId();
             const data = {
                 challanNumber: challanMeta.challanNo,
@@ -1863,13 +1888,17 @@ const DeliveryChallan = () => {
                                                     </label>
                                                     <input
                                                         type="text"
+                                                        data-field="challanNo"
                                                         value={challanMeta.challanNo || ''}
-                                                        onChange={(e) => setChallanMeta({ ...challanMeta, challanNo: e.target.value })}
+                                                        onChange={(e) => {
+                                                            setChallanMeta({ ...challanMeta, challanNo: e.target.value });
+                                                            if (errors.challanNo) clearFieldError('challanNo', setErrors);
+                                                        }}
                                                         disabled={isViewMode || !!editId}
                                                         style={{ width: '100%', maxWidth: '320px' }}
-                                                        className={`DeliveryChallan-meta-input ${isViewMode || editId ? 'DeliveryChallan-disabled' : ''}`}
-                                                        required
+                                                        className={`DeliveryChallan-meta-input ${errors.challanNo ? 'input-error' : ''} ${isViewMode || editId ? 'DeliveryChallan-disabled' : ''}`}
                                                     />
+                                                    <FormFieldError error={errors.challanNo} />
                                                 </div>
 
                                                 <div>
@@ -1892,12 +1921,16 @@ const DeliveryChallan = () => {
                                                     </label>
                                                     <input
                                                         type="date"
+                                                        data-field="date"
                                                         value={challanMeta.date}
-                                                        onChange={(e) => setChallanMeta({ ...challanMeta, date: e.target.value })}
+                                                        onChange={(e) => {
+                                                            setChallanMeta({ ...challanMeta, date: e.target.value });
+                                                            if (errors.date) clearFieldError('date', setErrors);
+                                                        }}
                                                         style={{ width: '100%', maxWidth: '320px' }}
-                                                        className="DeliveryChallan-meta-input"
-                                                        required
+                                                        className={`DeliveryChallan-meta-input ${errors.date ? 'input-error' : ''}`}
                                                     />
+                                                    <FormFieldError error={errors.date} />
                                                 </div>
                                                  <div>
                                                     <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
@@ -1905,12 +1938,14 @@ const DeliveryChallan = () => {
                                                     </label>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '320px' }}>
                                                         <select
-                                                            className="DeliveryChallan-customer-select"
+                                                            data-field="customerId"
+                                                            className={`DeliveryChallan-customer-select ${errors.customerId ? 'input-error' : ''}`}
                                                             style={{ flex: 1, width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e1', padding: '4px 12px', fontSize: '0.875rem', lineHeight: '1.4', boxSizing: 'border-box' }}
                                                             value={customerId}
                                                             disabled={selectedOrder}
                                                             onChange={(e) => {
                                                                 const cId = parseInt(e.target.value);
+                                                                if (errors.customerId) clearFieldError('customerId', setErrors);
                                                                 setCustomerId(cId);
                                                                 const c = customers.find(cust => cust.id === cId);
                                                                 if (c) {
@@ -1956,6 +1991,7 @@ const DeliveryChallan = () => {
                                                             </button>
                                                         )}
                                                     </div>
+                                                    <FormFieldError error={errors.customerId} />
                                                 </div>
                                             </div>
 
@@ -1972,13 +2008,17 @@ const DeliveryChallan = () => {
                                                          </label>
                                                          <input
                                                              type="text"
+                                                             data-field="vehicleNo"
                                                              value={challanMeta.vehicleNo}
-                                                             onChange={(e) => setChallanMeta({ ...challanMeta, vehicleNo: e.target.value })}
+                                                             onChange={(e) => {
+                                                                 setChallanMeta({ ...challanMeta, vehicleNo: e.target.value });
+                                                                 if (errors.vehicleNo) clearFieldError('vehicleNo', setErrors);
+                                                             }}
                                                              style={{ width: '100%', maxWidth: '320px' }}
-                                                             className="DeliveryChallan-meta-input font-mono"
+                                                             className={`DeliveryChallan-meta-input font-mono ${errors.vehicleNo ? 'input-error' : ''}`}
                                                              placeholder='MH-12-XX-9999'
-                                                             required
                                                          />
+                                                         <FormFieldError error={errors.vehicleNo} />
                                                      </div>
 
                                                      <div>
@@ -1988,9 +2028,13 @@ const DeliveryChallan = () => {
                                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '320px' }}>
                                                              <div style={{ flex: 1 }}>
                                                                  <SearchableSelect
-                                                                     options={deliverypersonsList}
-                                                                     value={deliverypersonsList.find(dp => dp.name === challanMeta.deliveryPersonName)?.id || ''}
-                                                                     onChange={(selectedId) => {
+                                                                      dataField="deliveryPersonName"
+                                                                      error={errors.deliveryPersonName}
+                                                                      hasError={!!errors.deliveryPersonName}
+                                                                      options={deliverypersonsList}
+                                                                      value={deliverypersonsList.find(dp => dp.name === challanMeta.deliveryPersonName)?.id || ''}
+                                                                      onChange={(selectedId) => {
+                                                                          if (errors.deliveryPersonName) clearFieldError('deliveryPersonName', setErrors);
                                                                          const matchedDp = deliverypersonsList.find(dp => String(dp.id) === String(selectedId));
                                                                          if (matchedDp) {
                                                                              setChallanMeta(prev => ({
@@ -2040,22 +2084,27 @@ const DeliveryChallan = () => {
                                                                  <Plus size={18} />
                                                              </button>
                                                          </div>
-                                                     </div>
+                                                          <FormFieldError error={errors.deliveryPersonName} />
+                                                      </div>
 
                                                      <div>
                                                          <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
                                                              DEL. PERSON MOBILE <span style={{ color: '#ef4444' }}>*</span>
                                                          </label>
                                                          <input
-                                                             type="text"
-                                                             value={challanMeta.deliveryPersonMobile || ''}
-                                                             onChange={(e) => setChallanMeta({ ...challanMeta, deliveryPersonMobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                              type="text"
+                                                              data-field="deliveryPersonMobile"
+                                                              value={challanMeta.deliveryPersonMobile || ''}
+                                                              onChange={(e) => {
+                                                                  setChallanMeta({ ...challanMeta, deliveryPersonMobile: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                                                                  if (errors.deliveryPersonMobile) clearFieldError('deliveryPersonMobile', setErrors);
+                                                              }}
                                                               maxLength={10}
-                                                             style={{ width: '100%', maxWidth: '320px' }}
-                                                             className="DeliveryChallan-meta-input"
-                                                             placeholder='Enter mobile'
-                                                             required
-                                                         />
+                                                              style={{ width: '100%', maxWidth: '320px' }}
+                                                              className={`DeliveryChallan-meta-input ${errors.deliveryPersonMobile ? 'input-error' : ''}`}
+                                                              placeholder='Enter mobile'
+                                                          />
+                                                          <FormFieldError error={errors.deliveryPersonMobile} />
                                                      </div>
 
                                                      <div>
@@ -2063,14 +2112,18 @@ const DeliveryChallan = () => {
                                                              DEL. PERSON EMAIL <span style={{ color: '#ef4444' }}>*</span>
                                                          </label>
                                                          <input
-                                                             type="text"
-                                                             required
-                                                             value={challanMeta.deliveryPersonEmail || ''}
-                                                             onChange={(e) => setChallanMeta({ ...challanMeta, deliveryPersonEmail: e.target.value })}
-                                                             style={{ width: '100%', maxWidth: '320px' }}
-                                                             className="DeliveryChallan-meta-input"
-                                                             placeholder='Enter email'
-                                                         />
+                                                              type="text"
+                                                              data-field="deliveryPersonEmail"
+                                                              value={challanMeta.deliveryPersonEmail || ''}
+                                                              onChange={(e) => {
+                                                                  setChallanMeta({ ...challanMeta, deliveryPersonEmail: e.target.value });
+                                                                  if (errors.deliveryPersonEmail) clearFieldError('deliveryPersonEmail', setErrors);
+                                                              }}
+                                                              style={{ width: '100%', maxWidth: '320px' }}
+                                                              className={`DeliveryChallan-meta-input ${errors.deliveryPersonEmail ? 'input-error' : ''}`}
+                                                              placeholder='Enter email'
+                                                          />
+                                                          <FormFieldError error={errors.deliveryPersonEmail} />
                                                      </div>
                                                  </div>
                                              </div>
@@ -2187,13 +2240,16 @@ const DeliveryChallan = () => {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {items.map(item => (
+                                                            {items.map((item, index) => (
                                                                 <React.Fragment key={item.id}>
                                                                     <tr className="Zirak-DC-main-item-row Zirak-DC-hover:bg-slate-50">
                                                                         <td>
-                                                                            <select className="Zirak-DC-full-width-input font-bold"
+                                                                            <select
+                                                                                data-field={`item_${index}_product`}
+                                                                                className={`Zirak-DC-full-width-input font-bold ${errors[`item_${index}_product`] ? 'input-error' : ''}`}
                                                                                 value={Number(item.productId) || ''}
                                                                                 onChange={(e) => {
+                                                                                    if (errors[`item_${index}_product`]) clearFieldError(`item_${index}_product`, setErrors);
                                                                                     const pId = Number(e.target.value);
                                                                                     const product = allProducts.find(p => p.id === pId);
                                                                                     updateItem(item.id, 'productId', pId);
@@ -2205,12 +2261,18 @@ const DeliveryChallan = () => {
                                                                                 <option value="">Select Product...</option>
                                                                                 {allProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.totalQuantity ?? 0})</option>)}
                                                                             </select>
+                                                                            <FormFieldError error={errors[`item_${index}_product`]} />
                                                                         </td>
                                                                         {getInvoiceLabel('showWarehouse') !== false && (
                                                                             <td>
-                                                                                <select className="Zirak-DC-full-width-input"
+                                                                                <select
+                                                                                    data-field={`item_${index}_warehouse`}
+                                                                                    className={`Zirak-DC-full-width-input ${errors[`item_${index}_warehouse`] ? 'input-error' : ''}`}
                                                                                     value={item.warehouseId || getDefaultSalesWarehouseId() || ''}
-                                                                                    onChange={(e) => updateItem(item.id, 'warehouseId', e.target.value)}>
+                                                                                    onChange={(e) => {
+                                                                                        updateItem(item.id, 'warehouseId', e.target.value);
+                                                                                        if (errors[`item_${index}_warehouse`]) clearFieldError(`item_${index}_warehouse`, setErrors);
+                                                                                    }}>
                                                                                     <option value="">Select Warehouse...</option>
                                                                                     {allWarehouses.map(w => {
                                                                                         const prod = allProducts.find(p => p.id === Number(item.productId));
@@ -2219,14 +2281,23 @@ const DeliveryChallan = () => {
                                                                                         return <option key={w.id} value={w.id}>{w.name} ({count})</option>;
                                                                                     })}
                                                                                 </select>
+                                                                                <FormFieldError error={errors[`item_${index}_warehouse`]} />
                                                                             </td>
                                                                         )}
                                                                         <td className="text-center">
-                                                                            <input type="number" value={item.delivered}
+                                                                            <input
+                                                                                type="number"
+                                                                                data-field={`item_${index}_qty`}
+                                                                                value={item.delivered}
                                                                                 min="0"
                                                                                 onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                                                                                onChange={(e) => updateItem(item.id, 'delivered', e.target.value.replace(/-/g, ''))}
-                                                                                className="Zirak-DC-qty-input-premium success" />
+                                                                                onChange={(e) => {
+                                                                                    updateItem(item.id, 'delivered', e.target.value.replace(/-/g, ''));
+                                                                                    if (errors[`item_${index}_qty`]) clearFieldError(`item_${index}_qty`, setErrors);
+                                                                                }}
+                                                                                className={`Zirak-DC-qty-input-premium success ${errors[`item_${index}_qty`] ? 'input-error' : ''}`}
+                                                                            />
+                                                                            <FormFieldError error={errors[`item_${index}_qty`]} />
                                                                         </td>
                                                                         {getInvoiceLabel('showUom') !== false && (
                                                                             <td className="text-center">

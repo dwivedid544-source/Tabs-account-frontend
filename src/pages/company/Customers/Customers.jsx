@@ -12,6 +12,8 @@ import GetCompanyId from '../../../api/GetCompanyId';
 import './Customers.css';
 import ExcelImportModal from '../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../utils/excelService';
+import { executeFormValidation, clearFieldError } from '../../../utils/formValidation';
+import FormFieldError from '../../../components/common/FormFieldError';
 
 const Customers = () => {
     const navigate = useNavigate();
@@ -23,6 +25,7 @@ const Customers = () => {
     const [showModal, setShowModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
+    const [errors, setErrors] = useState({});
     const [currentCustomer, setCurrentCustomer] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
@@ -125,6 +128,10 @@ const Customers = () => {
                 [name]: processedValue
             };
 
+            if (errors[name]) {
+                clearFieldError(name, setErrors);
+            }
+
             // Auto-fill shipping address if "same as billing" is checked
             if (name === 'shippingSameAsBilling' && checked) {
                 newData.shippingName = prev.billingName;
@@ -143,6 +150,7 @@ const Customers = () => {
     const resetForm = () => {
         setFormData(initialFormState);
         setCurrentCustomer(null);
+        setErrors({});
     };
 
     // ─── File Upload Handler ───────────────────────────────────────────────────
@@ -244,8 +252,21 @@ const Customers = () => {
     };
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.email) {
-            toast.error('Please fill in required fields (Name and Email)');
+        const rules = [
+            { name: 'name', label: 'Name', required: true },
+            { name: 'email', label: 'Email', required: true, type: 'email' },
+            {
+                name: 'phone',
+                label: 'Phone',
+                required: false,
+                customValidator: (val) => {
+                    if (val && val.length !== 10) return 'Phone number must be exactly 10 digits';
+                    return null;
+                }
+            }
+        ];
+
+        if (!executeFormValidation(rules, formData, setErrors)) {
             return;
         }
 
@@ -598,13 +619,15 @@ const Customers = () => {
                                         <label className="Customers-form-label">Name <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="text"
-                                            className="Customers-form-input"
+                                            className={`Customers-form-input ${errors.name ? 'input-error' : ''}`}
                                             name="name"
+                                            data-field="name"
                                             value={formData.name}
                                             onChange={handleInputChange}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Name"
                                         />
+                                        <FormFieldError error={errors.name} />
                                     </div>
                                 </div>
 
@@ -864,29 +887,33 @@ const Customers = () => {
                                 <h3 className="Customers-section-subtitle">Contact & Status</h3>
                                 <div className="Customers-form-row Customers-mixed-col">
                                     <div className="Customers-form-group Customers-half-width">
-                                        <label className="Customers-form-label">Phone <span className="Customers-text-red">*</span></label>
+                                        <label className="Customers-form-label">Phone</label>
                                         <input
                                             type="text"
-                                            className="Customers-form-input"
+                                            className={`Customers-form-input ${errors.phone ? 'input-error' : ''}`}
                                             name="phone"
+                                            data-field="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
                                             maxLength={10}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Phone"
                                         />
+                                        <FormFieldError error={errors.phone} />
                                     </div>
                                     <div className="Customers-form-group Customers-half-width">
                                         <label className="Customers-form-label">Email <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="email"
-                                            className="Customers-form-input"
+                                            className={`Customers-form-input ${errors.email ? 'input-error' : ''}`}
                                             name="email"
+                                            data-field="email"
                                             value={formData.email}
                                             onChange={handleInputChange}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Email"
                                         />
+                                        <FormFieldError error={errors.email} />
                                     </div>
                                     <div className="Customers-form-group Customers-half-width">
                                         <label className="Customers-form-label">Credit Period (days)</label>

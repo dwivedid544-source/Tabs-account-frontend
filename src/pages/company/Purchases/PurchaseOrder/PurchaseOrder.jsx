@@ -22,6 +22,8 @@ import purchaseQuotationService from '../../../../services/purchaseQuotationServ
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import uomService from '../../../../services/uomService';
 import '../../Vendors/Vendors.css';
 import '../../Inventory/ProductInventory/Inventory.css';
@@ -132,6 +134,7 @@ const PurchaseOrder = () => {
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [duplicateRefToRetry, setDuplicateRefToRetry] = useState('');
     const [vendorId, setVendorId] = useState('');
+    const [errors, setErrors] = useState({});
     const [items, setItems] = useState([
         { id: Date.now(), productId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
     ]);
@@ -989,13 +992,18 @@ const PurchaseOrder = () => {
     const handleSave = async (allowDuplicate = false, overrideManualRef = null) => {
         const totals = calculateTotals();
 
+        const newErrors = {};
         if (!vendorId) {
-            toast.error("Please select a vendor");
-            return;
+            newErrors.vendorId = 'Please provide the Vendor.';
         }
-
         if (!orderMeta.orderNumber) {
-            toast.error("Purchase Order Number is required (PO No.)");
+            newErrors.orderNumber = 'Please provide the Purchase Order Number.';
+        }
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            toast.error(newErrors[firstKey]);
+            focusAndScrollToError(firstKey);
             return;
         }
 

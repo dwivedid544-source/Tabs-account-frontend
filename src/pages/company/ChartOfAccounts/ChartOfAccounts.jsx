@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, Activity, Edit2, Trash2, Plus, FileText, ChevronRight, Download, FileSpreadsheet } from 'lucide-react';
+import { Search, RotateCcw, Activity, Edit2, Trash2, Plus, FileText, ChevronRight, ChevronDown, ChevronUp, Download, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './ChartOfAccounts.css';
 import axiosInstance from '../../../api/axiosInstance';
@@ -11,6 +11,8 @@ import { exportToExcel } from '../../../utils/excelService';
 
 import { CompanyContext } from '../../../context/CompanyContext'; // Import Context
 import { AuthContext } from '../../../context/AuthContext';
+import { executeFormValidation, clearFieldError } from '../../../utils/formValidation';
+import FormFieldError from '../../../components/common/FormFieldError';
 
 const ChartOfAccounts = () => {
     const navigate = useNavigate();
@@ -33,11 +35,13 @@ const ChartOfAccounts = () => {
     // Group Expansion State
     const [expandedGroups, setExpandedGroups] = useState({});
     const [expandedAccounts, setExpandedAccounts] = useState({});
+    const [expandedCardCategories, setExpandedCardCategories] = useState({});
 
     // Modal States
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [errors, setErrors] = useState({});
 
     // Form States
     const [currentAccount, setCurrentAccount] = useState(null);
@@ -101,6 +105,13 @@ const ChartOfAccounts = () => {
         setExpandedAccounts(prev => ({
             ...prev,
             [accountId]: !prev[accountId]
+        }));
+    };
+
+    const toggleCardCategory = (categoryKey) => {
+        setExpandedCardCategories(prev => ({
+            ...prev,
+            [categoryKey]: !prev[categoryKey]
         }));
     };
 
@@ -211,6 +222,9 @@ const ChartOfAccounts = () => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+        if (errors[name]) {
+            clearFieldError(name, setErrors);
+        }
     };
 
     const resetForm = () => {
@@ -227,16 +241,22 @@ const ChartOfAccounts = () => {
             date: new Date().toISOString().split('T')[0]
         });
         setCurrentAccount(null);
+        setErrors({});
     };
 
     const handleCreateAccount = async () => {
-        if (!formData.name || !formData.accountType) {
-            toast.error('Please fill in required fields');
-            return;
-        }
+        const rules = [
+            { name: 'name', label: 'Name', required: true },
+            { name: 'accountType', label: 'Account Type', required: true },
+            {
+                name: 'newCategoryName',
+                label: 'New Category Name',
+                required: formData.category === 'new',
+                message: 'Please enter a name for the new category'
+            }
+        ];
 
-        if (formData.category === 'new' && !formData.newCategoryName) {
-            toast.error('Please enter a name for the new category');
+        if (!executeFormValidation(rules, formData, setErrors)) {
             return;
         }
 
@@ -325,8 +345,17 @@ const ChartOfAccounts = () => {
     const handleUpdateAccount = async () => {
         if (!currentAccount) return;
 
-        if (formData.category === 'new' && !formData.newCategoryName) {
-            toast.error('Please enter a name for the new category');
+        const rules = [
+            { name: 'name', label: 'Name', required: true },
+            {
+                name: 'newCategoryName',
+                label: 'New Category Name',
+                required: formData.category === 'new',
+                message: 'Please enter a name for the new category'
+            }
+        ];
+
+        if (!executeFormValidation(rules, formData, setErrors)) {
             return;
         }
 
@@ -651,30 +680,43 @@ const ChartOfAccounts = () => {
         );
     };
 
+    const renderSubgroupColumn = (categoryKey, title, accounts) => {
+        const isExpanded = !!expandedCardCategories[categoryKey];
+        const hasMore = accounts.length > 5;
+        const visibleAccounts = (hasMore && !isExpanded) ? accounts.slice(0, 5) : accounts;
+
+        return (
+            <div key={categoryKey} className="Charts-of-Account-grid-subgroup">
+                <h3 className="Charts-of-Account-grid-subgroup-title">{title}</h3>
+                <div className="Charts-of-Account-grid-cards">
+                    {visibleAccounts.map(acc => <RecursiveAccountCard key={acc.id} account={acc} />)}
+                </div>
+                {hasMore && (
+                    <button
+                        type="button"
+                        className="Charts-of-Account-show-more-btn"
+                        onClick={() => toggleCardCategory(categoryKey)}
+                        aria-expanded={isExpanded}
+                    >
+                        <span>{isExpanded ? 'Show Less' : 'Show More'}</span>
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                )}
+            </div>
+        );
+    };
+
     const renderGridGroup = (groupType) => {
         const { directLedgers, subGroups } = getGroupedAccounts(groupType);
 
         return (
             <>
                 {/* Direct Ledgers as General */}
-                {directLedgers.length > 0 && (
-                    <div className="Charts-of-Account-grid-subgroup">
-                          {/* <h3 className="Charts-of-Account-grid-subgroup-title">General</h3> */}
-                        <h3 className="Charts-of-Account-grid-subgroup-title">{groupType}</h3>
-                        <div className="Charts-of-Account-grid-cards">
-                            {directLedgers.map(acc => <RecursiveAccountCard key={acc.id} account={acc} />)}
-                        </div>
-                    </div>
-                )}
+                {directLedgers.length > 0 && renderSubgroupColumn(`${groupType}-direct`, groupType, directLedgers)}
 
-                {Object.entries(subGroups).map(([subName, accounts]) => (
-                    <div key={subName} className="Charts-of-Account-grid-subgroup">
-                        <h3 className="Charts-of-Account-grid-subgroup-title">{subName}</h3>
-                        <div className="Charts-of-Account-grid-cards">
-                            {accounts.map(acc => <RecursiveAccountCard key={acc.id} account={acc} />)}
-                        </div>
-                    </div>
-                ))}
+                {Object.entries(subGroups).map(([subName, accounts]) =>
+                    renderSubgroupColumn(`${groupType}-${subName}`, subName, accounts)
+                )}
             </>
         );
     };
@@ -923,20 +965,23 @@ const ChartOfAccounts = () => {
                                 <label className="Charts-of-Account-form-label">Name<span className="Charts-of-Account-text-red">*</span></label>
                                 <input
                                     type="text"
-                                    className="Charts-of-Account-form-input"
+                                    className={`Charts-of-Account-form-input ${errors.name ? 'input-error' : ''}`}
                                     placeholder="Enter Name"
                                     name="name"
+                                    data-field="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
                                 />
+                                <FormFieldError error={errors.name} />
                             </div>
 
                             <div className="Charts-of-Account-form-row">
                                 <div className="Charts-of-Account-form-group Charts-of-Account-half-width">
                                     <label className="Charts-of-Account-form-label">Account Type<span className="Charts-of-Account-text-red">*</span></label>
                                     <select
-                                        className="Charts-of-Account-form-select"
+                                        className={`Charts-of-Account-form-select ${errors.accountType ? 'input-error' : ''}`}
                                         name="accountType"
+                                        data-field="accountType"
                                         value={formData.accountType}
                                         onChange={handleInputChange}
                                     >
@@ -945,6 +990,7 @@ const ChartOfAccounts = () => {
                                             <option key={index} value={group.groupId}>{group.groupName}</option>
                                         ))}
                                     </select>
+                                    <FormFieldError error={errors.accountType} />
                                 </div>
                                 <div className="Charts-of-Account-form-group Charts-of-Account-half-width">
                                     <label className="Charts-of-Account-form-label">Category</label>
@@ -969,12 +1015,14 @@ const ChartOfAccounts = () => {
                                     <label className="Charts-of-Account-form-label">New Category Name<span className="Charts-of-Account-text-red">*</span></label>
                                     <input
                                         type="text"
-                                        className="Charts-of-Account-form-input"
+                                        className={`Charts-of-Account-form-input ${errors.newCategoryName ? 'input-error' : ''}`}
                                         placeholder="Enter New Category Name"
                                         name="newCategoryName"
+                                        data-field="newCategoryName"
                                         value={formData.newCategoryName}
                                         onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.newCategoryName} />
                                 </div>
                             )}
 
@@ -1068,11 +1116,13 @@ const ChartOfAccounts = () => {
                                 <label className="Charts-of-Account-form-label">Name<span className="Charts-of-Account-text-red">*</span></label>
                                 <input
                                     type="text"
-                                    className="Charts-of-Account-form-input"
+                                    className={`Charts-of-Account-form-input ${errors.name ? 'input-error' : ''}`}
                                     name="name"
+                                    data-field="name"
                                     value={formData.name}
                                     onChange={handleInputChange}
                                 />
+                                <FormFieldError error={errors.name} />
                             </div>
 
                             <div className="Charts-of-Account-form-row">
@@ -1113,12 +1163,14 @@ const ChartOfAccounts = () => {
                                     <label className="Charts-of-Account-form-label">New Category Name<span className="Charts-of-Account-text-red">*</span></label>
                                     <input
                                         type="text"
-                                        className="Charts-of-Account-form-input"
+                                        className={`Charts-of-Account-form-input ${errors.newCategoryName ? 'input-error' : ''}`}
                                         placeholder="Enter New Category Name"
                                         name="newCategoryName"
+                                        data-field="newCategoryName"
                                         value={formData.newCategoryName}
                                         onChange={handleInputChange}
                                     />
+                                    <FormFieldError error={errors.newCategoryName} />
                                 </div>
                             )}
 

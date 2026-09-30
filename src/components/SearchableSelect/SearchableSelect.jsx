@@ -3,6 +3,10 @@ import { ChevronDown, Search, X, Trash2, Pencil } from 'lucide-react';
 import './SearchableSelect.css';
 
 const SearchableSelect = ({
+    name = '',
+    dataField = '',
+    error = false,
+    hasError = false,
     options = [],
     value = '',
     onChange,
@@ -177,14 +181,20 @@ const SearchableSelect = ({
         setIsOpen(false);
     };
 
+    const isError = Boolean(error || hasError);
+    const fieldIdentifier = dataField || name;
+
     return (
         <div
-            className={`searchable-select-container ${isOpen ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`}
+            className={`searchable-select-container ${isOpen ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${isError ? 'input-error' : ''} ${className}`}
             ref={containerRef}
+            data-field={fieldIdentifier || undefined}
         >
             <button
                 type="button"
-                className="searchable-select-trigger"
+                className={`searchable-select-trigger ${isError ? 'input-error' : ''}`}
+                name={name || undefined}
+                data-field={fieldIdentifier || undefined}
                 onClick={handleToggle}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === ' ') {

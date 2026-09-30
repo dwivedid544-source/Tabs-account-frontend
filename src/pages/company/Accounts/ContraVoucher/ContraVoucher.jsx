@@ -5,6 +5,8 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { AuthContext } from '../../../../context/AuthContext';
@@ -70,6 +72,7 @@ const ContraVoucher = () => {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedContra, setSelectedContra] = useState(null);
+    const [errors, setErrors] = useState({});
 
     // Form State
     const [formData, setFormData] = useState({
@@ -359,12 +362,17 @@ const ContraVoucher = () => {
 
     const handleSave = async () => {
         try {
-            if (!formData.sourceAccountId || !formData.date) {
-                toast.error("Please fill required fields (Date, Paid From)");
-                return;
-            }
+            const newErrors = {};
+            if (!formData.date) newErrors.date = 'Please provide the Date.';
+            if (!formData.sourceAccountId) newErrors.sourceAccountId = 'Please provide the Paid From account.';
             if (formData.items.some(item => !item.accountId || !item.amount)) {
-                toast.error("Please fill all item rows (Account and Amount)");
+                newErrors.items = 'Please fill all item rows (Account and Amount).';
+            }
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
+                const firstKey = Object.keys(newErrors)[0];
+                toast.error(newErrors[firstKey]);
+                focusAndScrollToError(firstKey);
                 return;
             }
 

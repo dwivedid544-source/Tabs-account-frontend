@@ -5,6 +5,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import voucherService from '../../../services/voucherService';
+import { focusAndScrollToError, clearFieldError } from '../../../utils/formValidation';
+import FormFieldError from '../../../components/common/FormFieldError';
 import chartOfAccountsService from '../../../services/chartOfAccountsService';
 import GetCompanyId from '../../../api/GetCompanyId';
 import { CompanyContext } from '../../../context/CompanyContext';
@@ -24,6 +26,7 @@ const DrawingCapital = () => {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
+    const [errors, setErrors] = useState({});
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -140,13 +143,17 @@ const DrawingCapital = () => {
         try {
             const { date, voucherNumber, equityAccountId, cashBankAccountId, amount, notes, logo, signature } = formData;
 
-            if (!equityAccountId || !cashBankAccountId || !amount || !date || !voucherNumber) {
-                toast.error("Please fill all required fields");
-                return;
-            }
-
-            if (parseFloat(amount) <= 0) {
-                toast.error("Amount must be greater than zero");
+            const newErrors = {};
+            if (!date) newErrors.date = 'Please provide the Date.';
+            if (!voucherNumber) newErrors.voucherNumber = 'Please provide the Voucher Number.';
+            if (!equityAccountId) newErrors.equityAccountId = 'Please provide the Capital / Equity Account.';
+            if (!cashBankAccountId) newErrors.cashBankAccountId = 'Please provide the Cash / Bank Account.';
+            if (!amount || parseFloat(amount) <= 0) newErrors.amount = 'Please provide a valid Amount greater than zero.';
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
+                const firstKey = Object.keys(newErrors)[0];
+                toast.error(newErrors[firstKey]);
+                focusAndScrollToError(firstKey);
                 return;
             }
 

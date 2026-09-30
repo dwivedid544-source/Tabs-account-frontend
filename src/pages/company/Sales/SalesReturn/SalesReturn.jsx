@@ -22,6 +22,8 @@ import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { getCompanyLogoSrc, tabAccountsLogo } from '../../../../utils/logoUrl';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const SalesReturn = () => {
     // --- State Management ---
@@ -81,6 +83,7 @@ const SalesReturn = () => {
     };
     const { hasPermission } = useContext(AuthContext);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -283,6 +286,7 @@ const SalesReturn = () => {
         setInvoiceProducts([]);
         setFilteredInvoices([]);
         setCustomFieldValues({});
+        setErrors({});
         setNotes(companyDetails.notes || '');
         setTerms(companyDetails.termsCreditNote || companyDetails.terms || '');
     }
@@ -701,6 +705,50 @@ const SalesReturn = () => {
         }
     };
 
+    
+    const validateSalesReturn = () => {
+        const newErrors = {};
+
+        if (!formData.customerId) {
+            newErrors.customerId = 'Please provide the Customer.';
+        }
+        if (!formData.returnNo || !formData.returnNo.trim()) {
+            newErrors.returnNo = 'Please provide the Return Number.';
+        }
+        if (!formData.date) {
+            newErrors.date = 'Please provide the Return Date.';
+        }
+        if (!formData.warehouseId && formData.items.some(i => !i.warehouseId)) {
+            newErrors.warehouseId = 'Please provide the Warehouse.';
+        }
+        if (!formData.items || formData.items.length === 0) {
+            newErrors.items = 'Please add at least one item to return.';
+        } else {
+            formData.items.forEach((item, index) => {
+                if (!item.productId) {
+                    newErrors[`item_${index}_productId`] = 'Please provide the Product.';
+                }
+                if (!item.qty || parseFloat(item.qty) <= 0) {
+                    newErrors[`item_${index}_qty`] = 'Please provide a valid Quantity.';
+                }
+                if (item.discount && (parseFloat(item.discount) < 0 || parseFloat(item.discount) > 100)) {
+                    newErrors[`item_${index}_discount`] = 'Discount cannot exceed 100%.';
+                }
+            });
+        }
+
+        setErrors(newErrors);
+
+        const errorKeys = Object.keys(newErrors);
+        if (errorKeys.length > 0) {
+            const firstKey = errorKeys[0];
+            toast.error(newErrors[firstKey]);
+            focusAndScrollToError(firstKey);
+            return false;
+        }
+        return true;
+    };
+
     const handleUpdate = async () => {
         if (!selectedReturn) return;
 
@@ -765,19 +813,7 @@ const SalesReturn = () => {
 
     const handleSave = async () => {
         try {
-            // Validate required fields
-            if (!formData.customerId) {
-                toast.error('Please select a customer');
-                return;
-            }
-            if (!formData.returnNo) {
-                toast.error('Please enter a return number');
-                return;
-            }
-            if (formData.items.length === 0) {
-                toast.error('Please add at least one item to return');
-                return;
-            }
+            if (!validateSalesReturn()) return;
 
             // Determine if the selected invoice is a POS invoice
             const matchedInvoice = formData.invoiceId
@@ -1077,9 +1113,14 @@ const SalesReturn = () => {
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Return No <span className="SalesReturn-text-red">*</span></label>
                                             <input type="text"
+                                                data-field="returnNo"
                                                 value={formData.returnNo}
-                                                onChange={(e) => setFormData({ ...formData, returnNo: e.target.value })}
-                                                className="SalesReturn-form-input" />
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, returnNo: e.target.value });
+                                                    if (errors.returnNo) clearFieldError('returnNo', setErrors);
+                                                }}
+                                                className={`SalesReturn-form-input ${errors.returnNo ? 'input-error' : ''}`} />
+                                            <FormFieldError error={errors.returnNo} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
@@ -1095,7 +1136,9 @@ const SalesReturn = () => {
                                     <div className="SalesReturn-col">
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Customer <span className="SalesReturn-text-red">*</span></label>
-                                            <select className="SalesReturn-form-select"
+                                            <select
+                                                data-field="customerId"
+                                                className={`SalesReturn-form-select ${errors.customerId ? 'input-error' : ''}`}
                                                 value={formData.customerId}
                                                 onChange={(e) => {
                                                     const customerId = e.target.value;
@@ -1106,10 +1149,12 @@ const SalesReturn = () => {
                                                         items: [] // Reset items when customer changes
                                                     });
                                                     setSelectedInvoiceDetails(null);
+                                                    if (errors.customerId) clearFieldError('customerId', setErrors);
                                                 }}>
                                                 <option value="">Select Customer...</option>
                                                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                             </select>
+                                            <FormFieldError error={errors.customerId} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
@@ -1146,17 +1191,33 @@ const SalesReturn = () => {
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Date <span className="SalesReturn-text-red">*</span></label>
-                                            <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="SalesReturn-form-input" />
+                                            <input
+                                                type="date"
+                                                data-field="date"
+                                                value={formData.date}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, date: e.target.value });
+                                                    if (errors.date) clearFieldError('date', setErrors);
+                                                }}
+                                                className={`SalesReturn-form-input ${errors.date ? 'input-error' : ''}`}
+                                            />
+                                            <FormFieldError error={errors.date} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Warehouse <span className="SalesReturn-text-red">*</span></label>
-                                            <select className="SalesReturn-form-select"
+                                            <select
+                                                data-field="warehouseId"
+                                                className={`SalesReturn-form-select ${errors.warehouseId ? 'input-error' : ''}`}
                                                 value={formData.warehouseId}
-                                                onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}>
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, warehouseId: e.target.value });
+                                                    if (errors.warehouseId) clearFieldError('warehouseId', setErrors);
+                                                }}>
                                                 <option value="">Select Warehouse...</option>
                                                 {allWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                             </select>
+                                            <FormFieldError error={errors.warehouseId} />
                                         </div>
                                     </div>
                                 </div>
@@ -1168,6 +1229,7 @@ const SalesReturn = () => {
                                             <div className="SalesReturn-items-header-icon">
                                                 <Package size={20} />
                                             </div>
+                                    <div style={{ padding: '0 1rem' }}><FormFieldError error={errors.items} /></div>
                                             <div>
                                                 <h4 className="SalesReturn-items-title">Returned Items</h4>
                                                 {selectedInvoiceDetails ? (
@@ -1232,6 +1294,9 @@ const SalesReturn = () => {
                                                                         };
                                                                     })}
                                                                     value={String(item.productId) || ''}
+                                                                    dataField={`item_${idx}_productId`}
+                                                                    hasError={!!errors[`item_${idx}_productId`]}
+                                                                    error={errors[`item_${idx}_productId`]}
                                                                     onChange={(val) => {
                                                                         const pId = val;
                                                                         const p = allProducts.find(x => x.id === parseInt(pId));
@@ -1243,6 +1308,7 @@ const SalesReturn = () => {
                                                                             tax: p?.taxRate || item.tax || 0
                                                                         };
                                                                         setFormData({ ...formData, items: newItems });
+                                                                        if (errors[`item_${idx}_productId`]) clearFieldError(`item_${idx}_productId`, setErrors);
                                                                     }}
                                                                     placeholder="Select Product..."
                                                                     searchPlaceholder="Search product..."
@@ -1251,6 +1317,7 @@ const SalesReturn = () => {
                                                                     groupKey=""
                                                                     clearable={false}
                                                                 />
+                                                                <FormFieldError error={errors[`item_${idx}_productId`]} />
                                                             </div>
                                                             <div className="SalesReturn-item-col-wh">
                                                                 <SearchableSelect
@@ -1500,9 +1567,14 @@ const SalesReturn = () => {
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Return No <span className="SalesReturn-text-red">*</span></label>
                                             <input type="text"
+                                                data-field="returnNo"
                                                 value={formData.returnNo}
-                                                onChange={(e) => setFormData({ ...formData, returnNo: e.target.value })}
-                                                className="SalesReturn-form-input" />
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, returnNo: e.target.value });
+                                                    if (errors.returnNo) clearFieldError('returnNo', setErrors);
+                                                }}
+                                                className={`SalesReturn-form-input ${errors.returnNo ? 'input-error' : ''}`} />
+                                            <FormFieldError error={errors.returnNo} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
@@ -1518,7 +1590,9 @@ const SalesReturn = () => {
                                     <div className="SalesReturn-col">
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Customer <span className="SalesReturn-text-red">*</span></label>
-                                            <select className="SalesReturn-form-select"
+                                            <select
+                                                data-field="customerId"
+                                                className={`SalesReturn-form-select ${errors.customerId ? 'input-error' : ''}`}
                                                 value={formData.customerId}
                                                 onChange={(e) => {
                                                     const customerId = e.target.value;
@@ -1529,10 +1603,12 @@ const SalesReturn = () => {
                                                         items: [] // Reset items when customer changes
                                                     });
                                                     setSelectedInvoiceDetails(null);
+                                                    if (errors.customerId) clearFieldError('customerId', setErrors);
                                                 }}>
                                                 <option value="">Select Customer...</option>
                                                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                             </select>
+                                            <FormFieldError error={errors.customerId} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
@@ -1578,17 +1654,33 @@ const SalesReturn = () => {
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Date <span className="SalesReturn-text-red">*</span></label>
-                                            <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="SalesReturn-form-input" />
+                                            <input
+                                                type="date"
+                                                data-field="date"
+                                                value={formData.date}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, date: e.target.value });
+                                                    if (errors.date) clearFieldError('date', setErrors);
+                                                }}
+                                                className={`SalesReturn-form-input ${errors.date ? 'input-error' : ''}`}
+                                            />
+                                            <FormFieldError error={errors.date} />
                                         </div>
 
                                         <div className="SalesReturn-form-group SalesReturn-mb-4">
                                             <label>Warehouse <span className="SalesReturn-text-red">*</span></label>
-                                            <select className="SalesReturn-form-select"
+                                            <select
+                                                data-field="warehouseId"
+                                                className={`SalesReturn-form-select ${errors.warehouseId ? 'input-error' : ''}`}
                                                 value={formData.warehouseId}
-                                                onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}>
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, warehouseId: e.target.value });
+                                                    if (errors.warehouseId) clearFieldError('warehouseId', setErrors);
+                                                }}>
                                                 <option value="">Select Warehouse...</option>
                                                 {allWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                             </select>
+                                            <FormFieldError error={errors.warehouseId} />
                                         </div>
                                     </div>
                                 </div>
@@ -1600,6 +1692,7 @@ const SalesReturn = () => {
                                             <div className="SalesReturn-items-header-icon">
                                                 <Package size={20} />
                                             </div>
+                                    <div style={{ padding: '0 1rem' }}><FormFieldError error={errors.items} /></div>
                                             <div>
                                                 <h4 className="SalesReturn-items-title">Returned Items</h4>
                                                 {selectedInvoiceDetails ? (
@@ -1664,6 +1757,9 @@ const SalesReturn = () => {
                                                                         };
                                                                     })}
                                                                     value={String(item.productId) || ''}
+                                                                    dataField={`item_${idx}_productId`}
+                                                                    hasError={!!errors[`item_${idx}_productId`]}
+                                                                    error={errors[`item_${idx}_productId`]}
                                                                     onChange={(val) => {
                                                                         const pId = val;
                                                                         const p = allProducts.find(x => x.id === parseInt(pId));
@@ -1675,6 +1771,7 @@ const SalesReturn = () => {
                                                                             tax: p?.taxRate || item.tax || 0
                                                                         };
                                                                         setFormData({ ...formData, items: newItems });
+                                                                        if (errors[`item_${idx}_productId`]) clearFieldError(`item_${idx}_productId`, setErrors);
                                                                     }}
                                                                     placeholder="Select Product..."
                                                                     searchPlaceholder="Search product..."
@@ -1683,6 +1780,7 @@ const SalesReturn = () => {
                                                                     groupKey=""
                                                                     clearable={false}
                                                                 />
+                                                                <FormFieldError error={errors[`item_${idx}_productId`]} />
                                                                 {product && (
                                                                     <div className="SalesReturn-product-subinfo">
                                                                         <span className="SalesReturn-product-sku">ID: #{product.id}</span>

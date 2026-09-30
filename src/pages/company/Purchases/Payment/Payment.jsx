@@ -21,6 +21,8 @@ import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { getCompanyLogoSrc, resolveLogoUrl, tabAccountsLogo } from '../../../../utils/logoUrl';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const Payment = () => {
     const { hasPermission } = useContext(AuthContext);
@@ -54,6 +56,7 @@ const Payment = () => {
     // â”€â”€ List state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const [payments, setPayments] = useState([]);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -728,12 +731,20 @@ const Payment = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedVendorId) { toast.error('Please select a vendor'); return; }
+        const newErrors = {};
+        if (!selectedVendorId) newErrors.selectedVendorId = 'Please provide the Vendor.';
         const advanceVal = showAdvance ? parseFloat(advanceAmount || 0) : 0;
         const totalAmount = parseFloat(amount || 0) + advanceVal;
-        if (totalAmount <= 0) { toast.error('Please enter a valid payment or advance amount'); return; }
-        if (!accountId) { toast.error('Please select a payment account'); return; }
-        if (parseFloat(discountAmount || 0) > 0 && !discountLedgerId) { toast.error('Please select a Discount Account'); return; }
+        if (totalAmount <= 0) newErrors.amount = 'Please provide a valid payment or advance amount.';
+        if (!accountId) newErrors.accountId = 'Please provide the Payment Account.';
+        if (parseFloat(discountAmount || 0) > 0 && !discountLedgerId) newErrors.discountLedgerId = 'Please provide the Discount Account.';
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            toast.error(newErrors[firstKey]);
+            focusAndScrollToError(firstKey);
+            return;
+        }
 
         const companyId = GetCompanyId();
         const discountVal = parseFloat(discountAmount || 0);

@@ -10,6 +10,8 @@ import axiosInstance from '../../../api/axiosInstance';
 import './Vendors.css';
 import ExcelImportModal from '../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../utils/excelService';
+import { executeFormValidation, clearFieldError } from '../../../utils/formValidation';
+import FormFieldError from '../../../components/common/FormFieldError';
 
 const Vendors = () => {
     const { companySettings, formatCurrency } = React.useContext(CompanyContext);
@@ -21,6 +23,7 @@ const Vendors = () => {
     const [showModal, setShowModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
+    const [errors, setErrors] = useState({});
     const [currentVendor, setCurrentVendor] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [vendorToDelete, setVendorToDelete] = useState(null);
@@ -121,6 +124,10 @@ const Vendors = () => {
                 [name]: processedValue
             };
 
+            if (errors[name]) {
+                clearFieldError(name, setErrors);
+            }
+
             // Auto-fill shipping address if "same as billing" is checked
             if (name === 'shippingSameAsBilling' && checked) {
                 newData.shippingName = prev.billingName;
@@ -139,6 +146,7 @@ const Vendors = () => {
     const resetForm = () => {
         setFormData(initialFormState);
         setCurrentVendor(null);
+        setErrors({});
     };
 
     // ─── File Upload Handler ───────────────────────────────────────────────────
@@ -243,8 +251,21 @@ const Vendors = () => {
     };
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.email) {
-            toast.error('Please fill in required fields (Name and Email)');
+        const rules = [
+            { name: 'name', label: 'Name', required: true },
+            { name: 'email', label: 'Email', required: true, type: 'email' },
+            {
+                name: 'phone',
+                label: 'Phone',
+                required: false,
+                customValidator: (val) => {
+                    if (val && val.length !== 10) return 'Phone number must be exactly 10 digits';
+                    return null;
+                }
+            }
+        ];
+
+        if (!executeFormValidation(rules, formData, setErrors)) {
             return;
         }
 
@@ -520,13 +541,15 @@ const Vendors = () => {
                                         <label className="Vendors-form-label">Name (English) <span className="Vendors-text-red">*</span></label>
                                         <input
                                             type="text"
-                                            className="Vendors-form-input"
+                                            className={`Vendors-form-input ${errors.name ? 'input-error' : ''}`}
                                             name="name"
+                                            data-field="name"
                                             value={formData.name}
                                             onChange={handleInputChange}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Name"
                                         />
+                                        <FormFieldError error={errors.name} />
                                     </div>
                                     {/* <div className="Vendors-form-group Vendors-half-width">
                                         <label className="Vendors-form-label">Name (Arabic)</label>
@@ -804,29 +827,33 @@ const Vendors = () => {
                                 <h3 className="Vendors-section-subtitle">Contact & Status</h3>
                                 <div className="Vendors-form-row Vendors-mixed-col">
                                     <div className="Vendors-form-group Vendors-half-width">
-                                        <label className="Vendors-form-label">Phone <span className="Vendors-text-red">*</span></label>
+                                        <label className="Vendors-form-label">Phone</label>
                                         <input
                                             type="text"
-                                            className="Vendors-form-input"
+                                            className={`Vendors-form-input ${errors.phone ? 'input-error' : ''}`}
                                             name="phone"
+                                            data-field="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
                                             maxLength={10}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Phone"
                                         />
+                                        <FormFieldError error={errors.phone} />
                                     </div>
                                     <div className="Vendors-form-group Vendors-half-width">
                                         <label className="Vendors-form-label">Email <span className="Vendors-text-red">*</span></label>
                                         <input
                                             type="email"
-                                            className="Vendors-form-input"
+                                            className={`Vendors-form-input ${errors.email ? 'input-error' : ''}`}
                                             name="email"
+                                            data-field="email"
                                             value={formData.email}
                                             onChange={handleInputChange}
                                             disabled={modalMode === 'view'}
                                             placeholder="Enter Email"
                                         />
+                                        <FormFieldError error={errors.email} />
                                     </div>
                                     <div className="Vendors-form-group Vendors-half-width">
                                         <label className="Vendors-form-label">Credit Period (days)</label>

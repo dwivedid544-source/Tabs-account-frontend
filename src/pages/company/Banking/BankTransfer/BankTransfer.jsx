@@ -5,6 +5,8 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import chartOfAccountsService from '../../../../services/chartOfAccountsService';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { AuthContext } from '../../../../context/AuthContext';
 import './BankTransfer.css';
@@ -39,6 +41,7 @@ const BankTransfer = () => {
     const [isViewOpen, setIsViewOpen] = useState(false);
 
     const [selectedEntry, setSelectedEntry] = useState(null);
+    const [errors, setErrors] = useState({});
     const [formData, setFormData] = useState({
         fromAccountId: '',
         toAccountId: '',
@@ -223,12 +226,19 @@ const BankTransfer = () => {
 
     const handleCreate = async () => {
         try {
-            if (!formData.fromAccountId || !formData.toAccountId || !formData.amount || !formData.date) {
-                toast.error("Please fill required fields");
-                return;
+            const newErrors = {};
+            if (!formData.date) newErrors.date = 'Please provide the Date.';
+            if (!formData.fromAccountId) newErrors.fromAccountId = 'Please provide the From Account.';
+            if (!formData.toAccountId) newErrors.toAccountId = 'Please provide the To Account.';
+            if (!formData.amount || parseFloat(formData.amount) <= 0) newErrors.amount = 'Please provide a valid Amount.';
+            if (formData.fromAccountId && formData.toAccountId && formData.fromAccountId == formData.toAccountId) {
+                newErrors.toAccountId = 'Source and Destination accounts must be different.';
             }
-            if (formData.fromAccountId == formData.toAccountId) {
-                toast.error("Source and Destination accounts must be different");
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
+                const firstKey = Object.keys(newErrors)[0];
+                toast.error(newErrors[firstKey]);
+                focusAndScrollToError(firstKey);
                 return;
             }
 
@@ -244,12 +254,19 @@ const BankTransfer = () => {
 
     const handleUpdate = async () => {
         try {
-            if (!formData.fromAccountId || !formData.toAccountId || !formData.amount || !formData.date) {
-                toast.error("Please fill required fields");
-                return;
+            const updErrors = {};
+            if (!formData.date) updErrors.date = 'Please provide the Date.';
+            if (!formData.fromAccountId) updErrors.fromAccountId = 'Please provide the From Account.';
+            if (!formData.toAccountId) updErrors.toAccountId = 'Please provide the To Account.';
+            if (!formData.amount || parseFloat(formData.amount) <= 0) updErrors.amount = 'Please provide a valid Amount.';
+            if (formData.fromAccountId && formData.toAccountId && formData.fromAccountId == formData.toAccountId) {
+                updErrors.toAccountId = 'Source and Destination accounts must be different.';
             }
-            if (formData.fromAccountId == formData.toAccountId) {
-                toast.error("Source and Destination accounts must be different");
+            if (Object.keys(updErrors).length > 0) {
+                setErrors(updErrors);
+                const firstKey = Object.keys(updErrors)[0];
+                toast.error(updErrors[firstKey]);
+                focusAndScrollToError(firstKey);
                 return;
             }
 

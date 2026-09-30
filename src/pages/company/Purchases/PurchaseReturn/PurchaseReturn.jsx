@@ -16,6 +16,8 @@ import warehouseService from '../../../../api/warehouseService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import companyService from '../../../../api/companyService';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const PurchaseReturn = () => {
     const { formatCurrency, companySettings, getDocumentTitle, getSyncRate } = useContext(CompanyContext);
@@ -77,6 +79,7 @@ const PurchaseReturn = () => {
     const navigate = useNavigate();
     const targetReturnId = location.state?.targetReturnId;
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -421,12 +424,18 @@ const PurchaseReturn = () => {
     };
 
     const handleSave = async () => {
+        const newErrors = {};
         if (!formData.vendorId) {
-            toast.error("Please select a vendor");
-            return;
+            newErrors.vendorId = 'Please provide the Vendor.';
         }
         if (formData.items.length === 0 || formData.items.some(i => !i.productId || i.quantity <= 0)) {
-            toast.error("Please add valid items and quantities");
+            newErrors.items = 'Please add valid items with quantities.';
+        }
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            toast.error(newErrors[firstKey]);
+            focusAndScrollToError(firstKey);
             return;
         }
 

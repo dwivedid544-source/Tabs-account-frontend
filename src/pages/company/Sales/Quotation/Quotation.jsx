@@ -33,6 +33,8 @@ import categoryService from '../../../../services/categoryService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import axiosInstance from '../../../../api/axiosInstance';
 import { Upload, Loader2 } from 'lucide-react';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const Quotation = () => {
     // --- State Management ---
@@ -40,6 +42,7 @@ const Quotation = () => {
     const defaultVat = companySettings?.defaultVatRate !== undefined ? parseFloat(companySettings.defaultVatRate) : 23;
     const { hasPermission } = useContext(AuthContext);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -669,7 +672,64 @@ const Quotation = () => {
         setOverrideStatus('DRAFT');
         setQuotationNumber('');
         setCustomFieldValues({});
+        setErrors({});
         setShowAddModal(false);
+    };
+
+    const validateQuotation = () => {
+        const newErrors = {};
+
+        if (!customerId) {
+            newErrors.customerId = 'Please provide the Customer.';
+        }
+
+        if (!quotationMeta.date || !String(quotationMeta.date).trim()) {
+            newErrors.date = 'Please provide the Quotation Date.';
+        }
+
+        if (!items || items.length === 0) {
+            newErrors.items = 'Please add at least one line item.';
+        } else {
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (!it.productId && !it.serviceId) {
+                    newErrors[`item_${i}_product`] = `Please select a product or service for item #${i + 1}.`;
+                    break;
+                }
+                const qtyVal = parseFloat(it.qty);
+                if (isNaN(qtyVal) || qtyVal <= 0) {
+                    newErrors[`item_${i}_qty`] = `Please provide a valid quantity for item #${i + 1}.`;
+                    break;
+                }
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            const firstMsg = newErrors[firstKey];
+            toast.error(firstMsg);
+            focusAndScrollToError(firstKey);
+            return false;
+        }
+
+        // Validate line item discounts: discount percentage cannot exceed 100%
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const discVal = parseFloat(it.discount) || 0;
+            const discType = it.discountType || 'percentage';
+            if ((discType === 'percentage' || !discType) && discVal > 100) {
+                toast.error(`Line item #${i + 1} discount percentage cannot exceed 100%`);
+                return false;
+            }
+            if (discVal < 0) {
+                toast.error(`Line item #${i + 1} discount cannot be negative`);
+                return false;
+            }
+        }
+
+        setErrors({});
+        return true;
     };
 
     const handleAddNew = async () => {
@@ -851,6 +911,9 @@ const Quotation = () => {
     };
 
     const handleSave = async (allowDuplicate = false, overrideManualRef = null) => {
+        if (!validateQuotation()) {
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const data = {
@@ -1554,16 +1617,21 @@ const Quotation = () => {
 
                                             <div>
                                                 <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
-                                                    DATE
+                                                    DATE <span style={{ color: '#ef4444' }}>*</span>
                                                 </label>
                                                 <input
                                                     type="date"
+                                                    data-field="date"
                                                     disabled={isViewMode}
                                                     value={quotationMeta.date}
-                                                    onChange={(e) => setQuotationMeta({ ...quotationMeta, date: e.target.value })}
+                                                    onChange={(e) => {
+                                                        setQuotationMeta({ ...quotationMeta, date: e.target.value });
+                                                        if (errors.date) clearFieldError('date', setErrors);
+                                                    }}
                                                     style={{ width: '100%', maxWidth: '280px' }}
-                                                    className="Quotation-meta-input"
+                                                    className={`Quotation-meta-input ${errors.date ? 'input-error' : ''}`}
                                                 />
+                                                <FormFieldError error={errors.date} />
                                             </div>
 
                                             <div>
@@ -1589,12 +1657,14 @@ const Quotation = () => {
                                                 </label>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                     <select
-                                                        className="Quotation-form-select-compact Quotation-customer-select"
+                                                        data-field="customerId"
+                                                        className={`Quotation-form-select-compact Quotation-customer-select ${errors.customerId ? 'input-error' : ''}`}
                                                         disabled={isViewMode}
                                                         value={customerId}
                                                         onChange={(e) => {
                                                             const id = e.target.value;
                                                             setCustomerId(id);
+                                                            if (errors.customerId) clearFieldError('customerId', setErrors);
                                                             const c = customers.find(cust => String(cust.id) === String(id));
                                                             if (c) {
                                                                 const fullAddr = [c.billingAddress, c.billingCity, c.billingState, c.billingZipCode, c.billingCountry].filter(Boolean).join(', ');
@@ -1640,6 +1710,7 @@ const Quotation = () => {
                                                         </button>
                                                     )}
                                                 </div>
+                                                <FormFieldError error={errors.customerId} />
                                             </div>
 
                                             {customerId && (
@@ -1796,10 +1867,13 @@ const Quotation = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {items.map(item => (
+                                                    {items.map((item, index) => (
                                                         <tr key={item.id}>
                                                             <td>
                                                                 <SearchableSelect
+                                                                    dataField={`item_${index}_product`}
+                                                                    error={errors[`item_${index}_product`]}
+                                                                    hasError={!!errors[`item_${index}_product`]}
                                                                     options={[
                                                                         ...allProducts.map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (${p.totalQuantity ?? 0})`, type: 'Products' })),
                                                                         ...allServices.map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
@@ -1809,6 +1883,7 @@ const Quotation = () => {
                                                                             item.serviceId ? `s-${item.serviceId}` : ''
                                                                     }
                                                                     onChange={(val) => {
+                                                                        if (errors[`item_${index}_product`]) clearFieldError(`item_${index}_product`, setErrors);
                                                                         const eventValue = val;
                                                                         if (eventValue.startsWith('p-')) {
                                                                             const pId = eventValue.split('-')[1];
@@ -1864,6 +1939,7 @@ const Quotation = () => {
                                                                     clearable={false}
                                                                     onEnterPress={() => handleAutoAddNextRow(item.id)}
                                                                 />
+                                                                <FormFieldError error={errors[`item_${index}_product`]} />
                                                             </td>
                                                             {getInvoiceLabel('showWarehouse') !== false && (
                                                                 <td>
@@ -1893,7 +1969,11 @@ const Quotation = () => {
                                                             )}
                                                             {getInvoiceLabel('showQty') !== false && (
                                                                 <td>
-                                                                    <input type="number" className="Quotation-qty-input" value={item.qty}
+                                                                    <input
+                                                                        type="number"
+                                                                        data-field={`item_${index}_qty`}
+                                                                        className={`Quotation-qty-input ${errors[`item_${index}_qty`] ? 'input-error' : ''}`}
+                                                                        value={item.qty}
                                                                         disabled={isViewMode}
                                                                         min="0"
                                                                         onKeyDown={(e) => {
@@ -1905,7 +1985,12 @@ const Quotation = () => {
                                                                                 handleAutoAddNextRow(item.id);
                                                                             }
                                                                         }}
-                                                                        onChange={(e) => updateItem(item.id, 'qty', e.target.value)} />
+                                                                        onChange={(e) => {
+                                                                            updateItem(item.id, 'qty', e.target.value);
+                                                                            if (errors[`item_${index}_qty`]) clearFieldError(`item_${index}_qty`, setErrors);
+                                                                        }}
+                                                                    />
+                                                                    <FormFieldError error={errors[`item_${index}_qty`]} />
                                                                 </td>
                                                             )}
                                                             {getInvoiceLabel('showUom') !== false && (

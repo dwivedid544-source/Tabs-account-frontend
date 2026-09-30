@@ -46,6 +46,8 @@ import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 import ceaArchitectsLogoBase64 from '../../../../assets/ceaArchitectsLogoBase64';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl, getCompanyLogoSrc } from '../../../../utils/logoUrl';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -317,6 +319,7 @@ const PurchaseBill = () => {
     // --- State Management ---
     const [bills, setBills] = useState([]);
     const [customFieldValues, setCustomFieldValues] = useState({});
+    const [errors, setErrors] = useState({});
 
     const getCustomFieldsForType = (type) => {
         if (!companySettings?.customFieldsConfig) return [];
@@ -1864,7 +1867,10 @@ const PurchaseBill = () => {
     const handleSave = async (forceAllowDuplicate = false, overrideManualRef = null) => {
         const isForce = forceAllowDuplicate === true;
         if (!vendorId) {
-            toast.error("Please select a vendor");
+            const errs = { vendorId: 'Please provide the Vendor.' };
+            setErrors(errs);
+            toast.error(errs.vendorId);
+            focusAndScrollToError('vendorId');
             return;
         }
 

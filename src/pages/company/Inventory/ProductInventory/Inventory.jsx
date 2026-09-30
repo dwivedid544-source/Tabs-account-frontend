@@ -13,6 +13,8 @@ import { CompanyContext } from '../../../../context/CompanyContext';
 import '../UOM/UOM.css';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel } from '../../../../utils/excelService';
+import { executeFormValidation, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 import { AuthContext } from '../../../../context/AuthContext';
 
@@ -26,6 +28,7 @@ const Inventory = () => {
     const [categories, setCategories] = useState([]);
     const [warehouses, setWarehouses] = useState([]);
     const [uoms, setUoms] = useState([]);
+    const [errors, setErrors] = useState({});
 
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [searchTerm, setSearchTerm] = useState('');
@@ -160,6 +163,9 @@ const Inventory = () => {
             }
         }
         setFormData(prev => ({ ...prev, [name]: processedVal }));
+        if (errors[name]) {
+            clearFieldError(name, setErrors);
+        }
     };
 
     const handleImageChange = async (e) => {
@@ -197,6 +203,7 @@ const Inventory = () => {
             discount: 0, remarks: '', image: null
         });
         setWarehouseRows([]);
+        setErrors({});
     };
 
     // Build payload - now sending JSON as we have image URL
@@ -211,6 +218,15 @@ const Inventory = () => {
 
     const handleAddProduct = async (e) => {
         e.preventDefault();
+
+        const productRules = [
+            { name: 'name', label: 'Item Name', required: true },
+            { name: 'sku', label: 'SKU', required: true }
+        ];
+
+        if (!executeFormValidation(productRules, formData, setErrors)) {
+            return;
+        }
 
         if (uploadingImage) {
             toast.error('Please wait for image upload to complete');
@@ -234,6 +250,15 @@ const Inventory = () => {
 
     const handleEditProduct = async (e) => {
         e.preventDefault();
+
+        const productRules = [
+            { name: 'name', label: 'Item Name', required: true },
+            { name: 'sku', label: 'SKU', required: true }
+        ];
+
+        if (!executeFormValidation(productRules, formData, setErrors)) {
+            return;
+        }
 
         if (uploadingImage) {
             toast.error('Please wait for image upload to complete');
@@ -542,16 +567,19 @@ const Inventory = () => {
                                 <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={showAddModal ? handleAddProduct : handleEditProduct}>
+                        <form onSubmit={showAddModal ? handleAddProduct : handleEditProduct} noValidate>
                             <div className="Zirak-Inventory-modal-body">
                                 <div className="Zirak-Inventory-form-grid">
                                     <div className="Zirak-Inventory-form-group">
                                         <label className="Zirak-Inventory-form-label">Item Name <span className="Zirak-Inventory-text-red">*</span></label>
                                         <input
-                                            name="name" type="text" className="Zirak-Inventory-form-input"
-                                            placeholder="Enter item name" required
+                                            name="name" type="text"
+                                            className={`Zirak-Inventory-form-input ${errors.name ? 'input-error' : ''}`}
+                                            placeholder="Enter item name"
+                                            data-field="name"
                                             value={formData.name} onChange={handleInputChange}
                                         />
+                                        <FormFieldError error={errors.name} />
                                     </div>
                                     <div className="Zirak-Inventory-form-group">
                                         <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
@@ -701,10 +729,13 @@ const Inventory = () => {
                                     <div className="Zirak-Inventory-form-group">
                                         <label className="Zirak-Inventory-form-label">SKU <span className="Zirak-Inventory-text-red">*</span> </label>
                                         <input
-                                            name="sku" type="text" className="Zirak-Inventory-form-input"
-                                            placeholder="Enter SKU" required
+                                            name="sku" type="text"
+                                            className={`Zirak-Inventory-form-input ${errors.sku ? 'input-error' : ''}`}
+                                            placeholder="Enter SKU"
+                                            data-field="sku"
                                             value={formData.sku} onChange={handleInputChange}
                                         />
+                                        <FormFieldError error={errors.sku} />
                                     </div>
                                 </div>
 
@@ -900,17 +931,16 @@ const Inventory = () => {
                             <h2>Unit Details</h2>
                             <button className="Zirak-UOM-close-btn" onClick={() => setShowUomModal(false)}><X size={20} /></button>
                         </div>
-                        <form onSubmit={handleUomSubmit}>
+                        <form onSubmit={handleUomSubmit} noValidate>
                             <div className="Zirak-UOM-modal-body">
                                 <div className="Zirak-UOM-form-group">
-                                    <label>Measurement Category*</label>
+                                    <label>Measurement Category</label>
                                     <input
                                         list="category-suggestions"
                                         name="category"
                                         placeholder="Select or type category"
                                         value={uomFormData.category}
                                         onChange={handleUomInputChange}
-                                        required
                                         className="Zirak-UOM-form-input"
                                     />
                                     <datalist id="category-suggestions">
@@ -920,12 +950,11 @@ const Inventory = () => {
                                     </datalist>
                                 </div>
                                 <div className="Zirak-UOM-form-group">
-                                    <label>UOM Type*</label>
+                                    <label>UOM Type</label>
                                     <select
                                         name="uomType"
                                         value={uomFormData.uomType}
                                         onChange={handleUomInputChange}
-                                        required
                                         className="Zirak-UOM-form-select"
                                     >
                                         <option value="Simple">Simple (Single Standalone Unit)</option>
@@ -933,7 +962,7 @@ const Inventory = () => {
                                     </select>
                                 </div>
                                 <div className="Zirak-UOM-form-group">
-                                    <label>Unit of Measurement (UOM)*</label>
+                                    <label>Unit of Measurement (UOM)</label>
                                     <div className="Zirak-UOM-input-with-button">
                                         <input
                                             list="unit-suggestions"
@@ -941,7 +970,6 @@ const Inventory = () => {
                                             placeholder="Select or type UOM"
                                             value={uomFormData.unitName}
                                             onChange={handleUomInputChange}
-                                            required
                                             className="Zirak-UOM-form-input"
                                         />
                                         <datalist id="unit-suggestions">
@@ -954,12 +982,11 @@ const Inventory = () => {
                                 {uomFormData.uomType === 'Compound' && (
                                     <>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Base Unit* (Simple Unit to convert to)</label>
+                                            <label>Base Unit (Simple Unit to convert to)</label>
                                             <select
                                                 name="baseUnitId"
                                                 value={uomFormData.baseUnitId}
                                                 onChange={handleUomInputChange}
-                                                required
                                                 className="Zirak-UOM-form-select"
                                             >
                                                 <option value="">-- Select Base Unit --</option>
@@ -979,7 +1006,7 @@ const Inventory = () => {
                                             </select>
                                         </div>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Conversion Rate* (Multiplier)</label>
+                                            <label>Conversion Rate (Multiplier)</label>
                                             <div className="UOM-compound-formula-preview">
                                                 <span>1 {uomFormData.unitName || 'Compound Unit'} = </span>
                                                 <input
@@ -989,7 +1016,6 @@ const Inventory = () => {
                                                     placeholder="Multiplier e.g. 24"
                                                     value={uomFormData.conversionRate}
                                                     onChange={handleUomInputChange}
-                                                    required
                                                     min="0.0001"
                                                     style={{ width: '100px', display: 'inline-block', margin: '0 8px', padding: '6px' }}
                                                 />

@@ -22,6 +22,8 @@ import companyService from '../../../../api/companyService';
 import GetCompanyId from '../../../../api/GetCompanyId';
 import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 import uomService from '../../../../services/uomService';
 import '../../Vendors/Vendors.css';
 import '../../Inventory/ProductInventory/Inventory.css';
@@ -179,6 +181,7 @@ const PurchaseQuotation = () => {
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [duplicateRefToRetry, setDuplicateRefToRetry] = useState('');
     const [vendorId, setVendorId] = useState('');
+    const [errors, setErrors] = useState({});
     const [vendorDetails, setVendorDetails] = useState({ address: '', email: '', phone: '' });
     const [items, setItems] = useState([
         { id: Date.now(), productId: '', warehouseId: '', qty: 1, uomId: '', rate: 0, tax: 0, discount: 0, total: 0, description: '' }
@@ -965,7 +968,10 @@ const PurchaseQuotation = () => {
         const totals = calculateTotals();
 
         if (!vendorId) {
-            toast.error("Please select a vendor");
+            const errs = { vendorId: 'Please provide the Vendor.' };
+            setErrors(errs);
+            toast.error(errs.vendorId);
+            focusAndScrollToError('vendorId');
             return;
         }
 

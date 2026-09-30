@@ -298,4 +298,39 @@ img {
     max-width: 100%;
     height: auto;
 }
+
+/* ==========================================================================
+   Global Form Validation Styles
+   ========================================================================== */
+.input-error,
+input.input-error,
+select.input-error,
+textarea.input-error,
+.form-input.input-error,
+.searchable-select-trigger.input-error,
+.searchable-select-container.input-error .searchable-select-trigger {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2) !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.input-error:focus,
+input.input-error:focus,
+select.input-error:focus,
+textarea.input-error:focus,
+.searchable-select-trigger.input-error:focus {
+    outline: none !important;
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+}
+
+.field-error-message {
+    display: block;
+    font-size: 0.76rem;
+    color: #dc2626;
+    margin-top: 4px;
+    font-weight: 500;
+    line-height: 1.3;
+}
 

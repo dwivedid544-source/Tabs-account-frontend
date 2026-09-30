@@ -34,6 +34,8 @@ import categoryService from '../../../../services/categoryService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { Upload, Loader2 } from 'lucide-react';
 import axiosInstance from '../../../../api/axiosInstance';
+import { focusAndScrollToError, clearFieldError } from '../../../../utils/formValidation';
+import FormFieldError from '../../../../components/common/FormFieldError';
 
 const SalesOrder = () => {
     // --- State Management ---
@@ -47,6 +49,7 @@ const SalesOrder = () => {
     const [allWarehouses, setAllWarehouses] = useState([]);
     const [allServices, setAllServices] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [errors, setErrors] = useState({});
 
     const [showAddModal, setShowAddModal] = useState(false);
 
@@ -687,7 +690,64 @@ const SalesOrder = () => {
         setOrderNumber('');
         setCustomerShippingAddresses([]);
         setCustomFieldValues({});
+        setErrors({});
         setShowAddModal(false);
+    };
+
+    const validateSalesOrder = () => {
+        const newErrors = {};
+
+        if (!customerId) {
+            newErrors.customerId = 'Please provide the Customer.';
+        }
+
+        if (!orderMeta.date || !String(orderMeta.date).trim()) {
+            newErrors.date = 'Please provide the Order Date.';
+        }
+
+        if (!items || items.length === 0) {
+            newErrors.items = 'Please add at least one line item.';
+        } else {
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (!it.productId && !it.serviceId) {
+                    newErrors[`item_${i}_product`] = `Please select a product or service for item #${i + 1}.`;
+                    break;
+                }
+                const qtyVal = parseFloat(it.qty);
+                if (isNaN(qtyVal) || qtyVal <= 0) {
+                    newErrors[`item_${i}_qty`] = `Please provide a valid quantity for item #${i + 1}.`;
+                    break;
+                }
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstKey = Object.keys(newErrors)[0];
+            const firstMsg = newErrors[firstKey];
+            toast.error(firstMsg);
+            focusAndScrollToError(firstKey);
+            return false;
+        }
+
+        // Validate line item discounts: discount percentage cannot exceed 100%
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const discVal = parseFloat(it.discount) || 0;
+            const discType = it.discountType || 'percentage';
+            if ((discType === 'percentage' || !discType) && discVal > 100) {
+                toast.error(`Line item #${i + 1} discount percentage cannot exceed 100%`);
+                return false;
+            }
+            if (discVal < 0) {
+                toast.error(`Line item #${i + 1} discount cannot be negative`);
+                return false;
+            }
+        }
+
+        setErrors({});
+        return true;
     };
 
     const handleAddNew = async () => {
@@ -892,6 +952,9 @@ const SalesOrder = () => {
     };
 
     const handleSave = async (allowDuplicate = false, overrideManualRef = null) => {
+        if (!validateSalesOrder()) {
+            return;
+        }
         try {
             const companyId = GetCompanyId();
             const data = {
@@ -1694,16 +1757,21 @@ const SalesOrder = () => {
 
                                                 <div>
                                                     <label style={{ fontWeight: '700', fontSize: '0.75rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
-                                                        ORDER DATE
+                                                        ORDER DATE <span style={{ color: '#ef4444' }}>*</span>
                                                     </label>
                                                     <input
                                                         type="date"
+                                                        data-field="date"
                                                         disabled={isViewMode}
                                                         value={orderMeta.date}
-                                                        onChange={(e) => setOrderMeta({ ...orderMeta, date: e.target.value })}
+                                                        onChange={(e) => {
+                                                            setOrderMeta({ ...orderMeta, date: e.target.value });
+                                                            if (errors.date) clearFieldError('date', setErrors);
+                                                        }}
                                                         style={{ width: '100%', maxWidth: '280px' }}
-                                                        className="SalesOrder-meta-input"
+                                                        className={`SalesOrder-meta-input ${errors.date ? 'input-error' : ''}`}
                                                     />
+                                                    <FormFieldError error={errors.date} />
                                                 </div>
 
                                                 <div>
@@ -1729,12 +1797,14 @@ const SalesOrder = () => {
                                                     </label>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                                                         <select
-                                                            className="SalesOrder-form-select-compact SalesOrder-customer-select"
+                                                            data-field="customerId"
+                                                            className={`SalesOrder-form-select-compact SalesOrder-customer-select ${errors.customerId ? 'input-error' : ''}`}
                                                             disabled={isViewMode || creationMode === 'linked'}
                                                             value={customerId}
                                                             onChange={(e) => {
                                                                 const id = e.target.value;
                                                                 setCustomerId(id);
+                                                                if (errors.customerId) clearFieldError('customerId', setErrors);
                                                                 const c = customers.find(cust => cust.id === parseInt(id));
                                                                 if (c) {
                                                                     setCustomerDetails({
@@ -1785,6 +1855,7 @@ const SalesOrder = () => {
                                                             </button>
                                                         )}
                                                     </div>
+                                                    <FormFieldError error={errors.customerId} />
                                                 </div>
 
                                                 {customerId && !isViewMode && (
@@ -2015,10 +2086,13 @@ const SalesOrder = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {items.map(item => (
+                                                        {items.map((item, index) => (
                                                             <tr key={item.id}>
                                                                 <td>
                                                                 <SearchableSelect
+                                                                    dataField={`item_${index}_product`}
+                                                                    error={errors[`item_${index}_product`]}
+                                                                    hasError={!!errors[`item_${index}_product`]}
                                                                     options={[
                                                                         ...allProducts.map(p => ({ ...p, id: `p-${p.id}`, name: `${p.name} (${p.totalQuantity ?? 0})`, type: 'Products' })),
                                                                         ...allServices.map(s => ({ ...s, id: `s-${s.id}`, name: s.name, type: 'Services' }))
@@ -2028,6 +2102,7 @@ const SalesOrder = () => {
                                                                         item.serviceId ? `s-${item.serviceId}` : ''
                                                                     }
                                                                     onChange={(val) => {
+                                                                        if (errors[`item_${index}_product`]) clearFieldError(`item_${index}_product`, setErrors);
                                                                         const eventValue = val;
                                                                         if (eventValue.startsWith('p-')) {
                                                                             const pId = eventValue.split('-')[1];
@@ -2088,6 +2163,7 @@ const SalesOrder = () => {
                                                                     disabled={isViewMode || creationMode === 'linked'}
                                                                     clearable={false}
                                                                 />
+                                                                <FormFieldError error={errors[`item_${index}_product`]} />
                                                             </td>
                                                                     {getInvoiceLabel('showWarehouse') !== false && (
                                                                         <td>
@@ -2115,11 +2191,15 @@ const SalesOrder = () => {
                                                                     )}
                                                                 {getInvoiceLabel('showQty') !== false && (
                                                                     <td>
-                                                                        <input type="number" value={item.qty} disabled={creationMode === 'linked'}
+                                                                        <input type="number" data-field={`item_${index}_qty`} value={item.qty} disabled={creationMode === 'linked'}
                                                                             min="0"
                                                                             onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                                                                            onChange={(e) => updateItem(item.id, 'qty', e.target.value.replace(/-/g, ''))}
-                                                                            className="SalesOrder-qty-input" />
+                                                                            onChange={(e) => {
+                                                                                updateItem(item.id, 'qty', e.target.value.replace(/-/g, ''));
+                                                                                if (errors[`item_${index}_qty`]) clearFieldError(`item_${index}_qty`, setErrors);
+                                                                            }}
+                                                                            className={`SalesOrder-qty-input ${errors[`item_${index}_qty`] ? 'input-error' : ''}`} />
+                                                                        <FormFieldError error={errors[`item_${index}_qty`]} />
                                                                     </td>
                                                                 )}
                                                                 {getInvoiceLabel('showUom') !== false && (
