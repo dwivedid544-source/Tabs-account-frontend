@@ -3151,52 +3151,136 @@ const Invoice = () => {
                 }
             ];
 
-            // Resolve company logo (flattened to JPEG on white background to prevent PNG alpha stream corruption)
+            // Resolve company logo with multi-stage fallback (guarantees logo is NEVER missing)
             let logoBase64 = null;
             let logoNaturalWidth = 177;
             let logoNaturalHeight = 76;
-            const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo) || ceaArchitectsLogoBase64;
-            if (logoRaw && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+
+            const candidateLogo = comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo;
+            const logoRaw = candidateLogo ? getCompanyLogoSrc(candidateLogo, ceaArchitectsLogoBase64) : ceaArchitectsLogoBase64;
+
+            const measureDimensions = (src) => new Promise((resolve) => {
+                if (!src || typeof window === 'undefined') return resolve({ width: 177, height: 76 });
+                const img = new Image();
+                const t = setTimeout(() => resolve({ width: 177, height: 76 }), 1500);
+                img.onload = () => {
+                    clearTimeout(t);
+                    resolve({
+                        width: img.naturalWidth || img.width || 177,
+                        height: img.naturalHeight || img.height || 76
+                    });
+                };
+                img.onerror = () => {
+                    clearTimeout(t);
+                    resolve({ width: 177, height: 76 });
+                };
+                img.src = src;
+            });
+
+            const drawToCanvasBase64 = (imgElement) => {
                 try {
-                    const fetched = await new Promise((resolve) => {
-                        const timer = setTimeout(() => resolve(null), 2500);
+                    const w = imgElement.naturalWidth || imgElement.width || 177;
+                    const h = imgElement.naturalHeight || imgElement.height || 76;
+                    if (w <= 0 || h <= 0) return null;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(imgElement, 0, 0, w, h);
+                    const data = canvas.toDataURL('image/jpeg', 0.95);
+                    return (data && data.startsWith('data:image/')) ? { base64: data, width: w, height: h } : null;
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            // Stage 1: If logoRaw is already a valid Data URL (Base64)
+            if (typeof logoRaw === 'string' && logoRaw.startsWith('data:image/')) {
+                const dims = await measureDimensions(logoRaw);
+                logoBase64 = logoRaw;
+                logoNaturalWidth = dims.width;
+                logoNaturalHeight = dims.height;
+            }
+
+            // Stage 2: If currently rendered in the DOM preview (e.g. user viewing invoice preview)
+            if (!logoBase64 && typeof document !== 'undefined') {
+                const domImg = document.querySelector('.invoice-cea-logo-img') || document.querySelector('.invoice-cea-logo-container img');
+                if (domImg && domImg.complete && domImg.naturalWidth > 0) {
+                    const canvasRes = drawToCanvasBase64(domImg);
+                    if (canvasRes?.base64) {
+                        logoBase64 = canvasRes.base64;
+                        logoNaturalWidth = canvasRes.width;
+                        logoNaturalHeight = canvasRes.height;
+                    } else if (domImg.src && domImg.src.startsWith('data:image/')) {
+                        logoBase64 = domImg.src;
+                        logoNaturalWidth = domImg.naturalWidth;
+                        logoNaturalHeight = domImg.naturalHeight;
+                    }
+                }
+            }
+
+            // Stage 3: Direct fetch as Blob -> FileReader (bypasses canvas CORS tainting completely)
+            if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && (logoRaw.startsWith('http://') || logoRaw.startsWith('https://') || logoRaw.startsWith('/'))) {
+                try {
+                    const sep = logoRaw.includes('?') ? '&' : '?';
+                    const fetchUrl = `${logoRaw}${sep}_cb=${Date.now()}`;
+                    const res = await fetch(fetchUrl, { mode: 'cors' });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const b64 = await new Promise((resBlob) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resBlob(reader.result);
+                            reader.onerror = () => resBlob(null);
+                            reader.readAsDataURL(blob);
+                        });
+                        if (b64 && b64.startsWith('data:image/')) {
+                            const dims = await measureDimensions(b64);
+                            logoBase64 = b64;
+                            logoNaturalWidth = dims.width;
+                            logoNaturalHeight = dims.height;
+                        }
+                    }
+                } catch (fetchErr) {
+                    console.warn('Direct fetch of logo failed:', fetchErr);
+                }
+            }
+
+            // Stage 4: Try standard Image loading with canvas flattening
+            if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+                try {
+                    const canvasRes = await new Promise((resCanvas) => {
+                        const timer = setTimeout(() => resCanvas(null), 2500);
                         const img = new Image();
                         img.crossOrigin = 'Anonymous';
                         img.onload = () => {
                             clearTimeout(timer);
-                            try {
-                                const w = img.naturalWidth || img.width || 177;
-                                const h = img.naturalHeight || img.height || 76;
-                                const canvas = document.createElement('canvas');
-                                canvas.width = w;
-                                canvas.height = h;
-                                const ctx = canvas.getContext('2d');
-                                ctx.fillStyle = '#ffffff';
-                                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                resolve({
-                                    base64: canvas.toDataURL('image/jpeg', 0.95),
-                                    width: w,
-                                    height: h
-                                });
-                            } catch (err) {
-                                resolve(null);
-                            }
+                            const drawn = drawToCanvasBase64(img);
+                            resCanvas(drawn);
                         };
                         img.onerror = () => {
                             clearTimeout(timer);
-                            resolve(null);
+                            resCanvas(null);
                         };
-                        img.src = logoRaw;
+                        const sep = logoRaw.includes('?') ? '&' : '?';
+                        img.src = `${logoRaw}${sep}_cb=${Date.now()}`;
                     });
-                    if (fetched) {
-                        logoBase64 = fetched.base64;
-                        logoNaturalWidth = fetched.width;
-                        logoNaturalHeight = fetched.height;
+                    if (canvasRes?.base64) {
+                        logoBase64 = canvasRes.base64;
+                        logoNaturalWidth = canvasRes.width;
+                        logoNaturalHeight = canvasRes.height;
                     }
-                } catch (e) {
-                    console.warn('Could not flatten logo to JPEG:', e);
+                } catch (imgErr) {
+                    console.warn('Image canvas flattening failed:', imgErr);
                 }
+            }
+
+            // Stage 5: Guaranteed Fallback to ceaArchitectsLogoBase64
+            if (!logoBase64 && ceaArchitectsLogoBase64) {
+                logoBase64 = ceaArchitectsLogoBase64;
+                logoNaturalWidth = 177;
+                logoNaturalHeight = 76;
             }
 
             // Calculations
@@ -3377,10 +3461,18 @@ const Invoice = () => {
                     }
 
                     logoPdfHeight = logoHeight;
-                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
                     doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
                 } catch (imgErr) {
-                    console.warn('Could not add image to PDF:', imgErr);
+                    console.warn('Could not add primary image to PDF, trying CEA fallback:', imgErr);
+                    try {
+                        if (ceaArchitectsLogoBase64) {
+                            doc.addImage(ceaArchitectsLogoBase64, 'PNG', 196 - 42, 12, 42, 18);
+                            logoPdfHeight = 18;
+                        }
+                    } catch (fallbackErr) {
+                        console.error('All PDF logo additions failed:', fallbackErr);
+                    }
                 }
             }
 
