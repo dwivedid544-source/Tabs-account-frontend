@@ -1,14 +1,17 @@
 .sales-report-page {
-    padding: 2rem;
+    padding: 1.5rem 2rem;
     background-color: #f8fafc;
     min-height: 100vh;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
 }
 
 .page-title {
@@ -23,30 +26,42 @@
     font-size: 0.9rem;
 }
 
-.header-actions {
-    display: flex;
-    gap: 1rem;
-}
-
-.report-filters-group {
+/* Dedicated Controls Toolbar Card */
+.sales-report-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.85rem;
     background: white;
-    padding: 0.4rem 1rem;
-    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 1.75rem;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
 }
 
 .date-input-wrapper {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
 }
 
 .date-label {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #64748b;
     text-transform: uppercase;
@@ -55,13 +70,15 @@
 
 .date-input {
     border: 1px solid #e2e8f0;
-    padding: 0.4rem 0.6rem;
+    padding: 0.35rem 0.55rem;
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #1e293b;
     outline: none;
     transition: all 0.2s;
     background: #f8fafc;
+    height: 36px;
+    box-sizing: border-box;
 }
 
 .date-input:focus {
@@ -73,36 +90,76 @@
 .date-separator {
     color: #94a3b8;
     font-weight: 500;
+    font-size: 0.82rem;
 }
 
-.btn-clear-filters {
-    background: #f1f5f9;
+.filter-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-filter-apply {
+    background: #1e293b;
+    color: white;
     border: none;
-    padding: 0.3rem 0.75rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #475569;
     cursor: pointer;
+    padding: 0.4rem 0.95rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.btn-clear-filters:hover {
-    background: #334155;
+.btn-filter-apply:hover {
+    background: #0f172a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-filter-reset {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-filter-reset:hover {
+    background: #e2e8f0;
     color: #1e293b;
 }
 
 .btn-export {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.25rem;
+    gap: 0.45rem;
+    padding: 0.4rem 0.95rem;
     background: #1e293b;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     cursor: pointer;
+    height: 36px;
+    transition: all 0.2s;
+}
+
+.btn-export:hover {
+    background: #0f172a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .export-dropdown-wrapper {
@@ -145,85 +202,173 @@
     border-bottom: 1px solid #f1f5f9;
 }
 
+/* Period Filter Segmented Pills */
+.period-filter-group {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 8px;
+    gap: 3px;
+    border: 1px solid #e2e8f0;
+}
+
+.period-pill-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.period-pill-btn:hover {
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.period-pill-btn.active {
+    background: white;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+    font-weight: 700;
+}
+
 /* Summary Cards */
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
     margin-bottom: 2rem;
+}
+
+@media (max-width: 1280px) {
+    .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .summary-card {
     background: white;
-    padding: 1.5rem;
+    padding: 1.35rem;
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-left: 4px solid transparent;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
 }
 
 .summary-card.card-blue {
     border-left-color: #3b82f6;
 }
 
+.summary-card.card-teal {
+    border-left-color: #0d9488;
+}
+
 .summary-card.card-green {
-    border-left-color: #1e293b;
+    border-left-color: #10b981;
 }
 
 .summary-card.card-red {
-    border-left-color: #ef4444;
+    border-left-color: #f43f5e;
 }
 
 .summary-card.card-orange {
     border-left-color: #f59e0b;
 }
 
+.summary-card.card-slate {
+    border-left-color: #64748b;
+}
+
 .card-label {
     display: block;
     color: #64748b;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
     text-transform: uppercase;
+    letter-spacing: 0.025em;
 }
 
 .card-value {
-    font-size: 1.5rem;
+    font-size: 1.45rem;
     font-weight: 800;
     color: #1e293b;
     margin: 0;
+    line-height: 1.2;
+}
+
+.card-value-teal {
+    color: #0d9488;
+}
+
+.card-value-green {
+    color: #059669;
+}
+
+.card-value-red {
+    color: #e11d48;
+}
+
+.card-value-slate {
+    color: #475569;
 }
 
 .card-icon {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.15;
 }
 
 .icon-blue {
-    background: #3b82f6;
+    background: #eff6ff;
     color: #3b82f6;
 }
 
+.icon-teal {
+    background: #f0fdfa;
+    color: #0d9488;
+}
+
 .icon-green {
-    background: #1e293b;
-    color: #1e293b;
+    background: #ecfdf5;
+    color: #059669;
 }
 
 .icon-red {
-    background: #ef4444;
-    color: #ef4444;
+    background: #fff1f2;
+    color: #e11d48;
 }
 
 .icon-orange {
-    background: #f59e0b;
-    color: #f59e0b;
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.icon-slate {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.clickable-summary-card.active-card-teal {
+    background: #f0fdfa !important;
+    border-color: #0d9488 !important;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.4), 0 8px 16px rgba(13, 148, 136, 0.1);
 }
 
 /* Clickable Summary Card Styles */
@@ -236,8 +381,31 @@
 
 .clickable-summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+.clickable-summary-card.card-blue:hover {
+    border-color: #3b82f6;
+}
+
+.clickable-summary-card.card-orange:hover {
     border-color: #f59e0b;
+}
+
+.clickable-summary-card.card-teal:hover {
+    border-color: #0d9488;
+}
+
+.clickable-summary-card.card-green:hover {
+    border-color: #10b981;
+}
+
+.clickable-summary-card.card-red:hover {
+    border-color: #f43f5e;
+}
+
+.clickable-summary-card.card-slate:hover {
+    border-color: #64748b;
 }
 
 .clickable-summary-card.active-card-orange {
@@ -256,6 +424,18 @@
     background: #f0fdf4 !important;
     border-color: #10b981 !important;
     box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 8px 16px rgba(16, 185, 129, 0.1);
+}
+
+.clickable-summary-card.active-card-red {
+    background: #fff1f2 !important;
+    border-color: #f43f5e !important;
+    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.4), 0 8px 16px rgba(244, 63, 94, 0.1);
+}
+
+.clickable-summary-card.active-card-slate {
+    background: #f8fafc !important;
+    border-color: #64748b !important;
+    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.4), 0 8px 16px rgba(100, 116, 139, 0.1);
 }
 
 .card-label-with-tag {
@@ -875,6 +1055,16 @@
         padding: 1rem;
     }
 
+    .sales-report-toolbar {
+        padding: 0.75rem 1rem;
+        gap: 0.75rem;
+    }
+
+    .toolbar-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
     .summary-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 1rem;
@@ -888,18 +1078,53 @@
     .page-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
-    .header-actions {
+    .sales-report-toolbar {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+
+    .toolbar-left,
+    .period-filter-group {
         width: 100%;
+        display: flex;
+    }
+
+    .period-pill-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 6px 4px;
+        font-size: 0.72rem;
+    }
+
+    .toolbar-right {
         flex-direction: column;
+        align-items: stretch;
+        width: 100%;
         gap: 0.5rem;
     }
 
-    .date-range-picker,
-    .btn-export {
+    .date-input-wrapper {
         width: 100%;
+        justify-content: space-between;
+    }
+
+    .date-input {
+        flex: 1;
+    }
+
+    .filter-btn-group,
+    .export-dropdown-wrapper {
+        width: 100%;
+        display: flex;
+    }
+
+    .btn-filter-apply,
+    .btn-filter-reset,
+    .btn-export {
+        flex: 1;
         justify-content: center;
     }
 

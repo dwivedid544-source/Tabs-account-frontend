@@ -2211,24 +2211,32 @@ const PurchaseBill = () => {
 
         // Resolve company logo (flattened to JPEG on white background to prevent PNG alpha stream corruption)
         let logoBase64 = null;
+        let logoNaturalWidth = 177;
+        let logoNaturalHeight = 76;
         const logoRaw = getCompanyLogoSrc(comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo) || ceaArchitectsLogoBase64;
         if (logoRaw && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
             try {
                 const fetched = await new Promise((resolve) => {
-                    const timer = setTimeout(() => resolve(null), 1500);
+                    const timer = setTimeout(() => resolve(null), 2500);
                     const img = new Image();
                     img.crossOrigin = 'Anonymous';
                     img.onload = () => {
                         clearTimeout(timer);
                         try {
+                            const w = img.naturalWidth || img.width || 177;
+                            const h = img.naturalHeight || img.height || 76;
                             const canvas = document.createElement('canvas');
-                            canvas.width = img.naturalWidth || img.width || 177;
-                            canvas.height = img.naturalHeight || img.height || 76;
+                            canvas.width = w;
+                            canvas.height = h;
                             const ctx = canvas.getContext('2d');
                             ctx.fillStyle = '#ffffff';
                             ctx.fillRect(0, 0, canvas.width, canvas.height);
                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                            resolve(canvas.toDataURL('image/jpeg', 0.95));
+                            resolve({
+                                base64: canvas.toDataURL('image/jpeg', 0.95),
+                                width: w,
+                                height: h
+                            });
                         } catch (err) {
                             resolve(null);
                         }
@@ -2239,7 +2247,11 @@ const PurchaseBill = () => {
                     };
                     img.src = logoRaw;
                 });
-                if (fetched) logoBase64 = fetched;
+                if (fetched) {
+                    logoBase64 = fetched.base64;
+                    logoNaturalWidth = fetched.width;
+                    logoNaturalHeight = fetched.height;
+                }
             } catch (e) {
                 console.warn('Could not flatten logo to JPEG:', e);
             }
@@ -2406,41 +2418,68 @@ const PurchaseBill = () => {
 
         const doc = new jsPDF('p', 'mm', 'a4');
 
+        // Helper to render text with word-wrapping and dynamic Y tracking to prevent overlapping
+        const printPdfBlock = (text, x, startY, maxWidth = 96, lineHeight = 4.2) => {
+            if (!text || !String(text).trim()) return startY;
+            const cleanText = String(text).trim();
+            const lines = doc.splitTextToSize(cleanText, maxWidth);
+            doc.text(lines, x, startY);
+            return startY + (lines.length * lineHeight);
+        };
+
         // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(17, 24, 39);
-        doc.text(comp.name || 'CEAC Ltd', 14, 18);
+        let compY = printPdfBlock(comp.name || 'CEAC Ltd', 14, 18, 135, 5.2);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(55, 65, 81);
-        let compY = 22.5;
-        doc.text(comp.address || '17 South Mall', 14, compY);
-        compY += 4.2;
+        if (comp.address) {
+            compY = printPdfBlock(comp.address, 14, compY, 135, 4.2);
+        }
 
         const compCityLine = (comp.city && comp.zip)
             ? `${comp.city.replace(/,\s*$/, '')}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip || comp.zipCode || ''}`.trim()
             : 'Cork, Co, Cork T12VCY2';
-        if (compCityLine) {
-            doc.text(compCityLine, 14, compY);
-            compY += 4.2;
+        if (compCityLine && compCityLine !== comp.address) {
+            compY = printPdfBlock(compCityLine, 14, compY, 135, 4.2);
         }
-        doc.text(comp.phone || '+353214272000', 14, compY);
-        compY += 4.2;
-
-        doc.text(comp.email || 'accounts@ceaarchitects.com', 14, compY);
-        compY += 4.2;
+        if (comp.phone) {
+            compY = printPdfBlock(comp.phone, 14, compY, 135, 4.2);
+        }
+        if (comp.email) {
+            compY = printPdfBlock(comp.email, 14, compY, 135, 4.2);
+        }
 
         const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber || '4120278GH';
-        doc.text(`VAT ID: ${vatId}`, 14, compY);
-        compY += 4.2;
+        if (vatId) {
+            compY = printPdfBlock(`VAT ID: ${vatId}`, 14, compY, 135, 4.2);
+        }
 
-        // Top Right Logo Image
+        // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
+        let logoPdfHeight = 0;
         if (logoBase64) {
             try {
-                const logoWidth = 36;
-                const logoHeight = 36 / (177 / 76);
+                const maxW = 42; // Maximum logo width in mm
+                const maxH = 22; // Maximum logo height in mm
+                const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
+                    ? (logoNaturalWidth / logoNaturalHeight)
+                    : (177 / 76);
+
+                let logoWidth, logoHeight;
+                if (aspect > maxW / maxH) {
+                    // Landscape: constrained by max width
+                    logoWidth = maxW;
+                    logoHeight = maxW / aspect;
+                } else {
+                    // Portrait or square: constrained by max height
+                    logoHeight = maxH;
+                    logoWidth = maxH * aspect;
+                }
+
+                logoPdfHeight = logoHeight;
                 const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
                 doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
             } catch (imgErr) {
@@ -2456,45 +2495,42 @@ const PurchaseBill = () => {
         const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
         const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
 
-        let midY = Math.max(50, compY + 3);
+        let midY = Math.max(50, compY + 4, 12 + logoPdfHeight + 4);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
-        doc.text(bill.isStatement ? 'VENDOR STATEMENT' : 'PURCHASE BILL', 14, midY);
+        let billY = printPdfBlock(bill.isStatement ? 'VENDOR STATEMENT' : 'PURCHASE BILL', 14, midY, 96, 5.2);
+        billY += 1.5;
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
         doc.setTextColor(136, 136, 136);
-        doc.text('BILL FROM / VENDOR', 14, midY + 6);
+        billY = printPdfBlock('BILL FROM / VENDOR', 14, billY, 96, 4.0);
+        billY += 1.0;
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.setTextColor(17, 24, 39);
-        doc.text(vendorName, 14, midY + 11);
+        billY = printPdfBlock(vendorName || '', 14, billY, 96, 4.6);
+        billY += 0.5;
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(55, 65, 81);
-        let billY = midY + 15.5;
         if (vendorAddr) {
-            doc.text(vendorAddr, 14, billY);
-            billY += 4.2;
+            billY = printPdfBlock(vendorAddr, 14, billY, 96, 4.2);
         }
         if (vendorCityStateZip && vendorCityStateZip !== vendorAddr) {
-            doc.text(vendorCityStateZip, 14, billY);
-            billY += 4.2;
+            billY = printPdfBlock(vendorCityStateZip, 14, billY, 96, 4.2);
         }
         if (vendorPhone) {
-            doc.text(vendorPhone, 14, billY);
-            billY += 4.2;
+            billY = printPdfBlock(vendorPhone, 14, billY, 96, 4.2);
         }
         if (vendorEmail) {
-            doc.text(vendorEmail, 14, billY);
-            billY += 4.2;
+            billY = printPdfBlock(vendorEmail, 14, billY, 96, 4.2);
         }
         if (vendorVat) {
-            doc.text(`VAT ID: ${vendorVat}`, 14, billY);
-            billY += 4.2;
+            billY = printPdfBlock(`VAT ID: ${vendorVat}`, 14, billY, 96, 4.2);
         }
 
         // Right Metadata Grid
@@ -2533,7 +2569,7 @@ const PurchaseBill = () => {
         });
 
         // --- 3. ITEMS TABLE ---
-        const tableStartY = Math.max(billY + 3, metaY + 3);
+        const tableStartY = Math.max(billY + 5, metaY + 5);
 
         const showUom = true;
         const cols = [

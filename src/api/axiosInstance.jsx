@@ -26,7 +26,7 @@ axiosInstance.interceptors.request.use(
         return config;
     },
     (error) => {
-        if (!error.config || !error.config.headers || !error.config.headers['X-No-Loader']) {
+        if  (!error.config || !error.config.headers || !error.config.headers['X-No-Loader']) {
             loaderService.hide(); // Hide loader on request error
         }
         return Promise.reject(error);

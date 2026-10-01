@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Search, Filter, Download, Calendar,
     DollarSign, CheckCircle2, XCircle, AlertCircle,
-    User, Package, FileText, Clock, ArrowRight, X
+    User, Package, FileText, Clock, ArrowRight, X,
+    TrendingUp, TrendingDown, MinusCircle, HelpCircle
 } from 'lucide-react';
 import './SalesReport.css';
 import axiosInstance from '../../../../api/axiosInstance';
@@ -32,12 +33,24 @@ const SalesReport = () => {
 
     const [reportType, setReportType] = useState(savedFilters?.reportType || 'general'); // 'general', 'item', 'customer'
     const [transactionFilter, setTransactionFilter] = useState(savedFilters?.transactionFilter || 'ALL'); // 'ALL', 'SALES', 'RETURNS'
+    const [selectedPeriod, setSelectedPeriod] = useState(savedFilters?.selectedPeriod || '30'); // '30', '60', '90', 'all', 'custom'
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [summaryStats, setSummaryStats] = useState({
         totalSales: 0,
         totalReturns: 0,
         netRevenue: 0,
+        grossRevenue: 0,
+        returnsRevenue: 0,
+        cogs: 0,
+        operatingExpenses: 0,
+        otherExpenses: 0,
+        otherIncome: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+        netProfitLoss: 0,
+        profitStatus: 'BREAK_EVEN',
+        hasExpenseData: false,
         totalAmount: 0,
         totalPaid: 0,
         totalUnpaid: 0,
@@ -47,21 +60,60 @@ const SalesReport = () => {
     const [overdueInvoices, setOverdueInvoices] = useState([]);
     const [activeCardFilter, setActiveCardFilter] = useState(null); // null, 'GROSS_SALES', 'OVERDUE', 'NET_REVENUE'
 
-    const [startDate, setStartDate] = useState(savedFilters?.startDate || '');
-    const [endDate, setEndDate] = useState(savedFilters?.endDate || '');
-    const [tempStartDate, setTempStartDate] = useState(savedFilters?.startDate || '');
-    const [tempEndDate, setTempEndDate] = useState(savedFilters?.endDate || '');
+    const computeInitialDates = () => {
+        if (savedFilters?.startDate && savedFilters?.endDate) {
+            return { start: savedFilters.startDate, end: savedFilters.endDate };
+        }
+        const end = new Date();
+        const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    };
+
+    const initialDates = computeInitialDates();
+    const [startDate, setStartDate] = useState(savedFilters?.startDate !== undefined ? savedFilters.startDate : initialDates.start);
+    const [endDate, setEndDate] = useState(savedFilters?.endDate !== undefined ? savedFilters.endDate : initialDates.end);
+    const [tempStartDate, setTempStartDate] = useState(savedFilters?.startDate !== undefined ? savedFilters.startDate : initialDates.start);
+    const [tempEndDate, setTempEndDate] = useState(savedFilters?.endDate !== undefined ? savedFilters.endDate : initialDates.end);
+
+    const handlePeriodSelect = (periodVal) => {
+        setSelectedPeriod(periodVal);
+        if (periodVal === 'all') {
+            setTempStartDate('');
+            setTempEndDate('');
+            setStartDate('');
+            setEndDate('');
+            return;
+        }
+        const days = parseInt(periodVal, 10);
+        const end = new Date();
+        const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+        const startStr = start.toISOString().split('T')[0];
+        const endStr = end.toISOString().split('T')[0];
+        setTempStartDate(startStr);
+        setTempEndDate(endStr);
+        setStartDate(startStr);
+        setEndDate(endStr);
+    };
 
     const handleApplyFilters = () => {
+        setSelectedPeriod('custom');
         setStartDate(tempStartDate);
         setEndDate(tempEndDate);
     };
 
     const handleResetFilters = () => {
-        setTempStartDate('');
-        setTempEndDate('');
-        setStartDate('');
-        setEndDate('');
+        setSelectedPeriod('30');
+        const end = new Date();
+        const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const startStr = start.toISOString().split('T')[0];
+        const endStr = end.toISOString().split('T')[0];
+        setTempStartDate(startStr);
+        setTempEndDate(endStr);
+        setStartDate(startStr);
+        setEndDate(endStr);
         setTransactionFilter('ALL');
         setActiveCardFilter(null);
         try {
@@ -77,12 +129,13 @@ const SalesReport = () => {
             sessionStorage.setItem('tab_sales_report_filters', JSON.stringify({
                 reportType,
                 transactionFilter,
+                selectedPeriod,
                 startDate,
                 endDate,
                 searchTerm
             }));
         } catch (e) { }
-    }, [reportType, transactionFilter, startDate, endDate, searchTerm]);
+    }, [reportType, transactionFilter, selectedPeriod, startDate, endDate, searchTerm]);
 
     useEffect(() => {
         fetchCompanySettings();
@@ -90,7 +143,7 @@ const SalesReport = () => {
 
     useEffect(() => {
         fetchReport();
-    }, [startDate, endDate, reportType, transactionFilter]);
+    }, [startDate, endDate, selectedPeriod, reportType, transactionFilter]);
 
     const fetchReport = async () => {
         try {
@@ -103,7 +156,13 @@ const SalesReport = () => {
             if (reportType === 'customer') endpoint = '/reports/sales-by-customer';
 
             const response = await axiosInstance.get(endpoint, {
-                params: { companyId, startDate, endDate, transactionFilter }
+                params: { 
+                    companyId, 
+                    startDate, 
+                    endDate, 
+                    period: ['30', '60', '90'].includes(selectedPeriod) ? selectedPeriod : undefined,
+                    transactionFilter 
+                }
             });
 
             if (response.data.success) {
@@ -184,6 +243,19 @@ const SalesReport = () => {
                         totalSales: incomingSummary.totalSales || 0,
                         totalReturns: incomingSummary.totalReturns || 0,
                         netRevenue: incomingSummary.netRevenue || 0,
+                        grossRevenue: incomingSummary.grossRevenue || 0,
+                        returnsRevenue: incomingSummary.returnsRevenue || 0,
+                        cogs: incomingSummary.cogs || 0,
+                        operatingExpenses: incomingSummary.operatingExpenses || 0,
+                        otherExpenses: incomingSummary.otherExpenses || 0,
+                        otherIncome: incomingSummary.otherIncome || 0,
+                        totalIncome: incomingSummary.totalIncome || 0,
+                        totalExpenses: incomingSummary.totalExpenses || incomingSummary.totalExpense || 0,
+                        netProfitLoss: incomingSummary.netProfitLoss !== undefined ? incomingSummary.netProfitLoss : ((incomingSummary.totalIncome || 0) - (incomingSummary.totalExpenses || incomingSummary.totalExpense || 0)),
+                        profitStatus: incomingSummary.profitStatus || (
+                            ((incomingSummary.netProfitLoss || 0) > 0.005) ? 'PROFIT' : (((incomingSummary.netProfitLoss || 0) < -0.005) ? 'LOSS' : 'BREAK_EVEN')
+                        ),
+                        hasExpenseData: Boolean(incomingSummary.hasExpenseData),
                         totalAmount: incomingSummary.totalAmount || 0,
                         totalPaid: incomingSummary.totalPaid || 0,
                         totalUnpaid: incomingSummary.totalUnpaid || 0,
@@ -364,14 +436,7 @@ const SalesReport = () => {
     const overdueRecordsCount = overdueRecords.length;
 
     const paidRecords = useMemo(() => {
-        return reportData.filter(item => !item.isReturn && (
-            String(item.status).toUpperCase() === 'PAID' ||
-            String(item.status).toUpperCase() === 'FULLY_PAID' ||
-            String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
-            String(item.status).toUpperCase() === 'PARTIAL' ||
-            (parseFloat(item.paidAmount) > 0.01) ||
-            (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
-        ));
+        return reportData.filter(item => !item.isReturn && parseFloat(item.paidAmount || 0) > 0.01);
     }, [reportData]);
     const paidRecordsCount = paidRecords.length;
 
@@ -385,17 +450,34 @@ const SalesReport = () => {
         return sum > 0 ? sum : (summaryStats.totalSales || summaryStats.totalAmount || 0);
     }, [salesRecords, summaryStats.totalSales, summaryStats.totalAmount]);
 
-    const calculatedPaidSales = useMemo(() => {
-        const sum = salesRecords.reduce((s, item) => {
+    // Payment-based Net Revenue calculation (excluding VAT, net of returns)
+    const calculatedPaymentNetRevenue = useMemo(() => {
+        // Authoritative payment-based net revenue from backend
+        if (typeof summaryStats.netRevenue === 'number') {
+            return summaryStats.netRevenue;
+        }
+
+        if (!salesRecords || salesRecords.length === 0) {
+            return 0;
+        }
+
+        const receivedPaidSum = salesRecords.reduce((sum, item) => {
             const paid = parseFloat(item.paidAmount);
-            if (!isNaN(paid) && paid > 0) return s + paid;
-            if (String(item.status).toUpperCase() === 'PAID' || String(item.status).toUpperCase() === 'FULLY_PAID' || (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01)) {
-                return s + (parseFloat(item.totalAmount || item.amount) || 0);
-            }
-            return s;
+            const total = parseFloat(item.totalAmount || item.amount || 0);
+            if (isNaN(paid) || paid <= 0.005 || total <= 0.005) return sum;
+            return sum + Math.min(paid, total);
         }, 0);
-        return sum > 0 ? sum : (summaryStats.totalPaid || summaryStats.netRevenue || 0);
-    }, [salesRecords, summaryStats.totalPaid, summaryStats.netRevenue]);
+
+        // Deduct returns
+        const returnsSum = reportData
+            .filter(item => item.isReturn)
+            .reduce((sum, item) => {
+                const tot = parseFloat(item.totalAmount || item.amount || 0);
+                return sum + tot;
+            }, 0);
+
+        return Math.max(0, Math.round((receivedPaidSum - returnsSum) * 100) / 100);
+    }, [salesRecords, reportData, summaryStats.netRevenue]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
@@ -404,20 +486,13 @@ const SalesReport = () => {
         if (activeCardFilter === 'OVERDUE') {
             const isItemOverdue = Boolean(item.isOverdue || String(item.status).toUpperCase() === 'OVERDUE');
             if (!isItemOverdue) return false;
-        } else if (activeCardFilter === 'GROSS_SALES') {
-            // Filter to All Sales invoices (excluding returns)
-            if (item.isReturn) return false;
         } else if (activeCardFilter === 'NET_REVENUE') {
-            // Filter to Paid / Collected Revenue invoices (including partially paid)
-            const isPaid = !item.isReturn && (
-                String(item.status).toUpperCase() === 'PAID' ||
-                String(item.status).toUpperCase() === 'FULLY_PAID' ||
-                String(item.status).toUpperCase() === 'PARTIALLY PAID' ||
-                String(item.status).toUpperCase() === 'PARTIAL' ||
-                (parseFloat(item.paidAmount) > 0.01) ||
-                (item.balanceAmount !== undefined && parseFloat(item.balanceAmount) <= 0.01 && !item.isOverdue)
-            );
-            if (!isPaid) return false;
+            // Strictly show only invoices with payments received (paidAmount > 0.01)
+            if (item.isReturn) return false;
+            if (parseFloat(item.paidAmount || 0) <= 0.01) return false;
+        } else if (activeCardFilter === 'GROSS_SALES' || activeCardFilter === 'NET_PROFIT_LOSS') {
+            // Filter to Sales invoices (excluding returns)
+            if (item.isReturn) return false;
         } else {
             if (transactionFilter === 'SALES' && item.isReturn) return false;
             if (transactionFilter === 'RETURNS' && !item.isReturn) return false;
@@ -499,49 +574,95 @@ const SalesReport = () => {
 
     return (
         <div className="sales-report-page">
+            {/* Top Page Header: Title on left, Subtitle */}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Sales Analytics</h1>
                     <p className="page-subtitle">Track revenue, sales, and sales returns performance</p>
                 </div>
+            </div>
 
-                <div className="header-actions">
-                    <div className="report-filters-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <div className="date-input-wrapper">
-                            <span className="date-label">Type</span>
-                            <select
-                                value={transactionFilter}
-                                onChange={(e) => setTransactionFilter(e.target.value)}
-                                className="date-input"
-                                style={{ fontWeight: '600', cursor: 'pointer' }}
-                            >
-                                <option value="ALL">All (Sales & Returns)</option>
-                                <option value="SALES">All Sales (Invoice & POS)</option>
-                                <option value="INVOICE">Invoice Sales Only</option>
-                                <option value="POS">POS Sales Only</option>
-                                <option value="RETURNS">Returns Only</option>
-                            </select>
-                        </div>
-                        <div className="date-input-wrapper">
-                            <span className="date-label">From</span>
-                            <input type="date" value={tempStartDate} onChange={(e) => setTempStartDate(e.target.value)} className="date-input" />
-                        </div>
-                        <span className="date-separator">to</span>
-                        <div className="date-input-wrapper">
-                            <span className="date-label">To</span>
-                            <input type="date" value={tempEndDate} onChange={(e) => setTempEndDate(e.target.value)} className="date-input" />
-                        </div>
-                        <button onClick={handleApplyFilters} className="btn-export" style={{ background: '#1e293b', color: 'white', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', transition: 'all 0.2s', height: '38px', display: 'flex', alignItems: 'center' }}>
+            {/* Dedicated Controls Toolbar Card */}
+            <div className="sales-report-toolbar">
+                <div className="toolbar-left">
+                    {/* Shared Reporting Period Selector */}
+                    <div className="period-filter-group">
+                        <button
+                            type="button"
+                            className={`period-pill-btn ${selectedPeriod === '30' ? 'active' : ''}`}
+                            onClick={() => handlePeriodSelect('30')}
+                            title="Report transactions from the last 30 days"
+                        >
+                            30 Days
+                        </button>
+                        <button
+                            type="button"
+                            className={`period-pill-btn ${selectedPeriod === '60' ? 'active' : ''}`}
+                            onClick={() => handlePeriodSelect('60')}
+                            title="Report transactions from the last 60 days"
+                        >
+                            60 Days
+                        </button>
+                        <button
+                            type="button"
+                            className={`period-pill-btn ${selectedPeriod === '90' ? 'active' : ''}`}
+                            onClick={() => handlePeriodSelect('90')}
+                            title="Report transactions from the last 90 days"
+                        >
+                            90 Days
+                        </button>
+                        <button
+                            type="button"
+                            className={`period-pill-btn ${selectedPeriod === 'all' ? 'active' : ''}`}
+                            onClick={() => handlePeriodSelect('all')}
+                            title="All transactions"
+                        >
+                            All
+                        </button>
+                    </div>
+                </div>
+
+                <div className="toolbar-right">
+                    <div className="date-input-wrapper">
+                        <span className="date-label">Type</span>
+                        <select
+                            value={transactionFilter}
+                            onChange={(e) => setTransactionFilter(e.target.value)}
+                            className="date-input"
+                            style={{ fontWeight: '600', cursor: 'pointer' }}
+                        >
+                            <option value="ALL">All (Sales & Returns)</option>
+                            <option value="SALES">All Sales (Invoice & POS)</option>
+                            <option value="INVOICE">Invoice Sales Only</option>
+                            <option value="POS">POS Sales Only</option>
+                            <option value="RETURNS">Returns Only</option>
+                        </select>
+                    </div>
+
+                    <div className="date-input-wrapper">
+                        <span className="date-label">From</span>
+                        <input type="date" value={tempStartDate} onChange={(e) => setTempStartDate(e.target.value)} className="date-input" />
+                    </div>
+
+                    <span className="date-separator">to</span>
+
+                    <div className="date-input-wrapper">
+                        <span className="date-label">To</span>
+                        <input type="date" value={tempEndDate} onChange={(e) => setTempEndDate(e.target.value)} className="date-input" />
+                    </div>
+
+                    <div className="filter-btn-group">
+                        <button onClick={handleApplyFilters} className="btn-filter-apply">
                             Apply
                         </button>
-                        <button onClick={handleResetFilters} style={{ background: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db', cursor: 'pointer', padding: '6px 12px', borderRadius: '6px', fontWeight: '500', transition: 'all 0.2s', height: '38px', display: 'flex', alignItems: 'center' }}>
+                        <button onClick={handleResetFilters} className="btn-filter-reset">
                             Reset
                         </button>
                     </div>
 
                     <div className="export-dropdown-wrapper">
                         <button className="btn-export" onClick={() => setShowExportOptions(!showExportOptions)}>
-                            <Download size={16} /> Export
+                            <Download size={15} /> Export
                         </button>
                         {showExportOptions && (
                             <div className="export-menu">
@@ -577,6 +698,7 @@ const SalesReport = () => {
 
             {reportType === 'general' && (
                 <div className="summary-grid">
+                    {/* Card 1: Gross Sales */}
                     <div
                         className={`summary-card card-blue clickable-summary-card ${activeCardFilter === 'GROSS_SALES' ? 'active-card-blue' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'GROSS_SALES' ? null : 'GROSS_SALES')}
@@ -596,6 +718,8 @@ const SalesReport = () => {
                         </div>
                         <div className="card-icon icon-blue"><DollarSign size={24} /></div>
                     </div>
+
+                    {/* Card 2: Overdue Invoices */}
                     <div
                         className={`summary-card card-orange clickable-summary-card ${activeCardFilter === 'OVERDUE' ? 'active-card-orange' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'OVERDUE' ? null : 'OVERDUE')}
@@ -618,24 +742,94 @@ const SalesReport = () => {
                         </div>
                         <div className="card-icon icon-orange"><Clock size={24} /></div>
                     </div>
+
+                    {/* Card 3: Net Revenue (Payment-Based, Excl. VAT) */}
                     <div
-                        className={`summary-card card-green clickable-summary-card ${activeCardFilter === 'NET_REVENUE' ? 'active-card-green' : ''}`}
+                        className={`summary-card card-teal clickable-summary-card ${activeCardFilter === 'NET_REVENUE' ? 'active-card-teal' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'NET_REVENUE' ? null : 'NET_REVENUE')}
-                        title="Click to filter table by Paid Revenue (collected invoices)"
+                        title="Payment-based Net Revenue: total customer payments received, net of sales returns"
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'NET_REVENUE' ? null : 'NET_REVENUE'); }}
                     >
                         <div className="card-content">
-                            <span className="card-label">Net Revenue</span>
-                            <h3 className="card-value">{formatCurrency(calculatedPaidSales || summaryStats.netRevenue || 0)}</h3>
-                            <span className="card-filter-hint">
+                            <div className="card-label-with-tag">
+                                <span className="card-label">Net Revenue</span>
+                                {selectedPeriod && ['30', '60', '90'].includes(selectedPeriod) && (
+                                    <span className="card-period-tag">{selectedPeriod} Days</span>
+                                )}
+                            </div>
+                            <h3 className="card-value card-value-teal">{formatCurrency(summaryStats.netRevenue || 0)}</h3>
+                            <span className="card-filter-hint" title="Total customer payments received, minus sales returns">
                                 {activeCardFilter === 'NET_REVENUE'
-                                    ? `● Filtering paid revenue (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
-                                    : `${paidRecordsCount} paid ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to filter`}
+                                    ? `● Filtering revenue sales (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
+                                    : (paidRecordsCount > 0
+                                        ? `${paidRecordsCount} paid ${paidRecordsCount === 1 ? 'invoice' : 'invoices'} • Total received`
+                                        : `Payments received`)}
                             </span>
                         </div>
-                        <div className="card-icon icon-green"><CheckCircle2 size={24} /></div>
+                        <div className="card-icon icon-teal"><CheckCircle2 size={24} /></div>
+                    </div>
+
+                    {/* Card 4: Net Profit / Loss */}
+                    <div
+                        className={`summary-card clickable-summary-card ${
+                            summaryStats.profitStatus === 'PROFIT'
+                                ? `card-green ${activeCardFilter === 'NET_PROFIT_LOSS' ? 'active-card-green' : ''}`
+                                : summaryStats.profitStatus === 'LOSS'
+                                ? `card-red ${activeCardFilter === 'NET_PROFIT_LOSS' ? 'active-card-red' : ''}`
+                                : `card-slate ${activeCardFilter === 'NET_PROFIT_LOSS' ? 'active-card-slate' : ''}`
+                        }`}
+                        onClick={() => setActiveCardFilter(prev => prev === 'NET_PROFIT_LOSS' ? null : 'NET_PROFIT_LOSS')}
+                        title={`Click to filter table by all sales invoices. Net Profit/Loss = Total Income (${formatCurrency(summaryStats.totalIncome || 0)}) - Total Expenses (${formatCurrency(summaryStats.totalExpenses || 0)})`}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActiveCardFilter(prev => prev === 'NET_PROFIT_LOSS' ? null : 'NET_PROFIT_LOSS'); }}
+                    >
+                        <div className="card-content">
+                            <div className="card-label-with-tag">
+                                <span className="card-label">
+                                    {summaryStats.profitStatus === 'PROFIT'
+                                        ? 'Net Profit'
+                                        : summaryStats.profitStatus === 'LOSS'
+                                        ? 'Net Loss'
+                                        : 'Break-even'}
+                                </span>
+                                {selectedPeriod && ['30', '60', '90'].includes(selectedPeriod) && (
+                                    <span className="card-period-tag">{selectedPeriod} Days</span>
+                                )}
+                            </div>
+                            <h3 className={`card-value ${
+                                summaryStats.profitStatus === 'PROFIT'
+                                    ? 'card-value-green'
+                                    : summaryStats.profitStatus === 'LOSS'
+                                    ? 'card-value-red'
+                                    : 'card-value-slate'
+                            }`}>
+                                {summaryStats.profitStatus === 'LOSS' && '-'}
+                                {formatCurrency(Math.abs(summaryStats.netProfitLoss || 0))}
+                            </h3>
+                            <span className="card-filter-hint" title={`Total Income: ${formatCurrency(summaryStats.totalIncome || 0)} • Total Expenses: ${formatCurrency(summaryStats.totalExpenses || 0)}`}>
+                                {activeCardFilter === 'NET_PROFIT_LOSS'
+                                    ? `● Filtering sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'} • Click to reset)`
+                                    : `Total Income - Total Expense`}
+                            </span>
+                        </div>
+                        <div className={`card-icon ${
+                            summaryStats.profitStatus === 'PROFIT'
+                                ? 'icon-green'
+                                : summaryStats.profitStatus === 'LOSS'
+                                ? 'icon-red'
+                                : 'icon-slate'
+                        }`}>
+                            {summaryStats.profitStatus === 'PROFIT' ? (
+                                <TrendingUp size={24} />
+                            ) : summaryStats.profitStatus === 'LOSS' ? (
+                                <TrendingDown size={24} />
+                            ) : (
+                                <MinusCircle size={24} />
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
@@ -660,7 +854,9 @@ const SalesReport = () => {
                                         ? `Overdue Invoices (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'invoice' : 'invoices'})`
                                         : (activeCardFilter === 'GROSS_SALES'
                                             ? `Gross Sales (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'})`
-                                            : `Paid Revenue (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'})`)
+                                            : (activeCardFilter === 'NET_REVENUE'
+                                                ? `Net Revenue (${paidRecordsCount} ${paidRecordsCount === 1 ? 'invoice' : 'invoices'})`
+                                                : `Net ${summaryStats.profitStatus === 'PROFIT' ? 'Profit' : summaryStats.profitStatus === 'LOSS' ? 'Loss' : 'Break-even'} (${salesRecordsCount} ${salesRecordsCount === 1 ? 'invoice' : 'invoices'})`))
                                 }</strong>
                             </span>
                             <button
@@ -678,7 +874,11 @@ const SalesReport = () => {
                     {loading ? (
                         <div className="loader-container">Loading Report...</div>
                     ) : filteredData.length === 0 ? (
-                        <div className="empty-state">No records found for the selected period.</div>
+                        <div className="empty-state">
+                            {activeCardFilter === 'NET_REVENUE'
+                                ? 'No paid invoices found for Net Revenue. Invoices will appear here once payment is received.'
+                                : 'No records found for the selected period.'}
+                        </div>
                     ) : (
                         <table className="report-table">
                             <thead>
@@ -691,7 +891,7 @@ const SalesReport = () => {
                                         <th>Product</th>
                                         <th className="text-center">Qty</th>
                                         <th className="text-right">
-                                            {activeCardFilter === 'OVERDUE' ? 'Overdue Amount' : (activeCardFilter === 'NET_REVENUE' ? 'Paid Amount' : 'Amount')}
+                                            {activeCardFilter === 'OVERDUE' ? 'Overdue Amount' : 'Amount'}
                                         </th>
                                         <th>Status</th>
                                     </tr>

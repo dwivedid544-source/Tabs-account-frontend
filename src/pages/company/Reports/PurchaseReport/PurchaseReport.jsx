@@ -309,8 +309,11 @@ const PurchaseReport = () => {
             }
             return s;
         }, 0);
-        return sum > 0 ? sum : (summaryStats.totalPaid || summaryStats.netPurchase || 0);
-    }, [paidRecords, summaryStats.totalPaid, summaryStats.netPurchase]);
+        if (purchasesRecords.length > 0) {
+            return sum;
+        }
+        return summaryStats.totalPaid || 0;
+    }, [paidRecords, purchasesRecords, summaryStats.totalPaid]);
 
     const filteredData = reportData.filter(item => {
         const searchLower = searchTerm.toLowerCase();
