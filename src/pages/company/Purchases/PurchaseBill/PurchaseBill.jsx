@@ -676,12 +676,25 @@ const PurchaseBill = () => {
                 });
 
                 setVendorShippingAddresses(v.shippingaddress || []);
+
+                if (!editingId) {
+                    setBankDetails({
+                        bankName: v.bankNameBranch || v.bankName || '',
+                        accountNo: v.bankAccountNumber || v.accountNumber || v.accountNo || '',
+                        accountName: v.accountName || v.name || v.billingName || v.companyName || '',
+                        branch: v.branch || '',
+                        ifsc: v.bankIFSC || v.ifsc || ''
+                    });
+                }
             }
         } else {
             setAvailablePayments([]);
             setBillingAddress({ name: '', address: '', city: '', state: '', zipCode: '', country: '', phone: '' });
             setShippingAddress({ name: '', address: '', city: '', state: '', zipCode: '', country: '', phone: '' });
             setVendorShippingAddresses([]);
+            if (!editingId) {
+                setBankDetails({ accountName: '', bankName: '', accountNo: '', branch: '', ifsc: '' });
+            }
         }
     }, [vendorId, vendors]);
 
@@ -833,12 +846,13 @@ const PurchaseBill = () => {
                 });
                 setNotes(cData.notes || '');
                 setTerms(cData.termsPurchase || cData.terms || '');
+                // Vendor bank details are populated when a vendor is selected, not from company details
                 setBankDetails({
-                    accountName: cData.accountHolder || '',
-                    bankName: cData.bankName || '',
-                    accountNo: cData.accountNumber || '',
+                    accountName: '',
+                    bankName: '',
+                    accountNo: '',
                     branch: '',
-                    ifsc: cData.ifsc || ''
+                    ifsc: ''
                 });
                 if (cData.notes) setNotes(cData.notes);
                 if (cData.termsPurchase || cData.terms) setTerms(cData.termsPurchase || cData.terms);
@@ -1330,6 +1344,7 @@ const PurchaseBill = () => {
         setManualReference('');
         setNotes(companyDetails.notes || '');
         setTerms(companyDetails.termsPurchase || companyDetails.terms || '');
+        setBankDetails({ accountName: '', bankName: '', accountNo: '', branch: '', ifsc: '' });
         setCustomFieldValues({});
         setSelectedPhotos([]);
         setSelectedFiles([]);
@@ -1769,6 +1784,26 @@ const PurchaseBill = () => {
                     }
                 }
                 setCustomFieldValues(fieldValues);
+
+                if (fieldValues.bankDetails) {
+                    setBankDetails({
+                        accountName: fieldValues.bankDetails.accountName || '',
+                        bankName: fieldValues.bankDetails.bankName || '',
+                        accountNo: fieldValues.bankDetails.accountNo || fieldValues.bankDetails.accountNumber || '',
+                        branch: fieldValues.bankDetails.branch || '',
+                        ifsc: fieldValues.bankDetails.ifsc || ''
+                    });
+                } else if (vendorObj) {
+                    setBankDetails({
+                        bankName: vendorObj.bankNameBranch || vendorObj.bankName || '',
+                        accountNo: vendorObj.bankAccountNumber || vendorObj.accountNumber || vendorObj.accountNo || '',
+                        accountName: vendorObj.accountName || vendorObj.name || vendorObj.billingName || vendorObj.companyName || '',
+                        branch: vendorObj.branch || '',
+                        ifsc: vendorObj.bankIFSC || vendorObj.ifsc || ''
+                    });
+                } else {
+                    setBankDetails({ accountName: '', bankName: '', accountNo: '', branch: '', ifsc: '' });
+                }
                 setSalespersonId(billToEdit.salespersonId || '');
                 setShowSalespersonField(!!billToEdit.salespersonId);
                 setShowDeliveryFields(!!fieldValues.deliveryPersonName);
@@ -1946,6 +1981,7 @@ const PurchaseBill = () => {
             deliveryPersonName: billMeta.deliveryPersonName,
             deliveryPersonMobile: billMeta.deliveryPersonMobile,
             deliveryPersonEmail: billMeta.deliveryPersonEmail,
+            bankDetails: bankDetails,
             _attachments: {
                 photos: selectedPhotos,
                 files: selectedFiles
@@ -2518,14 +2554,23 @@ const PurchaseBill = () => {
             return 'UNPAID';
         })();
 
-        // Bank details
-        const bankAccountName = comp.accountName || comp.accountHolder || '';
-        const bankIban = comp.iban || '';
-        const bankBic = comp.bic || '';
-        const bankAccount = comp.accountNumber || '';
-        const bankSortCode = comp.sortCode || comp.ifsc || '';
-        const bankName = comp.bankName || '';
-        const bankAddress = resolveInvoiceCompanyAddress(comp);
+        // Bank details (Vendor's bank details for Purchase Bill)
+        const savedBank = (() => {
+            try {
+                const cf = typeof billData.customFields === 'string' ? JSON.parse(billData.customFields) : billData.customFields;
+                return cf?.bankDetails;
+            } catch (e) {
+                return null;
+            }
+        })();
+        const vendorBank = vendor || {};
+        const bankAccountName = savedBank?.accountName || vendorBank.accountName || vendorBank.name || vendorBank.billingName || '';
+        const bankIban = savedBank?.iban || vendorBank.iban || '';
+        const bankBic = savedBank?.bic || vendorBank.bic || '';
+        const bankAccount = savedBank?.accountNo || savedBank?.accountNumber || vendorBank.bankAccountNumber || '';
+        const bankSortCode = savedBank?.ifsc || vendorBank.bankIFSC || '';
+        const bankName = savedBank?.bankName || vendorBank.bankNameBranch || '';
+        const bankAddress = vendorBank.billingAddress || '';
 
         const doc = new jsPDF('p', 'mm', 'a4');
 
@@ -3205,13 +3250,22 @@ const PurchaseBill = () => {
             return 'UNPAID';
         })();
 
-        // Bank details
-        const bankAccountName = comp.accountName || comp.accountHolder || '';
-        const bankIban = comp.iban || '';
-        const bankBic = comp.bic || '';
-        const bankAccount = comp.accountNumber || '';
-        const bankSortCode = comp.sortCode || comp.ifsc || '';
-        const bankName = comp.bankName || '';
+        // Bank details (Vendor's bank details for Purchase Bill)
+        const savedBank = (() => {
+            try {
+                const cf = typeof viewBill.customFields === 'string' ? JSON.parse(viewBill.customFields) : viewBill.customFields;
+                return cf?.bankDetails;
+            } catch (e) {
+                return null;
+            }
+        })();
+        const previewVendor = (vendors || []).find(v => v.id == viewBill.vendorId) || viewBill.vendor || {};
+        const bankAccountName = savedBank?.accountName || previewVendor.accountName || previewVendor.name || previewVendor.billingName || '';
+        const bankIban = savedBank?.iban || previewVendor.iban || '';
+        const bankBic = savedBank?.bic || previewVendor.bic || '';
+        const bankAccount = savedBank?.accountNo || savedBank?.accountNumber || previewVendor.bankAccountNumber || '';
+        const bankSortCode = savedBank?.ifsc || previewVendor.bankIFSC || '';
+        const bankName = savedBank?.bankName || previewVendor.bankNameBranch || '';
         const compAddrLines = resolveCompanyAddressLines(comp);
         const hasBankDetails = Boolean(bankAccountName || bankName || bankAccount || bankIban || bankSortCode || bankBic);
         const hasCompanyAddress = compAddrLines.length > 0;
@@ -4360,9 +4414,19 @@ const PurchaseBill = () => {
                                                         setPaymentTerm('0');
                                                         setAvailablePayments([]);
                                                         setAdjustments([]);
+                                                        setBankDetails({ accountName: '', bankName: '', accountNo: '', branch: '', ifsc: '' });
                                                         return;
                                                     }
                                                     const vendorObj = vendors.find(v => v.id == vId);
+                                                    if (vendorObj) {
+                                                        setBankDetails({
+                                                            bankName: vendorObj.bankNameBranch || vendorObj.bankName || '',
+                                                            accountNo: vendorObj.bankAccountNumber || vendorObj.accountNumber || vendorObj.accountNo || '',
+                                                            accountName: vendorObj.accountName || vendorObj.name || vendorObj.billingName || vendorObj.companyName || '',
+                                                            branch: vendorObj.branch || '',
+                                                            ifsc: vendorObj.bankIFSC || vendorObj.ifsc || ''
+                                                        });
+                                                    }
                                                     const creditDays = vendorObj?.creditPeriod || 0;
                                                     setSelectedVendorCreditPeriod(creditDays);
 

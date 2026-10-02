@@ -50,8 +50,9 @@ import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import InvoiceActionDropdown from './InvoiceActionDropdown';
-import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount, resolveInvoicePaymentHistory, buildCombinedPaymentHistory } from './invoiceFinancials';
-export { resolveInvoicePaymentHistory, buildCombinedPaymentHistory };
+import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount, resolveInvoicePaymentHistory, buildCombinedPaymentHistory, convertInvoiceToActiveCurrency } from './invoiceFinancials';
+export { resolveInvoicePaymentHistory, buildCombinedPaymentHistory, convertInvoiceToActiveCurrency };
+
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -431,13 +432,15 @@ const Invoice = () => {
 
     const handleOpenEmailModal = async (invoice) => {
         if (!invoice) return;
-        const custEmail = invoice.customer?.email || invoice.billingEmail || '';
-        const invNum = invoice.invoiceNumber || `INV-${invoice.id}`;
+        const activeBaseCurrency = companySettings?.currency || companyDetails?.currency || 'EUR';
+        const convertedInv = convertInvoiceToActiveCurrency(invoice, activeBaseCurrency, getSyncRate) || invoice;
+        const custEmail = convertedInv.customer?.email || convertedInv.billingEmail || '';
+        const invNum = convertedInv.invoiceNumber || `INV-${convertedInv.id}`;
         const compName = companySettings?.name || 'Tab Accounts';
-        const curr = invoice.currency || companySettings?.currency || 'EUR';
-        const total = parseFloat(invoice.totalAmount || 0).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const due = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Upon receipt';
-        const custName = invoice.customer?.name || invoice.billingName || 'Customer';
+        const curr = convertedInv.currency || activeBaseCurrency;
+        const total = parseFloat(convertedInv.totalAmount || 0).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const due = convertedInv.dueDate ? new Date(convertedInv.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Upon receipt';
+        const custName = convertedInv.customer?.name || convertedInv.billingName || 'Customer';
         const formattedAmount = `${curr} ${total}`;
 
         const placeholderMap = {
@@ -459,7 +462,7 @@ const Invoice = () => {
         const defaultSubjTemplate = 'Invoice #{InvoiceNumber} from {CompanyName}';
         const defaultBodyTemplate = 'Dear {CustomerName},\n\nPlease find attached your invoice #{InvoiceNumber} for {InvoiceAmount}, due on {DueDate}.\n\nYou can also review and pay your invoice online through our secure portal.\n\nThank you for your business.\n\nKind regards,\n{CompanyName}';
 
-        setEmailInvoiceData(invoice);
+        setEmailInvoiceData(convertedInv);
         setEmailRecipient(custEmail);
         setEmailSubject(renderTemplate(defaultSubjTemplate));
         setEmailMessage(renderTemplate(defaultBodyTemplate));
@@ -847,6 +850,22 @@ const Invoice = () => {
                 }
                 setCustomFieldValues(fieldValues);
 
+                if (fieldValues.bankDetails) {
+                    setBankDetails({
+                        bankName: fieldValues.bankDetails.bankName || '',
+                        accNo: fieldValues.bankDetails.accNo || fieldValues.bankDetails.accountNo || '',
+                        holderName: fieldValues.bankDetails.holderName || fieldValues.bankDetails.accountHolder || fieldValues.bankDetails.accountName || '',
+                        ifsc: fieldValues.bankDetails.ifsc || ''
+                    });
+                } else if (companyDetails) {
+                    setBankDetails({
+                        bankName: companyDetails.bankName || '',
+                        accNo: companyDetails.accountNumber || companyDetails.iban || '',
+                        holderName: companyDetails.accountHolder || companyDetails.accountName || companyDetails.name || '',
+                        ifsc: companyDetails.sortCode || companyDetails.ifsc || companyDetails.bic || ''
+                    });
+                }
+
                 setSalespersonId(inv.salespersonId || '');
                 setShowSalespersonField(!!inv.salespersonId);
                 setShowDeliveryFields(!!fieldValues.deliveryPersonName);
@@ -984,6 +1003,7 @@ const Invoice = () => {
                 deliveryPersonName: invoiceMeta.deliveryPersonName,
                 deliveryPersonMobile: invoiceMeta.deliveryPersonMobile,
                 deliveryPersonEmail: invoiceMeta.deliveryPersonEmail,
+                bankDetails: bankDetails,
                 _attachments: {
                     photos: selectedPhotos,
                     files: selectedFiles
@@ -1072,7 +1092,8 @@ const Invoice = () => {
     const [companyDetails, setCompanyDetails] = useState({
         name: 'Tab Accounts', address: '', email: '', phone: '', logo: null, invoiceLogo: null,
         vatNumber: '', bankName: '', accountName: '', accountNumber: '', iban: '', bic: '', sortCode: '',
-        notes: '', terms: '', showQr: true
+        notes: '', terms: '', showQr: true,
+        currency: 'EUR'
     });
     const [invoiceMeta, setInvoiceMeta] = useState({
         manualNo: '', date: new Date().toISOString().split('T')[0], dueDate: new Date().toISOString().split('T')[0],
@@ -1345,10 +1366,17 @@ const Invoice = () => {
                     termsInvoice: data.termsInvoice || '',
                     showQr: data.showQrCode !== undefined ? data.showQrCode : true,
                     template: data.invoiceTemplate || 'Light Gray',
-                    color: data.invoiceColor || '#dedede'
+                    color: data.invoiceColor || '#dedede',
+                    currency: data.currency || companySettings?.currency || 'EUR'
                 });
                 setNotes(data.notes || '');
                 setTerms(data.termsInvoice || data.terms || '');
+                setBankDetails({
+                    bankName: data.bankName || '',
+                    accNo: data.accountNumber || data.iban || '',
+                    holderName: data.accountHolder || data.accountName || data.name || '',
+                    ifsc: data.sortCode || data.ifsc || data.bic || ''
+                });
             }
         } catch (error) {
             console.error('Error fetching company details:', error);
@@ -2009,10 +2037,10 @@ const Invoice = () => {
 
     // Footer
     const [bankDetails, setBankDetails] = useState({
-        bankName: 'HDFC Bank',
-        accNo: '50200012345678',
-        holderName: 'Zirak Trading Pvt Ltd',
-        ifsc: 'HDFC0000456'
+        bankName: '',
+        accNo: '',
+        holderName: '',
+        ifsc: ''
     });
 
     const [notes, setNotes] = useState('');
@@ -2153,6 +2181,12 @@ const Invoice = () => {
         setAvailableReceipts([]);
         setAdjustments([]);
         setCustomFieldValues({});
+        setBankDetails({
+            bankName: companyDetails?.bankName || '',
+            accNo: companyDetails?.accountNumber || companyDetails?.iban || '',
+            holderName: companyDetails?.accountHolder || companyDetails?.accountName || companyDetails?.name || '',
+            ifsc: companyDetails?.sortCode || companyDetails?.ifsc || companyDetails?.bic || ''
+        });
         setSelectedPhotos([]);
         setSelectedFiles([]);
         setUploadingPhotos(false);
@@ -2486,6 +2520,7 @@ const Invoice = () => {
     const handleCombinedView = (group) => {
         setOriginRoute(null);
         const childInvoices = group.invoices || [];
+        const targetBaseCurrency = companySettings?.currency || companyDetails.currency || 'EUR';
 
         const combinedInvoice = {
             id: `combined-${group.id}`,
@@ -2509,30 +2544,12 @@ const Invoice = () => {
             shippingState: group.customer?.billingState,
             shippingZipCode: group.customer?.billingZipCode,
             shippingCountry: group.customer?.billingCountry,
-            currency: childInvoices[0]?.currency || companySettings?.currency || 'EUR',
+            currency: targetBaseCurrency,
             notes: `Overall summary for ${group.customer?.name} - includes ${childInvoices.length} invoices.`
         };
 
-        const financials = computeInvoiceFinancials(combinedInvoice);
-
-        combinedInvoice.subtotal = financials.subtotal;
-        combinedInvoice.discountAmount = financials.discount;
-        combinedInvoice.taxableAmount = financials.taxableAmount;
-        combinedInvoice.taxAmount = financials.vatTotal;
-        combinedInvoice.otherCharges = financials.otherCharges;
-        combinedInvoice.roundOffAmount = financials.roundOff;
-        combinedInvoice.totalAmount = financials.total;
-        combinedInvoice.paidAmount = financials.paidAmount;
-        combinedInvoice.balanceAmount = financials.balanceDue;
-        combinedInvoice.items = financials.computedLines;
-        combinedInvoice.invoiceitem = financials.computedLines;
-        combinedInvoice.vatSummaryList = financials.vatSummaryList;
-        combinedInvoice.receipt = financials.paymentHistory;
-        combinedInvoice.allocations = financials.allAllocations || [];
-        combinedInvoice.paymentHistory = financials.paymentHistory;
-        combinedInvoice.status = financials.status;
-
-        setSelectedInvoice(combinedInvoice);
+        const convertedCombined = convertInvoiceToActiveCurrency(combinedInvoice, targetBaseCurrency, getSyncRate);
+        setSelectedInvoice(convertedCombined || combinedInvoice);
         setViewMode(true);
     };
 
@@ -2617,6 +2634,7 @@ const Invoice = () => {
                 deliveryPersonName: invoiceMeta.deliveryPersonName,
                 deliveryPersonMobile: invoiceMeta.deliveryPersonMobile,
                 deliveryPersonEmail: invoiceMeta.deliveryPersonEmail,
+                bankDetails: bankDetails,
                 _attachments: {
                     photos: selectedPhotos,
                     files: selectedFiles
@@ -3136,7 +3154,12 @@ const Invoice = () => {
                     console.warn('Could not fetch POS invoice details:', e);
                 }
             }
-        } else if (isCombined && (!inv.items || inv.items.length === 0) && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
+        }
+
+        const activeBaseCurrency = companySettings?.currency || companyDetails?.currency || 'EUR';
+        inv = convertInvoiceToActiveCurrency(inv, activeBaseCurrency, getSyncRate) || inv;
+
+        if (isCombined && (!inv.items || inv.items.length === 0) && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
             const allItems = [];
             let combinedOtherCharges = 0;
             let combinedRoundOff = 0;
@@ -3435,12 +3458,21 @@ const Invoice = () => {
             return `${day}-${month}-${year}`;
         };
 
-        const bankAccountName = comp.accountName || comp.accountHolder || '';
-        const bankIban = comp.iban || '';
-        const bankBic = comp.bic || '';
-        const bankAccount = comp.accountNumber || '';
-        const bankSortCode = comp.sortCode || comp.ifsc || '';
-        const bankName = comp.bankName || '';
+        const savedBank = (() => {
+            try {
+                const cf = typeof invoiceData.customFields === 'string' ? JSON.parse(invoiceData.customFields) : invoiceData.customFields;
+                return cf?.bankDetails;
+            } catch (e) {
+                return null;
+            }
+        })();
+
+        const bankAccountName = savedBank?.holderName || savedBank?.accountHolder || comp.accountName || comp.accountHolder || '';
+        const bankIban = savedBank?.iban || comp.iban || '';
+        const bankBic = savedBank?.bic || comp.bic || '';
+        const bankAccount = savedBank?.accNo || savedBank?.accountNo || comp.accountNumber || '';
+        const bankSortCode = savedBank?.ifsc || comp.sortCode || comp.ifsc || '';
+        const bankName = savedBank?.bankName || comp.bankName || '';
         const bankAddress = resolveInvoiceCompanyAddress(comp);
 
         // Helper to render text with word-wrapping and dynamic Y tracking to prevent overlapping
@@ -3783,6 +3815,16 @@ const Invoice = () => {
         doc.setFontSize(10.5);
         doc.setTextColor(17, 24, 39);
         doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
+        if (inv.originalCurrency && inv.originalCurrency !== inv.currency) {
+            totY += 3.5;
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            const origBal = Number(inv.originalBalanceAmount !== undefined ? inv.originalBalanceAmount : (inv.originalTotalAmount || 0)).toFixed(2);
+            const rateStr = inv.conversionRateUsed ? ` @ 1 ${inv.originalCurrency} = ${Number(inv.conversionRateUsed).toFixed(4)} ${inv.currency}` : '';
+            doc.text(`(Original: ${inv.originalCurrency} ${origBal}${rateStr})`, totValX, totY, { align: 'right' });
+        }
+
 
         // Status Clean Text Display (Unboxed matching client specification)
         totY += 4.5;
@@ -5568,7 +5610,9 @@ const Invoice = () => {
 
     // --- RENDER FULL PAGE VIEW IF IN VIEW MODE ---
     if (viewMode && selectedInvoice) {
-        const viewFin = computeInvoiceFinancials(selectedInvoice);
+        const activeBaseCurrency = companySettings?.currency || companyDetails?.currency || 'EUR';
+        const displayInvoice = convertInvoiceToActiveCurrency(selectedInvoice, activeBaseCurrency, getSyncRate) || selectedInvoice;
+        const viewFin = computeInvoiceFinancials(displayInvoice);
         const viewTotal = viewFin.totalAmount;
         const viewPaid = viewFin.paymentsReceived;
         const viewBalance = viewFin.balanceDue;
@@ -5744,11 +5788,11 @@ const Invoice = () => {
                     const email = targetCust?.email;
                     const gstin = targetCust?.gstin || targetCust?.gstNumber || targetCust?.vatNumber;
 
-                    const rawItems = selectedInvoice?.invoiceitem || selectedInvoice?.posinvoiceitem || selectedInvoice?.items || [];
+                    const rawItems = displayInvoice?.invoiceitem || displayInvoice?.posinvoiceitem || displayInvoice?.items || [];
                     let previewCf = {};
-                    if (selectedInvoice?.customFields) {
+                    if (displayInvoice?.customFields) {
                         try {
-                            previewCf = typeof selectedInvoice.customFields === 'string' ? JSON.parse(selectedInvoice.customFields) : selectedInvoice.customFields;
+                            previewCf = typeof displayInvoice.customFields === 'string' ? JSON.parse(displayInvoice.customFields) : displayInvoice.customFields;
                         } catch (e) {
                             previewCf = {};
                         }
@@ -5765,7 +5809,7 @@ const Invoice = () => {
                         }
                     ];
 
-                    const financials = computeInvoiceFinancials(selectedInvoice);
+                    const financials = computeInvoiceFinancials(displayInvoice);
 
                     const subtotalVal = financials.subtotal;
                     const discountVal = financials.discount;
@@ -5799,12 +5843,21 @@ const Invoice = () => {
                         return financials.status || 'UNPAID';
                     })();
 
-                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || '';
-                    const bankIban = companyDetails.iban || '';
-                    const bankBic = companyDetails.bic || '';
-                    const bankAccount = companyDetails.accountNumber || '';
-                    const bankSortCode = companyDetails.sortCode || companyDetails.ifsc || '';
-                    const bankName = companyDetails.bankName || '';
+                    const savedBank = (() => {
+                        try {
+                            const cf = typeof previewInvoice.customFields === 'string' ? JSON.parse(previewInvoice.customFields) : previewInvoice.customFields;
+                            return cf?.bankDetails;
+                        } catch (e) {
+                            return null;
+                        }
+                    })();
+
+                    const bankAccountName = savedBank?.holderName || savedBank?.accountHolder || companyDetails.accountName || companyDetails.accountHolder || '';
+                    const bankIban = savedBank?.iban || companyDetails.iban || '';
+                    const bankBic = savedBank?.bic || companyDetails.bic || '';
+                    const bankAccount = savedBank?.accNo || savedBank?.accountNo || companyDetails.accountNumber || '';
+                    const bankSortCode = savedBank?.ifsc || companyDetails.sortCode || companyDetails.ifsc || '';
+                    const bankName = savedBank?.bankName || companyDetails.bankName || '';
                     const compAddrLines = resolveCompanyAddressLines(companyDetails);
                     const hasBankDetails = Boolean(bankAccountName || bankName || bankAccount || bankIban || bankSortCode || bankBic);
                     const hasCompanyAddress = compAddrLines.length > 0;
@@ -6051,7 +6104,7 @@ const Invoice = () => {
                                         <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                         {(() => {
-                                            const invPayHistory = resolveInvoicePaymentHistory(selectedInvoice);
+                                            const invPayHistory = resolveInvoicePaymentHistory(displayInvoice);
                                             if (invPayHistory.length > 0) {
                                                 return invPayHistory.map((pmt, pIdx) => {
                                                     const pmtD = pmt.date ? new Date(pmt.date) : null;
@@ -6095,9 +6148,14 @@ const Invoice = () => {
                                         <div className="invoice-cea-balance-line">
                                             <span className="invoice-cea-balance-label">BALANCE DUE</span>
                                             <span className="invoice-cea-balance-amount" style={{ color: '#111827' }}>
-                                                {selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
+                                                {displayInvoice?.currency || selectedInvoice?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                             </span>
                                         </div>
+                                        {displayInvoice?.originalCurrency && displayInvoice.originalCurrency !== displayInvoice.currency && (
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'right', marginTop: '2px', fontStyle: 'italic' }}>
+                                                (Original: {displayInvoice.originalCurrency} {Number(displayInvoice.originalBalanceAmount !== undefined ? displayInvoice.originalBalanceAmount : (displayInvoice.originalTotalAmount || 0)).toFixed(2)}{displayInvoice.conversionRateUsed ? ` @ 1 ${displayInvoice.originalCurrency} = ${Number(displayInvoice.conversionRateUsed).toFixed(4)} ${displayInvoice.currency}` : ''})
+                                            </div>
+                                        )}
                                         <div className="invoice-cea-status-display" style={{ marginTop: '4px', textAlign: 'right' }}>
                                             <span
                                                 className="invoice-cea-paid-indicator"

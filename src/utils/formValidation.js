@@ -17,16 +17,17 @@ export const validateRequiredFields = (rules, values) => {
     let firstError = null;
 
     for (const rule of rules) {
+        const fieldName = rule.name || rule.field;
         const {
-            name,
-            label = name,
+            label = rule.label || fieldName,
             required = true,
             type = 'string',
             customValidator,
             message
         } = rule;
+        const name = fieldName;
 
-        const rawValue = values ? values[name] : undefined;
+        const rawValue = (values && name) ? values[name] : undefined;
         let isFieldEmpty = false;
 
         if (rawValue === undefined || rawValue === null) {

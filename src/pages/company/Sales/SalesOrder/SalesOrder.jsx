@@ -213,10 +213,10 @@ const SalesOrder = () => {
                     termsSalesOrder: data.termsSalesOrder || ''
                 });
                 setBankDetails({
-                    bankName: data.bankName || 'HDFC Bank',
-                    accNo: data.accountNumber || '50200012345678',
-                    holderName: data.accountHolder || 'ABC Accounting Solutions Pvt. Ltd.',
-                    ifsc: data.ifsc || 'HDFC0000456'
+                    bankName: data.bankName || '',
+                    accNo: data.accountNumber || data.iban || '',
+                    holderName: data.accountHolder || data.accountName || data.name || '',
+                    ifsc: data.sortCode || data.ifsc || data.bic || ''
                 });
                 setNotes(data.notes || '');
                 setTerms(data.termsSalesOrder || data.terms || '');

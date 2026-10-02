@@ -187,8 +187,8 @@ const UOM = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const rules = [
-            { field: 'category', label: 'Measurement Category', required: true },
-            { field: 'unitName', label: 'Unit of Measurement', required: true }
+            { name: 'category', field: 'category', label: 'Measurement Category', required: true },
+            { name: 'unitName', field: 'unitName', label: 'Unit of Measurement', required: true }
         ];
 
         if (!executeFormValidation(rules, formData, setErrors)) {

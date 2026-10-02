@@ -660,3 +660,248 @@ export const resolveInvoicePaymentHistory = (inv) => {
     });
 };
 
+/**
+ * Dynamically converts any invoice (single or combined statement)
+ * to the target base currency using the provided exchange rate function.
+ */
+export const convertInvoiceToActiveCurrency = (inv, targetCurrency, getSyncRate) => {
+    if (!inv) return null;
+    const baseCurr = targetCurrency || 'EUR';
+    const rateFn = typeof getSyncRate === 'function' ? getSyncRate : () => 1.0;
+
+    const isCombined = inv.isCombined ||
+        String(inv.id || '').startsWith('combined-') ||
+        String(inv.invoiceNumber || '').startsWith('COMBINED-') ||
+        (Array.isArray(inv.invoices) && inv.invoices.length > 0);
+
+    if (isCombined) {
+        const childInvoices = Array.isArray(inv.invoices) ? inv.invoices : [];
+        const convertedChildren = childInvoices.map(child => {
+            const childCurr = child.currency || 'EUR';
+            if (childCurr === baseCurr) return child;
+            const rate = rateFn(childCurr, baseCurr) || 1.0;
+            if (rate === 1.0) return { ...child, currency: baseCurr };
+
+            const rawItems = child.invoiceitem || child.posinvoiceitem || child.items || [];
+            const convItems = rawItems.map(it => {
+                const r = (parseFloat(it.rate !== undefined ? it.rate : it.price) || 0) * rate;
+                const p = (parseFloat(it.price !== undefined ? it.price : it.rate) || 0) * rate;
+                const a = (parseFloat(it.amount) || 0) * rate;
+                const dA = (parseFloat(it.discountAmount) || 0) * rate;
+                const isFixed = it.discountType === 'fixed' || it.discountType === 'amount';
+                return {
+                    ...it,
+                    rate: r,
+                    price: p,
+                    amount: a,
+                    discountAmount: dA,
+                    discount: isFixed ? (parseFloat(it.discount || 0) * rate) : it.discount,
+                    discountValue: isFixed ? (parseFloat(it.discountValue || 0) * rate) : it.discountValue
+                };
+            });
+
+            const convAllocs = (child.allocations || []).map(a => ({
+                ...a,
+                amount: (parseFloat(a.amount) || 0) * rate,
+                balanceBeforePayment: a.balanceBeforePayment !== undefined ? (parseFloat(a.balanceBeforePayment) || 0) * rate : undefined,
+                balanceAfterPayment: a.balanceAfterPayment !== undefined ? (parseFloat(a.balanceAfterPayment) || 0) * rate : undefined,
+                receipt: a.receipt ? {
+                    ...a.receipt,
+                    amount: (parseFloat(a.receipt.amount) || 0) * rate
+                } : null
+            }));
+
+            const convReceipts = (child.receipt || []).map(r => ({
+                ...r,
+                amount: (parseFloat(r.amount) || 0) * rate,
+                balanceBeforePayment: r.balanceBeforePayment !== undefined ? (parseFloat(r.balanceBeforePayment) || 0) * rate : undefined,
+                balanceAfterPayment: r.balanceAfterPayment !== undefined ? (parseFloat(r.balanceAfterPayment) || 0) * rate : undefined
+            }));
+
+            let customFields = child.customFields;
+            if (customFields) {
+                try {
+                    const cfObj = typeof customFields === 'string' ? JSON.parse(customFields) : { ...customFields };
+                    if (Array.isArray(cfObj._itemsDiscountMeta)) {
+                        cfObj._itemsDiscountMeta = cfObj._itemsDiscountMeta.map(m => ({
+                            ...m,
+                            discount: (m.discountType === 'fixed' || m.discountType === 'amount') ? (parseFloat(m.discount || 0) * rate) : m.discount
+                        }));
+                    }
+                    if (Array.isArray(cfObj._otherCharges)) {
+                        cfObj._otherCharges = cfObj._otherCharges.map(c => ({
+                            ...c,
+                            amount: (parseFloat(c.amount || c.value || 0) || 0) * rate,
+                            value: (parseFloat(c.value || c.amount || 0) || 0) * rate
+                        }));
+                    }
+                    customFields = cfObj;
+                } catch (e) {}
+            }
+
+            return {
+                ...child,
+                currency: baseCurr,
+                originalCurrency: childCurr,
+                conversionRateUsed: rate,
+                items: convItems,
+                invoiceitem: convItems,
+                posinvoiceitem: convItems,
+                allocations: convAllocs,
+                receipt: convReceipts,
+                customFields,
+                subtotal: (parseFloat(child.subtotal) || 0) * rate,
+                discountAmount: (parseFloat(child.discountAmount) || 0) * rate,
+                taxableAmount: (parseFloat(child.taxableAmount) || 0) * rate,
+                taxAmount: (parseFloat(child.taxAmount) || 0) * rate,
+                otherCharges: (parseFloat(child.otherCharges) || 0) * rate,
+                roundOffAmount: (parseFloat(child.roundOffAmount) || 0) * rate,
+                totalAmount: (parseFloat(child.totalAmount) || 0) * rate,
+                paidAmount: (parseFloat(child.paidAmount) || 0) * rate,
+                balanceAmount: (parseFloat(child.balanceAmount) || 0) * rate
+            };
+        });
+
+        const convCombined = {
+            ...inv,
+            currency: baseCurr,
+            invoices: convertedChildren
+        };
+
+        const financials = computeInvoiceFinancials(convCombined);
+        return {
+            ...convCombined,
+            subtotal: financials.subtotal,
+            discountAmount: financials.discount,
+            taxableAmount: financials.taxableAmount,
+            taxAmount: financials.vatTotal,
+            otherCharges: financials.otherCharges,
+            roundOffAmount: financials.roundOff,
+            totalAmount: financials.total,
+            paidAmount: financials.paidAmount,
+            balanceAmount: financials.balanceDue,
+            items: financials.computedLines,
+            invoiceitem: financials.computedLines,
+            vatSummaryList: financials.vatSummaryList,
+            receipt: financials.paymentHistory,
+            paymentHistory: financials.paymentHistory,
+            allocations: financials.allAllocations || [],
+            status: financials.status
+        };
+    }
+
+    // Single invoice
+    const invCurr = inv.currency || 'EUR';
+    if (invCurr === baseCurr) {
+        return inv;
+    }
+
+    const rate = rateFn(invCurr, baseCurr) || 1.0;
+    if (rate === 1.0) {
+        return { ...inv, currency: baseCurr };
+    }
+
+    const rawItems = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
+    const convItems = rawItems.map(it => {
+        const r = (parseFloat(it.rate !== undefined ? it.rate : it.price) || 0) * rate;
+        const p = (parseFloat(it.price !== undefined ? it.price : it.rate) || 0) * rate;
+        const a = (parseFloat(it.amount) || 0) * rate;
+        const dA = (parseFloat(it.discountAmount) || 0) * rate;
+        const isFixed = it.discountType === 'fixed' || it.discountType === 'amount';
+        return {
+            ...it,
+            rate: r,
+            price: p,
+            amount: a,
+            discountAmount: dA,
+            discount: isFixed ? (parseFloat(it.discount || 0) * rate) : it.discount,
+            discountValue: isFixed ? (parseFloat(it.discountValue || 0) * rate) : it.discountValue
+        };
+    });
+
+    const convAllocs = (inv.allocations || []).map(a => ({
+        ...a,
+        amount: (parseFloat(a.amount) || 0) * rate,
+        balanceBeforePayment: a.balanceBeforePayment !== undefined ? (parseFloat(a.balanceBeforePayment) || 0) * rate : undefined,
+        balanceAfterPayment: a.balanceAfterPayment !== undefined ? (parseFloat(a.balanceAfterPayment) || 0) * rate : undefined,
+        receipt: a.receipt ? {
+            ...a.receipt,
+            amount: (parseFloat(a.receipt.amount) || 0) * rate
+        } : null
+    }));
+
+    const convReceipts = (inv.receipt || []).map(r => ({
+        ...r,
+        amount: (parseFloat(r.amount) || 0) * rate,
+        balanceBeforePayment: r.balanceBeforePayment !== undefined ? (parseFloat(r.balanceBeforePayment) || 0) * rate : undefined,
+        balanceAfterPayment: r.balanceAfterPayment !== undefined ? (parseFloat(r.balanceAfterPayment) || 0) * rate : undefined
+    }));
+
+    let customFields = inv.customFields;
+    if (customFields) {
+        try {
+            const cfObj = typeof customFields === 'string' ? JSON.parse(customFields) : { ...customFields };
+            if (Array.isArray(cfObj._itemsDiscountMeta)) {
+                cfObj._itemsDiscountMeta = cfObj._itemsDiscountMeta.map(m => ({
+                    ...m,
+                    discount: (m.discountType === 'fixed' || m.discountType === 'amount') ? (parseFloat(m.discount || 0) * rate) : m.discount
+                }));
+            }
+            if (Array.isArray(cfObj._otherCharges)) {
+                cfObj._otherCharges = cfObj._otherCharges.map(c => ({
+                    ...c,
+                    amount: (parseFloat(c.amount || c.value || 0) || 0) * rate,
+                    value: (parseFloat(c.value || c.amount || 0) || 0) * rate
+                }));
+            }
+            customFields = cfObj;
+        } catch (e) {}
+    }
+
+    const convSingle = {
+        ...inv,
+        originalCurrency: invCurr,
+        originalTotalAmount: inv.totalAmount,
+        originalBalanceAmount: inv.balanceAmount,
+        conversionRateUsed: rate,
+        currency: baseCurr,
+        items: convItems,
+        invoiceitem: convItems,
+        posinvoiceitem: convItems,
+        allocations: convAllocs,
+        receipt: convReceipts,
+        customFields,
+        subtotal: (parseFloat(inv.subtotal) || 0) * rate,
+        discountAmount: (parseFloat(inv.discountAmount) || 0) * rate,
+        taxableAmount: (parseFloat(inv.taxableAmount) || 0) * rate,
+        taxAmount: (parseFloat(inv.taxAmount) || 0) * rate,
+        otherCharges: (parseFloat(inv.otherCharges) || 0) * rate,
+        roundOffAmount: (parseFloat(inv.roundOffAmount) || 0) * rate,
+        totalAmount: (parseFloat(inv.totalAmount) || 0) * rate,
+        paidAmount: (parseFloat(inv.paidAmount) || 0) * rate,
+        balanceAmount: (parseFloat(inv.balanceAmount) || 0) * rate
+    };
+
+    const financials = computeInvoiceFinancials(convSingle);
+    return {
+        ...convSingle,
+        subtotal: financials.subtotal,
+        discountAmount: financials.discount,
+        taxableAmount: financials.taxableAmount,
+        taxAmount: financials.vatTotal,
+        otherCharges: financials.otherCharges,
+        roundOffAmount: financials.roundOff,
+        totalAmount: financials.total,
+        paidAmount: financials.paidAmount,
+        balanceAmount: financials.balanceDue,
+        items: financials.computedLines,
+        invoiceitem: financials.computedLines,
+        vatSummaryList: financials.vatSummaryList,
+        receipt: financials.paymentHistory,
+        paymentHistory: financials.paymentHistory,
+        allocations: financials.allAllocations || [],
+        status: financials.status
+    };
+};
+
+

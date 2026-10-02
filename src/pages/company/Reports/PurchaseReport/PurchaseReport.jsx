@@ -17,7 +17,7 @@ const PurchaseReport = () => {
     const { formatCurrency, fetchCompanySettings } = React.useContext(CompanyContext);
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     const [reportType, setReportType] = useState('general'); // general, item, vendor
     const [transactionFilter, setTransactionFilter] = useState('ALL'); // 'ALL', 'PURCHASE', 'RETURNS'
     const [reportData, setReportData] = useState([]);
@@ -74,7 +74,7 @@ const PurchaseReport = () => {
 
             if (response.data.success) {
                 const data = response.data.data;
-                
+
                 if (reportType === 'general') {
                     const incomingSummary = response.data.summary || {};
                     const today = new Date();
@@ -88,8 +88,8 @@ const PurchaseReport = () => {
                         const st = String(bill.status || '').toUpperCase();
                         if (st === 'CANCELLED' || st === 'PAID') return false;
 
-                        const rawBal = parseFloat(bill.balanceAmount !== undefined && bill.balanceAmount !== null 
-                            ? bill.balanceAmount 
+                        const rawBal = parseFloat(bill.balanceAmount !== undefined && bill.balanceAmount !== null
+                            ? bill.balanceAmount
                             : ((bill.totalAmount || 0) - (bill.paidAmount || 0)));
                         if (isNaN(rawBal) || rawBal <= 0.01) return false;
 
@@ -110,8 +110,8 @@ const PurchaseReport = () => {
                     const overdueBillIds = new Set(overdueBills.map(b => String(b.id || b.billId || b.billNumber)));
 
                     const calculatedOverdueSum = overdueBills.reduce((s, b) => {
-                        const rawBal = parseFloat(b.balanceAmount !== undefined && b.balanceAmount !== null 
-                            ? b.balanceAmount 
+                        const rawBal = parseFloat(b.balanceAmount !== undefined && b.balanceAmount !== null
+                            ? b.balanceAmount
                             : ((b.totalAmount || 0) - (b.paidAmount || 0)));
                         return s + (isNaN(rawBal) ? 0 : rawBal);
                     }, 0);
@@ -156,8 +156,8 @@ const PurchaseReport = () => {
                             isPastDue = today.getTime() > d.getTime();
                         }
 
-                        const rawBal = parseFloat(bill.balanceAmount !== undefined && bill.balanceAmount !== null 
-                            ? bill.balanceAmount 
+                        const rawBal = parseFloat(bill.balanceAmount !== undefined && bill.balanceAmount !== null
+                            ? bill.balanceAmount
                             : ((bill.totalAmount || 0) - (bill.paidAmount || 0)));
                         const rawTotal = parseFloat(bill.totalAmount || 0);
                         const rawPaid = parseFloat(bill.paidAmount !== undefined ? bill.paidAmount : Math.max(0, rawTotal - rawBal));
@@ -379,7 +379,7 @@ const PurchaseReport = () => {
         const doc = new jsPDF('l', 'mm', 'a4');
         doc.setFontSize(18);
         doc.text(`Purchase Report - ${reportType.charAt(0).toUpperCase() + reportType.slice(1)}`, 14, 20);
-        
+
         let headers = [];
         let body = [];
 
@@ -410,7 +410,7 @@ const PurchaseReport = () => {
                     <h1 className="page-title">Purchase Analytics</h1>
                     <p className="page-subtitle">Track bills, purchases, and purchase returns performance</p>
                 </div>
-                
+
                 <div className="header-actions">
                     <div className="report-filters-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <div className="date-input-wrapper">
@@ -442,7 +442,7 @@ const PurchaseReport = () => {
                             Reset
                         </button>
                     </div>
-                    
+
                     <div className="export-dropdown-wrapper">
                         <button className="btn-export" onClick={() => setShowExportOptions(!showExportOptions)}>
                             <Download size={16} /> Export
@@ -458,30 +458,30 @@ const PurchaseReport = () => {
             </div>
 
             {/* Tab Navigation */}
-            <div className="report-tabs">
+            {/* <div className="report-tabs">
                 <button 
                     className={`tab-btn ${reportType === 'general' ? 'active' : ''}`}
                     onClick={() => setReportType('general')}
                 >
                     <LayoutList size={18} /> Detailed Purchases & Returns
                 </button>
-                <button 
+                <button
                     className={`tab-btn ${reportType === 'item' ? 'active' : ''}`}
                     onClick={() => setReportType('item')}
                 >
                     <Package size={18} /> Purchase by Item
                 </button>
-                <button 
+                <button
                     className={`tab-btn ${reportType === 'vendor' ? 'active' : ''}`}
                     onClick={() => setReportType('vendor')}
                 >
                     <Users size={18} /> Purchase by Vendor
                 </button>
-            </div>
+            </div> */}
 
             {reportType === 'general' && (
                 <div className="summary-grid">
-                    <div 
+                    <div
                         className={`summary-card card-blue clickable-summary-card ${activeCardFilter === 'GROSS_PURCHASE' ? 'active-card-blue' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'GROSS_PURCHASE' ? null : 'GROSS_PURCHASE')}
                         title="Click to filter table by Gross Purchases (all purchase bills)"
@@ -498,7 +498,7 @@ const PurchaseReport = () => {
                         </div>
                         <div className="card-icon icon-blue"><ShoppingBag size={24} /></div>
                     </div>
-                    <div 
+                    <div
                         className={`summary-card card-orange clickable-summary-card ${activeCardFilter === 'OVERDUE' ? 'active-card-orange' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'OVERDUE' ? null : 'OVERDUE')}
                         title="Click to filter table by Overdue Bills"
@@ -513,14 +513,14 @@ const PurchaseReport = () => {
                             </div>
                             <h3 className="card-value card-value-orange">{formatCurrency(summaryStats.overdue || 0)}</h3>
                             <span className="card-filter-hint">
-                                {activeCardFilter === 'OVERDUE' 
-                                    ? `● Filtering overdue (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)` 
+                                {activeCardFilter === 'OVERDUE'
+                                    ? `● Filtering overdue (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'} • Click to reset)`
                                     : `${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'overdue bill' : 'overdue bills'} • Click to filter`}
                             </span>
                         </div>
                         <div className="card-icon icon-orange"><Clock size={24} /></div>
                     </div>
-                    <div 
+                    <div
                         className={`summary-card card-green clickable-summary-card ${activeCardFilter === 'NET_PURCHASE' ? 'active-card-green' : ''}`}
                         onClick={() => setActiveCardFilter(prev => prev === 'NET_PURCHASE' ? null : 'NET_PURCHASE')}
                         title="Click to filter table by Paid Purchases (collected bills)"
@@ -544,9 +544,9 @@ const PurchaseReport = () => {
                 <div className="table-controls">
                     <div className="search-wrapper">
                         <Search size={18} className="search-icon" />
-                        <input 
-                            type="text" 
-                            placeholder={`Search by ${reportType === 'item' ? 'product' : reportType === 'vendor' ? 'vendor' : 'bill #, vendor or product'}...`} 
+                        <input
+                            type="text"
+                            placeholder={`Search by ${reportType === 'item' ? 'product' : reportType === 'vendor' ? 'vendor' : 'bill #, vendor or product'}...`}
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -556,13 +556,13 @@ const PurchaseReport = () => {
                         <div className="active-card-filter-pill">
                             <span>
                                 Filter: <strong>{
-                                    activeCardFilter === 'OVERDUE' 
-                                        ? `Overdue Bills (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'})` 
+                                    activeCardFilter === 'OVERDUE'
+                                        ? `Overdue Bills (${overdueRecordsCount} ${overdueRecordsCount === 1 ? 'bill' : 'bills'})`
                                         : (activeCardFilter === 'GROSS_PURCHASE' ? `Gross Purchase (${purchasesRecordsCount} ${purchasesRecordsCount === 1 ? 'bill' : 'bills'})` : `Paid Purchases (${paidRecordsCount} ${paidRecordsCount === 1 ? 'bill' : 'bills'})`)
                                 }</strong>
                             </span>
-                            <button 
-                                className="btn-clear-card-filter" 
+                            <button
+                                className="btn-clear-card-filter"
                                 onClick={() => setActiveCardFilter(null)}
                                 title="Reset filter"
                             >

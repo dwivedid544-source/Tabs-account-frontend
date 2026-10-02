@@ -6,7 +6,7 @@ import { CompanyContext } from '../../../../context/CompanyContext';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
 import './Invoice.css';
-import { computeInvoiceFinancials, computeInvoiceLine, resolveInvoicePaymentHistory } from './invoiceFinancials';
+import { computeInvoiceFinancials, computeInvoiceLine, resolveInvoicePaymentHistory, convertInvoiceToActiveCurrency } from './invoiceFinancials';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
@@ -131,7 +131,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     };
 
     const formatDocCurrency = (amount, currencyCode) => {
-        const docCurrency = currencyCode || document?.currency || companySettings?.currency || 'EUR';
+        const docCurrency = currencyCode || displayDocument?.currency || document?.currency || companySettings?.currency || 'EUR';
 
         const localeMap = {
             'INR': 'en-IN',
@@ -286,7 +286,13 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
         );
     }
 
-    const companyDetails = document.company || {};
+    const activeBaseCurrency = document.company?.currency || companySettings?.currency || 'EUR';
+    const displayDocument = React.useMemo(() => {
+        if (!document) return null;
+        return convertInvoiceToActiveCurrency(document, activeBaseCurrency, getSyncRate) || document;
+    }, [document, activeBaseCurrency, getSyncRate]);
+
+    const companyDetails = displayDocument?.company || document.company || {};
 
     const sanitizeEnglishOnly = (text) => {
         if (typeof text !== 'string') return text;
@@ -353,12 +359,12 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     };
     const getInvoiceLabel = getCustomLabel;
 
-    const items = type === 'pos' ? (document.posinvoiceitem || []) : (document.invoiceitem || []);
+    const items = type === 'pos' ? (displayDocument?.posinvoiceitem || []) : (displayDocument?.invoiceitem || []);
 
     const returnedQtyMap = {};
     let totalReturned = 0;
-    if (document.salesreturn && document.salesreturn.length > 0) {
-        document.salesreturn.forEach(ret => {
+    if (displayDocument?.salesreturn && displayDocument.salesreturn.length > 0) {
+        displayDocument.salesreturn.forEach(ret => {
             totalReturned += ret.totalAmount || 0;
             const itemsList = ret.salesreturnitem || ret.items || [];
             itemsList.forEach(item => {
@@ -369,15 +375,15 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
             });
         });
     }
-    const netTotal = Math.max(0, document.totalAmount - totalReturned);
-    const viewRate = getSyncRate(document?.currency || 'USD', companySettings?.currency || 'EUR') || 1.0;
+    const netTotal = Math.max(0, (displayDocument?.totalAmount || 0) - totalReturned);
+    const viewRate = getSyncRate(displayDocument?.currency || 'USD', companySettings?.currency || 'EUR') || 1.0;
 
     const parsedOtherCharges = (() => {
         try {
-            if (document?.customFields) {
-                const cf = typeof document.customFields === 'string'
-                    ? JSON.parse(document.customFields)
-                    : document.customFields;
+            if (displayDocument?.customFields) {
+                const cf = typeof displayDocument.customFields === 'string'
+                    ? JSON.parse(displayDocument.customFields)
+                    : displayDocument.customFields;
                 return cf?._otherCharges || [];
             }
         } catch (e) {
@@ -390,19 +396,19 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
     const rawItems = items || [];
     let cfObj = {};
-    if (document?.customFields) {
+    if (displayDocument?.customFields) {
         try {
-            cfObj = typeof document.customFields === 'string' ? JSON.parse(document.customFields) : document.customFields;
+            cfObj = typeof displayDocument.customFields === 'string' ? JSON.parse(displayDocument.customFields) : displayDocument.customFields;
         } catch (e) {
             cfObj = {};
         }
     }
     const publicItemsMeta = Array.isArray(cfObj?._itemsDiscountMeta) ? cfObj._itemsDiscountMeta : [];
-    const financials = computeInvoiceFinancials(document, {
+    const financials = computeInvoiceFinancials(displayDocument, {
         itemsMeta: publicItemsMeta,
         otherCharges: otherChargesTotal,
-        roundOff: parseFloat(document?.roundOffAmount || 0) || 0,
-        paymentsReceived: parseFloat(document?.paidAmount || 0) || undefined
+        roundOff: parseFloat(displayDocument?.roundOffAmount || 0) || 0,
+        paymentsReceived: parseFloat(displayDocument?.paidAmount || 0) || undefined
     });
 
     const subtotalVal = financials.subtotal;
@@ -412,10 +418,10 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     const totalVal = financials.total;
     const paidVal = financials.paidAmount;
     const balanceVal = financials.balanceDue;
-    const currentStatus = (document?.status || '').toUpperCase() === 'CANCELLED' ? 'CANCELLED' : financials.status;
+    const currentStatus = (displayDocument?.status || '').toUpperCase() === 'CANCELLED' ? 'CANCELLED' : financials.status;
 
-    const isFullyPaid = (document?.balanceAmount === 0 || (document?.paidAmount >= document?.totalAmount && document?.totalAmount > 0));
-    const paymentReceivedDate = document?.paymentDate || document?.receipt?.[0]?.date || document?.allocations?.[0]?.receipt?.date;
+    const isFullyPaid = (displayDocument?.balanceAmount === 0 || (displayDocument?.paidAmount >= displayDocument?.totalAmount && displayDocument?.totalAmount > 0));
+    const paymentReceivedDate = displayDocument?.paymentDate || displayDocument?.receipt?.[0]?.date || displayDocument?.allocations?.[0]?.receipt?.date;
 
     return (
         <div className="public-invoice-page bg-slate-100 min-h-screen p-4 md:p-10">
@@ -484,26 +490,26 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         return `${day}-${month}-${year}`;
                     };
 
-                    const billName = document.customer?.name || document.billingName || '';
-                    const billAddr = document.billingAddress || document.customer?.billingAddress || '';
+                    const billName = displayDocument.customer?.name || displayDocument.billingName || '';
+                    const billAddr = displayDocument.billingAddress || displayDocument.customer?.billingAddress || '';
                     const billCityStateZip = [
-                        document.billingCity || document.customer?.billingCity,
-                        document.billingState || document.customer?.billingState
+                        displayDocument.billingCity || displayDocument.customer?.billingCity,
+                        displayDocument.billingState || displayDocument.customer?.billingState
                     ].filter(Boolean).join(', ');
-                    const billPhone = document.customer?.phone || document.billingPhone || '';
-                    const email = document.customer?.email || document.billingEmail || '';
-                    const gstin = document.customer?.vatNumber || document.customer?.taxNumber || document.billingVatNumber || document.vatNumber || '';
+                    const billPhone = displayDocument.customer?.phone || displayDocument.billingPhone || '';
+                    const email = displayDocument.customer?.email || displayDocument.billingEmail || '';
+                    const gstin = displayDocument.customer?.vatNumber || displayDocument.customer?.taxNumber || displayDocument.billingVatNumber || displayDocument.vatNumber || '';
                     let cfObj = {};
-                    if (document?.customFields) {
+                    if (displayDocument?.customFields) {
                         try {
-                            cfObj = typeof document.customFields === 'string' ? JSON.parse(document.customFields) : document.customFields;
+                            cfObj = typeof displayDocument.customFields === 'string' ? JSON.parse(displayDocument.customFields) : displayDocument.customFields;
                         } catch (e) {
                             cfObj = {};
                         }
                     }
                     const itemsMeta = Array.isArray(cfObj?._itemsDiscountMeta) ? cfObj._itemsDiscountMeta : [];
 
-                    const lineItems = items && items.length > 0 ? items : (document.items || document.invoiceitem || []);
+                    const lineItems = items && items.length > 0 ? items : (displayDocument.items || displayDocument.invoiceitem || []);
 
                     const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || '';
                     const bankIban = companyDetails.iban || '';
@@ -647,23 +653,23 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                 <div className="invoice-cea-middle-right">
                                     <div className="invoice-cea-meta-grid">
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('number') || 'INVOICE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : (document.id ? `INV-${document.id}` : '-')}</span>
+                                        <span className="invoice-cea-kv-val">{displayDocument.invoiceNumber ? String(displayDocument.invoiceNumber).replace(/^#/, '') : (displayDocument.id ? `INV-${displayDocument.id}` : '-')}</span>
 
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('issue') || 'DATE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.date ? formatCeaDate(document.date) : '-'}</span>
+                                        <span className="invoice-cea-kv-val">{displayDocument.date ? formatCeaDate(displayDocument.date) : '-'}</span>
 
-                                        {(document?.poNumber && typeof document.poNumber === 'string' && document.poNumber.trim()) && (
+                                        {(displayDocument?.poNumber && typeof displayDocument.poNumber === 'string' && displayDocument.poNumber.trim()) && (
                                             <>
                                                 <span className="invoice-cea-kv-key">P.O. #</span>
-                                                <span className="invoice-cea-kv-val">{document.poNumber.trim()}</span>
+                                                <span className="invoice-cea-kv-val">{displayDocument.poNumber.trim()}</span>
                                             </>
                                         )}
 
                                         <span className="invoice-cea-kv-key">TERMS</span>
-                                        <span className="invoice-cea-kv-val">{document.paymentTerms || 'Net 7'}</span>
+                                        <span className="invoice-cea-kv-val">{displayDocument.paymentTerms || 'Net 7'}</span>
 
                                         <span className="invoice-cea-kv-key">{getInvoiceLabel('dueDate') || 'DUE DATE'}</span>
-                                        <span className="invoice-cea-kv-val">{document.dueDate ? formatCeaDate(document.dueDate) : (document.date ? formatCeaDate(document.date) : '-')}</span>
+                                        <span className="invoice-cea-kv-val">{displayDocument.dueDate ? formatCeaDate(displayDocument.dueDate) : (displayDocument.date ? formatCeaDate(displayDocument.date) : '-')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -774,7 +780,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <span className="invoice-cea-total-val" style={{ fontWeight: '700', color: '#111827' }}>{Number(totalVal).toFixed(2)}</span>
 
                                     {(() => {
-                                        const pubPayHistory = resolveInvoicePaymentHistory(document);
+                                        const pubPayHistory = resolveInvoicePaymentHistory(displayDocument);
                                         if (pubPayHistory.length > 0) {
                                             return pubPayHistory.map((pmt, pIdx) => {
                                                 const pmtD = pmt.date ? new Date(pmt.date) : null;
@@ -818,9 +824,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                     <div className="invoice-cea-balance-line">
                                         <span className="invoice-cea-balance-label">BALANCE DUE</span>
                                         <span className="invoice-cea-balance-amount" style={{ color: '#111827' }}>
-                                            {document?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
+                                            {displayDocument?.currency || companyDetails.currency || 'EUR'} {Number(balanceVal).toFixed(2)}
                                         </span>
                                     </div>
+                                    {displayDocument?._isConverted && displayDocument.originalCurrency && (
+                                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', marginTop: '2px', textAlign: 'right' }}>
+                                            (Original: {displayDocument.originalCurrency} {Number(displayDocument.originalBalanceAmount).toFixed(2)}{displayDocument.conversionRateUsed ? ` @ 1 ${displayDocument.originalCurrency} = ${Number(displayDocument.conversionRateUsed).toFixed(4)} ${displayDocument.currency}` : ''})
+                                        </div>
+                                    )}
                                     <div className="invoice-cea-status-display" style={{ marginTop: '4px', textAlign: 'right' }}>
                                         <span
                                             className="invoice-cea-paid-indicator"
