@@ -108,7 +108,7 @@ const resolveCompanyAddressLines = (comp) => {
     if (comp.address && comp.address.trim()) {
         const rawLines = comp.address.trim().split(/\r?\n+/);
         rawLines.forEach(l => {
-            const trimmed = l.trim().replace(/,\s*$/, '');
+            const trimmed = l.trim();
             if (trimmed) lines.push(trimmed);
         });
     }
@@ -145,7 +145,7 @@ const resolveCompanyAddressLines = (comp) => {
 
 const resolveInvoiceCompanyAddress = (comp) => {
     const lines = resolveCompanyAddressLines(comp);
-    return lines.join(', ');
+    return lines.map(l => l.replace(/,\s*$/, '')).filter(Boolean).join(', ');
 };
 
 const getCompanyLogoSrc = (logoVal, fallback = null) => {
@@ -3496,32 +3496,15 @@ const Invoice = () => {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(55, 65, 81);
-        if (comp.address && comp.address.trim()) {
-            compY = printPdfBlock(comp.address.trim(), 14, compY, 135, 4.2);
+        const compAddrLinesPdf = resolveCompanyAddressLines(comp);
+        compAddrLinesPdf.forEach(addrLine => {
+            compY = printPdfBlock(addrLine, 14, compY, 135, 4.2);
+        });
+        if (comp.phone && String(comp.phone).trim()) {
+            compY = printPdfBlock(String(comp.phone).trim(), 14, compY, 135, 4.2);
         }
-
-        const cityParts = [];
-        if (comp.city && comp.city.trim()) {
-            cityParts.push(comp.city.trim().replace(/,\s*$/, ''));
-        }
-        if (comp.state && comp.state.trim()) {
-            cityParts.push(comp.state.trim().replace(/,\s*$/, ''));
-        }
-        const cityState = cityParts.join(', ');
-        const compCityLine = [cityState, (comp.zip || comp.zipCode || '').trim()].filter(Boolean).join(' ');
-        if (compCityLine && (!comp.address || !comp.address.includes(compCityLine))) {
-            compY = printPdfBlock(compCityLine, 14, compY, 135, 4.2);
-        }
-        const compCountryPdf = (comp.country || companyDetails?.country || companySettings?.country || '').trim();
-        const countryInCompAddr = compCountryPdf && comp.address && comp.address.toLowerCase().includes(compCountryPdf.toLowerCase());
-        if (compCountryPdf && !countryInCompAddr) {
-            compY = printPdfBlock(compCountryPdf, 14, compY, 135, 4.2);
-        }
-        if (comp.phone && comp.phone.trim()) {
-            compY = printPdfBlock(comp.phone.trim(), 14, compY, 135, 4.2);
-        }
-        if (comp.email && comp.email.trim()) {
-            compY = printPdfBlock(comp.email.trim(), 14, compY, 135, 4.2);
+        if (comp.email && String(comp.email).trim()) {
+            compY = printPdfBlock(String(comp.email).trim(), 14, compY, 135, 4.2);
         }
 
         const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
@@ -5736,7 +5719,12 @@ const Invoice = () => {
                 </div>
 
                 {(() => {
-                    const companyDetails = selectedInvoice?.company || companySettings || {};
+                    const companyDetails = { ...(companySettings || {}), ...(selectedInvoice?.company || {}) };
+                    Object.keys(companySettings || {}).forEach(k => {
+                        if ((companyDetails[k] === undefined || companyDetails[k] === null || (typeof companyDetails[k] === 'string' && !companyDetails[k].trim())) && companySettings[k]) {
+                            companyDetails[k] = companySettings[k];
+                        }
+                    });
                     const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo, null);
                     const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
                     const isLightColor = (color) => {
@@ -5886,40 +5874,21 @@ const Invoice = () => {
                                 {showHeader && (
                                     <div className="invoice-cea-header">
                                         <div className="invoice-cea-company">
-                                            <div className="invoice-cea-company-name">{companyDetails.name || ''}</div>
-                                            {companyDetails.address && (
-                                                <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
-                                                    {companyDetails.address}
-                                                </div>
+                                            {companyDetails.name && (
+                                                <div className="invoice-cea-company-name">{companyDetails.name}</div>
                                             )}
-                                            {(() => {
-                                                const cityParts = [];
-                                                if (companyDetails.city && companyDetails.city.trim()) {
-                                                    cityParts.push(companyDetails.city.trim().replace(/,\s*$/, ''));
-                                                }
-                                                if (companyDetails.state && companyDetails.state.trim()) {
-                                                    cityParts.push(companyDetails.state.trim().replace(/,\s*$/, ''));
-                                                }
-                                                const cityState = cityParts.join(', ');
-                                                const fullLoc = [cityState, (companyDetails.zip || '').trim()].filter(Boolean).join(' ');
-                                                if (fullLoc && (!companyDetails.address || !companyDetails.address.includes(fullLoc))) {
-                                                    return <div className="invoice-cea-company-line">{fullLoc}</div>;
-                                                }
-                                                return null;
-                                            })()}
-                                            {(() => {
-                                                const compCountry = (companyDetails.country || selectedInvoice?.company?.country || companySettings?.country || '').trim();
-                                                const countryInAddr = compCountry && companyDetails.address && companyDetails.address.toLowerCase().includes(compCountry.toLowerCase());
-                                                if (compCountry && !countryInAddr) {
-                                                    return <div className="invoice-cea-company-line">{compCountry}</div>;
-                                                }
-                                                return null;
-                                            })()}
-                                            {companyDetails.phone && <div className="invoice-cea-company-line">{companyDetails.phone}</div>}
-                                            {companyDetails.email && <div className="invoice-cea-company-line">{companyDetails.email}</div>}
-                                            {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && (
+                                            {compAddrLines.map((line, idx) => (
+                                                <div key={idx} className="invoice-cea-company-line">{line}</div>
+                                            ))}
+                                            {companyDetails.phone && String(companyDetails.phone).trim() && (
+                                                <div className="invoice-cea-company-line">{String(companyDetails.phone).trim()}</div>
+                                            )}
+                                            {companyDetails.email && String(companyDetails.email).trim() && (
+                                                <div className="invoice-cea-company-line">{String(companyDetails.email).trim()}</div>
+                                            )}
+                                            {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && String(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber).trim() && (
                                                 <div className="invoice-cea-company-line">
-                                                    VAT ID: {companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber}
+                                                    VAT ID: {String(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber).trim()}
                                                 </div>
                                             )}
                                         </div>

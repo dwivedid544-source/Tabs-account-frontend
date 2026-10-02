@@ -53,7 +53,7 @@ const resolveCompanyAddressLines = (comp) => {
     if (comp.address && comp.address.trim()) {
         const rawLines = comp.address.trim().split(/\r?\n+/);
         rawLines.forEach(l => {
-            const trimmed = l.trim().replace(/,\s*$/, '');
+            const trimmed = l.trim();
             if (trimmed) lines.push(trimmed);
         });
     }
@@ -90,7 +90,7 @@ const resolveCompanyAddressLines = (comp) => {
 
 const resolveInvoiceCompanyAddress = (comp) => {
     const lines = resolveCompanyAddressLines(comp);
-    return lines.join(', ');
+    return lines.map(l => l.replace(/,\s*$/, '')).filter(Boolean).join(', ');
 };
 
 const PublicInvoiceView = ({ type = 'invoice' }) => {
@@ -582,40 +582,21 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             {showHeader && (
                                 <div className="invoice-cea-header">
                                     <div className="invoice-cea-company">
-                                        <div className="invoice-cea-company-name">{companyDetails.name || ''}</div>
-                                        {companyDetails.address && (
-                                            <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
-                                                {companyDetails.address}
-                                            </div>
+                                        {companyDetails.name && (
+                                            <div className="invoice-cea-company-name">{companyDetails.name}</div>
                                         )}
-                                        {(() => {
-                                            const cityParts = [];
-                                            if (companyDetails.city && companyDetails.city.trim()) {
-                                                cityParts.push(companyDetails.city.trim().replace(/,\s*$/, ''));
-                                            }
-                                            if (companyDetails.state && companyDetails.state.trim()) {
-                                                cityParts.push(companyDetails.state.trim().replace(/,\s*$/, ''));
-                                            }
-                                            const cityState = cityParts.join(', ');
-                                            const fullLoc = [cityState, (companyDetails.zip || '').trim()].filter(Boolean).join(' ');
-                                            if (fullLoc && (!companyDetails.address || !companyDetails.address.includes(fullLoc))) {
-                                                return <div className="invoice-cea-company-line">{fullLoc}</div>;
-                                            }
-                                            return null;
-                                        })()}
-                                        {(() => {
-                                            const compCountry = (companyDetails.country || document?.company?.country || companySettings?.country || '').trim();
-                                            const countryInAddr = compCountry && companyDetails.address && companyDetails.address.toLowerCase().includes(compCountry.toLowerCase());
-                                            if (compCountry && !countryInAddr) {
-                                                return <div className="invoice-cea-company-line">{compCountry}</div>;
-                                            }
-                                            return null;
-                                        })()}
-                                        {companyDetails.phone && <div className="invoice-cea-company-line">{companyDetails.phone}</div>}
-                                        {companyDetails.email && <div className="invoice-cea-company-line">{companyDetails.email}</div>}
-                                        {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && (
+                                        {compAddrLines.map((line, idx) => (
+                                            <div key={idx} className="invoice-cea-company-line">{line}</div>
+                                        ))}
+                                        {companyDetails.phone && String(companyDetails.phone).trim() && (
+                                            <div className="invoice-cea-company-line">{String(companyDetails.phone).trim()}</div>
+                                        )}
+                                        {companyDetails.email && String(companyDetails.email).trim() && (
+                                            <div className="invoice-cea-company-line">{String(companyDetails.email).trim()}</div>
+                                        )}
+                                        {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && String(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber).trim() && (
                                             <div className="invoice-cea-company-line">
-                                                VAT ID: {companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber}
+                                                VAT ID: {String(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber).trim()}
                                             </div>
                                         )}
                                     </div>

@@ -60,7 +60,7 @@ const resolveCompanyAddressLines = (comp) => {
     if (comp.address && comp.address.trim()) {
         const rawLines = comp.address.trim().split(/\r?\n+/);
         rawLines.forEach(l => {
-            const trimmed = l.trim().replace(/,\s*$/, '');
+            const trimmed = l.trim();
             if (trimmed) lines.push(trimmed);
         });
     }
@@ -97,7 +97,7 @@ const resolveCompanyAddressLines = (comp) => {
 
 const resolveInvoiceCompanyAddress = (comp) => {
     const lines = resolveCompanyAddressLines(comp);
-    return lines.join(', ');
+    return lines.map(l => l.replace(/,\s*$/, '')).filter(Boolean).join(', ');
 };
 
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
@@ -1991,44 +1991,30 @@ const CompanySettings = () => {
                                     {/* 1. HEADER: Company Info (Left), Logo (Right) */}
                                     {invoiceLabels.showHeader !== false && (
                                         <div className="invoice-cea-header">
-                                            <div className="invoice-cea-company">
-                                                <div className="invoice-cea-company-name">{formData.name || ''}</div>
-                                                {formData.address && (
-                                                    <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
-                                                        {formData.address}
+                                            {(() => {
+                                                const sHeaderAddrLines = resolveCompanyAddressLines(formData);
+                                                return (
+                                                    <div className="invoice-cea-company">
+                                                        {formData.name && (
+                                                            <div className="invoice-cea-company-name">{formData.name}</div>
+                                                        )}
+                                                        {sHeaderAddrLines.map((line, idx) => (
+                                                            <div key={idx} className="invoice-cea-company-line">{line}</div>
+                                                        ))}
+                                                        {formData.phone && String(formData.phone).trim() && (
+                                                            <div className="invoice-cea-company-line">{String(formData.phone).trim()}</div>
+                                                        )}
+                                                        {formData.email && String(formData.email).trim() && (
+                                                            <div className="invoice-cea-company-line">{String(formData.email).trim()}</div>
+                                                        )}
+                                                        {(formData.vatNumber || formData.taxNumber || formData.gstNumber) && String(formData.vatNumber || formData.taxNumber || formData.gstNumber).trim() && (
+                                                            <div className="invoice-cea-company-line">
+                                                                VAT ID: {String(formData.vatNumber || formData.taxNumber || formData.gstNumber).trim()}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
-                                                {(() => {
-                                                    const cityParts = [];
-                                                    if (formData.city && formData.city.trim()) {
-                                                        cityParts.push(formData.city.trim().replace(/,\s*$/, ''));
-                                                    }
-                                                    if (formData.state && formData.state.trim()) {
-                                                        cityParts.push(formData.state.trim().replace(/,\s*$/, ''));
-                                                    }
-                                                    const cityState = cityParts.join(', ');
-                                                    const fullLoc = [cityState, (formData.zip || '').trim()].filter(Boolean).join(' ');
-                                                    if (fullLoc && (!formData.address || !formData.address.includes(fullLoc))) {
-                                                        return <div className="invoice-cea-company-line">{fullLoc}</div>;
-                                                    }
-                                                    return null;
-                                                })()}
-                                                {(() => {
-                                                    const compCountry = (formData.country || '').trim();
-                                                    const countryInAddr = compCountry && formData.address && formData.address.toLowerCase().includes(compCountry.toLowerCase());
-                                                    if (compCountry && !countryInAddr) {
-                                                        return <div className="invoice-cea-company-line">{compCountry}</div>;
-                                                    }
-                                                    return null;
-                                                })()}
-                                                {formData.phone && <div className="invoice-cea-company-line">{formData.phone}</div>}
-                                                {formData.email && <div className="invoice-cea-company-line">{formData.email}</div>}
-                                                {(formData.vatNumber || formData.taxNumber || formData.gstNumber) && (
-                                                    <div className="invoice-cea-company-line">
-                                                        VAT ID: {formData.vatNumber || formData.taxNumber || formData.gstNumber}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                );
+                                            })()}
                                             {(invoiceSettings.logoPreview || resolveLogoUrl(formData.logo)) && (
                                                 <div className="invoice-cea-logo-container">
                                                     <img
