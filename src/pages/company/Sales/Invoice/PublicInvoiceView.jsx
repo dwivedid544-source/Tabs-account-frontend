@@ -32,7 +32,7 @@ const getTintBg = (hexColor, alpha = 0.08) => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
+const getCompanyLogoSrc = (logoVal, fallback = null) => {
     if (!logoVal) return fallback;
     if (typeof logoVal === 'string') {
         const resolved = resolveLogoUrl(logoVal);
@@ -45,6 +45,44 @@ const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
         return `${serverUrl}${cleanPath}`;
     }
     return fallback;
+};
+
+const resolveCompanyAddressLines = (comp) => {
+    if (!comp) return [];
+    const lines = [];
+    if (comp.address && comp.address.trim()) {
+        const rawLines = comp.address.trim().split(/\r?\n+/);
+        rawLines.forEach(l => {
+            const trimmed = l.trim().replace(/,\s*$/, '');
+            if (trimmed) lines.push(trimmed);
+        });
+    }
+    const locParts = [];
+    if (comp.city && comp.city.trim()) {
+        locParts.push(comp.city.trim().replace(/,\s*$/, ''));
+    }
+    if (comp.state && comp.state.trim()) {
+        locParts.push(comp.state.trim().replace(/,\s*$/, ''));
+    }
+    const cityState = locParts.join(', ');
+    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+
+    const alreadyPresent = lines.some(l => l.toLowerCase().includes(fullLoc.toLowerCase())) ||
+        (comp.address && comp.address.toLowerCase().includes(fullLoc.toLowerCase()));
+
+    if (fullLoc && !alreadyPresent) {
+        lines.push(fullLoc);
+    }
+    if (lines.length === 0 && (comp.city || comp.state || comp.zip)) {
+        const fallbackLoc = [comp.city, comp.state, comp.zip].filter(Boolean).join(', ');
+        if (fallbackLoc) lines.push(fallbackLoc);
+    }
+    return lines;
+};
+
+const resolveInvoiceCompanyAddress = (comp) => {
+    const lines = resolveCompanyAddressLines(comp);
+    return lines.join(', ');
 };
 
 const PublicInvoiceView = ({ type = 'invoice' }) => {
@@ -438,7 +476,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         return `${day}-${month}-${year}`;
                     };
 
-                    const billName = document.customer?.name || document.billingName || 'Valued Customer';
+                    const billName = document.customer?.name || document.billingName || '';
                     const billAddr = document.billingAddress || document.customer?.billingAddress || '';
                     const billCityStateZip = [
                         document.billingCity || document.customer?.billingCity,
@@ -459,14 +497,16 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
 
                     const lineItems = items && items.length > 0 ? items : (document.items || document.invoiceitem || []);
 
-                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || '';
+                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || '';
                     const bankIban = companyDetails.iban || '';
                     const bankBic = companyDetails.bic || '';
                     const bankAccount = companyDetails.accountNumber || '';
-                    const bankSortCode = companyDetails.sortCode || '';
+                    const bankSortCode = companyDetails.sortCode || companyDetails.ifsc || '';
                     const bankName = companyDetails.bankName || '';
-                    const bankAddress = companyDetails.bankAddress || '';
-                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
+                    const compAddrLines = resolveCompanyAddressLines(companyDetails);
+                    const hasBankDetails = Boolean(bankAccountName || bankName || bankAccount || bankIban || bankSortCode || bankBic);
+                    const hasCompanyAddress = compAddrLines.length > 0;
+                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo, null);
                     const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
                     const isLightColor = (color) => {
                         if (!color) return true;
@@ -528,28 +568,47 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             {showHeader && (
                                 <div className="invoice-cea-header">
                                     <div className="invoice-cea-company">
-                                        <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
-                                        <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
-                                        <div className="invoice-cea-company-line">
-                                            {companyDetails.city && companyDetails.zip
-                                                ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
-                                                : 'Cork, Co, Cork T12VCY2'}
+                                        <div className="invoice-cea-company-name">{companyDetails.name || ''}</div>
+                                        {companyDetails.address && (
+                                            <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
+                                                {companyDetails.address}
+                                            </div>
+                                        )}
+                                        {(() => {
+                                            const cityParts = [];
+                                            if (companyDetails.city && companyDetails.city.trim()) {
+                                                cityParts.push(companyDetails.city.trim().replace(/,\s*$/, ''));
+                                            }
+                                            if (companyDetails.state && companyDetails.state.trim()) {
+                                                cityParts.push(companyDetails.state.trim().replace(/,\s*$/, ''));
+                                            }
+                                            const cityState = cityParts.join(', ');
+                                            const fullLoc = [cityState, (companyDetails.zip || '').trim()].filter(Boolean).join(' ');
+                                            if (fullLoc && (!companyDetails.address || !companyDetails.address.includes(fullLoc))) {
+                                                return <div className="invoice-cea-company-line">{fullLoc}</div>;
+                                            }
+                                            return null;
+                                        })()}
+                                        {companyDetails.phone && <div className="invoice-cea-company-line">{companyDetails.phone}</div>}
+                                        {companyDetails.email && <div className="invoice-cea-company-line">{companyDetails.email}</div>}
+                                        {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && (
+                                            <div className="invoice-cea-company-line">
+                                                VAT ID: {companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {companyLogoSrc && (
+                                        <div className="invoice-cea-logo-container">
+                                            <img
+                                                src={companyLogoSrc}
+                                                alt={companyDetails.name || "Company Logo"}
+                                                className="invoice-cea-logo-img"
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                }}
+                                            />
                                         </div>
-                                        <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
-                                        <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                        <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
-                                    </div>
-                                    <div className="invoice-cea-logo-container">
-                                        <img
-                                            src={companyLogoSrc}
-                                            alt={companyDetails.name || "Company Logo"}
-                                            className="invoice-cea-logo-img"
-                                            onError={(e) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = ceaArchitectsLogo;
-                                            }}
-                                        />
-                                    </div>
+                                    )}
                                 </div>
                             )}
 
@@ -792,21 +851,30 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 7. BANK DETAILS BOX */}
-                            <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
-                                <div className="invoice-cea-bank-grid">
-                                    <div className="invoice-cea-bank-col">
-                                        <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
-                                        <div className="invoice-cea-bank-line">IBAN:{bankIban}</div>
-                                        <div className="invoice-cea-bank-line">BIC: {bankBic}</div>
-                                        <div className="invoice-cea-bank-line">Account: {bankAccount}</div>
-                                    </div>
-                                    <div className="invoice-cea-bank-col">
-                                        <div className="invoice-cea-bank-line">NSC (SORT CODE): {bankSortCode}</div>
-                                        <div className="invoice-cea-bank-line">{bankName}</div>
-                                        <div className="invoice-cea-bank-line">{bankAddress}</div>
+                            {(hasBankDetails || hasCompanyAddress) && (
+                                <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
+                                    <div className="invoice-cea-bank-grid">
+                                        {hasBankDetails && (
+                                            <div className="invoice-cea-bank-col">
+                                                {bankAccountName && <div className="invoice-cea-bank-line">Account Name : {bankAccountName}</div>}
+                                                {bankName && <div className="invoice-cea-bank-line">Bank Name: {bankName}</div>}
+                                                {bankAccount && <div className="invoice-cea-bank-line">Account Number: {bankAccount}</div>}
+                                                {bankIban && <div className="invoice-cea-bank-line">IBAN: {bankIban}</div>}
+                                                {bankSortCode && <div className="invoice-cea-bank-line">Sort Code: {bankSortCode}</div>}
+                                                {bankBic && <div className="invoice-cea-bank-line">BIC: {bankBic}</div>}
+                                            </div>
+                                        )}
+                                        {hasCompanyAddress && (
+                                            <div className="invoice-cea-bank-col invoice-cea-company-address-col">
+                                                <div className="invoice-cea-bank-line" style={{ fontWeight: 600 }}>Company Address:</div>
+                                                {compAddrLines.map((addrLine, aIdx) => (
+                                                    <div key={aIdx} className="invoice-cea-bank-line">{addrLine}</div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* PAYMENT HISTORY SECTION */}
                             {(() => {

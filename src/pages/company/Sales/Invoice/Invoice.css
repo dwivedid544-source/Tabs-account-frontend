@@ -4533,11 +4533,26 @@
 }
 
 .invoice-cea-bank-grid {
-    display: block;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: 24px;
+}
+
+.invoice-cea-bank-col {
+    flex: 1;
 }
 
 .invoice-cea-bank-line {
     margin: 1px 0;
+}
+
+.invoice-cea-company-address-col {
+    flex: 1;
+    word-break: break-word;
+    text-align: right;
+    margin-left: auto;
 }
 
 /* 7. Footer */
@@ -4626,9 +4641,11 @@
     font-size: 11px;
 }
 .invoice-cea-container.cea-density-moderate .invoice-cea-bank-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: 20px;
 }
 .invoice-cea-container.cea-density-moderate .invoice-cea-bank-line {
     line-height: 1.35;
@@ -4720,9 +4737,11 @@
     font-size: 10.5px;
 }
 .invoice-cea-container.cea-density-compact .invoice-cea-bank-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: 20px;
 }
 .invoice-cea-container.cea-density-compact .invoice-cea-bank-line {
     line-height: 1.25;
@@ -4814,9 +4833,11 @@
     font-size: 10px;
 }
 .invoice-cea-container.cea-density-ultra-compact .invoice-cea-bank-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: 16px;
 }
 .invoice-cea-container.cea-density-ultra-compact .invoice-cea-bank-line {
     line-height: 1.2;
@@ -4947,6 +4968,14 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
+    }
+
+    .invoice-cea-bank-grid {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+        gap: 20px !important;
     }
 
     .invoice-cea-paid-indicator {

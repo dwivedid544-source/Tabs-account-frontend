@@ -53,6 +53,45 @@ const getTintBg = (hexColor, alpha = 0.08) => {
     const b = parseInt(hex.substr(4, 2), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+const resolveCompanyAddressLines = (comp) => {
+    if (!comp) return [];
+    const lines = [];
+    if (comp.address && comp.address.trim()) {
+        const rawLines = comp.address.trim().split(/\r?\n+/);
+        rawLines.forEach(l => {
+            const trimmed = l.trim().replace(/,\s*$/, '');
+            if (trimmed) lines.push(trimmed);
+        });
+    }
+    const locParts = [];
+    if (comp.city && comp.city.trim()) {
+        locParts.push(comp.city.trim().replace(/,\s*$/, ''));
+    }
+    if (comp.state && comp.state.trim()) {
+        locParts.push(comp.state.trim().replace(/,\s*$/, ''));
+    }
+    const cityState = locParts.join(', ');
+    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+
+    const alreadyPresent = lines.some(l => l.toLowerCase().includes(fullLoc.toLowerCase())) ||
+        (comp.address && comp.address.toLowerCase().includes(fullLoc.toLowerCase()));
+
+    if (fullLoc && !alreadyPresent) {
+        lines.push(fullLoc);
+    }
+    if (lines.length === 0 && (comp.city || comp.state || comp.zip)) {
+        const fallbackLoc = [comp.city, comp.state, comp.zip].filter(Boolean).join(', ');
+        if (fallbackLoc) lines.push(fallbackLoc);
+    }
+    return lines;
+};
+
+const resolveInvoiceCompanyAddress = (comp) => {
+    const lines = resolveCompanyAddressLines(comp);
+    return lines.join(', ');
+};
+
 const salesTypes = ['invoice', 'salesquotation', 'salesorder', 'deliverychallan', 'salesreturn', 'posinvoice', 'receipt'];
 const purchaseTypes = ['purchasequotation', 'purchaseorder', 'purchasebill', 'purchasereturn', 'payment'];
 const otherTypes = ['goodsreceiptnote', 'voucher', 'stocktransfer', 'adjustment'];
@@ -419,17 +458,17 @@ const CompanySettings = () => {
     const receiptLogoInputRef = useRef(null);
     const paymentLogoInputRef = useRef(null);
 
-    // Form data state
+    // Form data state - strictly blank by default for clean company creation
     const [formData, setFormData] = useState({
-        name: 'Kiaan Solutions',
-        email: 'info@kiaan.com',
-        phone: '+1 234 567 890',
+        name: '',
+        email: '',
+        phone: '',
         website: '',
         address: '',
-        city: 'New York',
-        state: 'NY',
-        zip: '10001',
-        country: 'Ireland',
+        city: '',
+        state: '',
+        zip: '',
+        country: '',
         currency: 'EUR',
         bankName: '',
         accountHolder: '',
@@ -442,7 +481,7 @@ const CompanySettings = () => {
         vatNumber: '',
         defaultVatRate: '23',
         defaultVatRateId: '',
-        isVatRegistered: true,
+        isVatRegistered: false,
         terms: '',
         termsInvoice: '',
         termsReceipt: '',
@@ -505,8 +544,8 @@ const CompanySettings = () => {
                     city: data.city || '',
                     state: data.state || '',
                     zip: data.zip || '',
-                    country: data.country || 'United States',
-                    currency: data.currency || 'USD',
+                    country: data.country || '',
+                    currency: data.currency || 'EUR',
                     bankName: data.bankName || '',
                     accountHolder: data.accountHolder || data.accountName || '',
                     accountName: data.accountName || data.accountHolder || '',
@@ -518,7 +557,7 @@ const CompanySettings = () => {
                     vatNumber: data.vatNumber || data.gstNumber || '',
                     defaultVatRate: data.defaultVatRate ? data.defaultVatRate.toString() : '23',
                     defaultVatRateId: data.defaultVatRateId || '',
-                    isVatRegistered: data.isVatRegistered !== undefined ? data.isVatRegistered : true,
+                    isVatRegistered: data.isVatRegistered !== undefined ? data.isVatRegistered : false,
                     terms: data.terms || '',
                     termsInvoice: data.termsInvoice || '',
                     termsReceipt: data.termsReceipt || '',
@@ -1945,28 +1984,47 @@ const CompanySettings = () => {
                                     {invoiceLabels.showHeader !== false && (
                                         <div className="invoice-cea-header">
                                             <div className="invoice-cea-company">
-                                                <div className="invoice-cea-company-name">{formData.name || 'CEAC Ltd'}</div>
-                                                <div className="invoice-cea-company-line">{formData.address || '17 South Mall'}</div>
-                                                <div className="invoice-cea-company-line">
-                                                    {formData.city && formData.zip
-                                                        ? `${formData.city}, ${formData.state ? (formData.state.includes('Co') ? formData.state : `Co, ${formData.state}`) : 'Co, Cork'} ${formData.zip}`
-                                                        : 'Cork, Co, Cork T12VCY2'}
+                                                <div className="invoice-cea-company-name">{formData.name || ''}</div>
+                                                {formData.address && (
+                                                    <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
+                                                        {formData.address}
+                                                    </div>
+                                                )}
+                                                {(() => {
+                                                    const cityParts = [];
+                                                    if (formData.city && formData.city.trim()) {
+                                                        cityParts.push(formData.city.trim().replace(/,\s*$/, ''));
+                                                    }
+                                                    if (formData.state && formData.state.trim()) {
+                                                        cityParts.push(formData.state.trim().replace(/,\s*$/, ''));
+                                                    }
+                                                    const cityState = cityParts.join(', ');
+                                                    const fullLoc = [cityState, (formData.zip || '').trim()].filter(Boolean).join(' ');
+                                                    if (fullLoc && (!formData.address || !formData.address.includes(fullLoc))) {
+                                                        return <div className="invoice-cea-company-line">{fullLoc}</div>;
+                                                    }
+                                                    return null;
+                                                })()}
+                                                {formData.phone && <div className="invoice-cea-company-line">{formData.phone}</div>}
+                                                {formData.email && <div className="invoice-cea-company-line">{formData.email}</div>}
+                                                {(formData.vatNumber || formData.taxNumber || formData.gstNumber) && (
+                                                    <div className="invoice-cea-company-line">
+                                                        VAT ID: {formData.vatNumber || formData.taxNumber || formData.gstNumber}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {(invoiceSettings.logoPreview || resolveLogoUrl(formData.logo)) && (
+                                                <div className="invoice-cea-logo-container">
+                                                    <img
+                                                        src={invoiceSettings.logoPreview || resolveLogoUrl(formData.logo)}
+                                                        alt="Company Logo"
+                                                        className="invoice-cea-logo-img"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
                                                 </div>
-                                                <div className="invoice-cea-company-line">{formData.phone || '+353214272000'}</div>
-                                                <div className="invoice-cea-company-line">{formData.email || 'accounts@ceaarchitects.com'}</div>
-                                                <div className="invoice-cea-company-line">VAT ID: {formData.vatNumber || '4120278GH'}</div>
-                                            </div>
-                                            <div className="invoice-cea-logo-container">
-                                                <img
-                                                    src={invoiceSettings.logoPreview || resolveLogoUrl(formData.logo) || ceaArchitectsLogo}
-                                                    alt="Company Logo"
-                                                    className="invoice-cea-logo-img"
-                                                    onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src = ceaArchitectsLogo;
-                                                    }}
-                                                />
-                                            </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -2136,23 +2194,45 @@ const CompanySettings = () => {
                                                 )}
 
                                                 {/* 7. BANK DETAILS BOX */}
-                                                {invoiceLabels.showFooter !== false && (
-                                                    <div className="invoice-cea-bank-box" style={{ borderLeft: `4px solid ${headingColor}`, background: getTintBg(currentThemeColor, 0.06) }}>
-                                                        <div className="invoice-cea-bank-grid">
-                                                            <div className="invoice-cea-bank-col">
-                                                                <div className="invoice-cea-bank-line">Name: {formData.accountName || formData.accountHolder || formData.name || 'CEAC LTD'}</div>
-                                                                <div className="invoice-cea-bank-line">IBAN: {formData.iban || 'IE03BOFI90290116673832'}</div>
-                                                                <div className="invoice-cea-bank-line">BIC: {formData.bic || 'BOFIIE2D'}</div>
-                                                                <div className="invoice-cea-bank-line">Account: {formData.accountNumber || '16673832'}</div>
-                                                            </div>
-                                                            <div className="invoice-cea-bank-col">
-                                                                <div className="invoice-cea-bank-line">NSC (SORT CODE): {formData.sortCode || '902901'}</div>
-                                                                <div className="invoice-cea-bank-line">{formData.bankName || 'Bank Of Ireland'}</div>
-                                                                <div className="invoice-cea-bank-line">{formData.bankAddress || '97 Main Street, Midleton, Co. Cork'}</div>
+                                                {(() => {
+                                                    const sAccountName = formData.accountName || formData.accountHolder || '';
+                                                    const sBankName = formData.bankName || '';
+                                                    const sAccountNum = formData.accountNumber || '';
+                                                    const sIban = formData.iban || '';
+                                                    const sSortCode = formData.sortCode || formData.ifsc || '';
+                                                    const sBic = formData.bic || '';
+                                                    const sAddrLines = resolveCompanyAddressLines(formData);
+                                                    const sHasBank = Boolean(sAccountName || sBankName || sAccountNum || sIban || sSortCode || sBic);
+                                                    const sHasAddr = sAddrLines.length > 0;
+
+                                                    if (!sHasBank && !sHasAddr) return null;
+                                                    if (invoiceLabels.showFooter === false) return null;
+
+                                                    return (
+                                                        <div className="invoice-cea-bank-box" style={{ borderLeft: `4px solid ${headingColor}`, background: getTintBg(currentThemeColor, 0.06) }}>
+                                                            <div className="invoice-cea-bank-grid">
+                                                                {sHasBank && (
+                                                                    <div className="invoice-cea-bank-col">
+                                                                        {sAccountName && <div className="invoice-cea-bank-line">Account Name : {sAccountName}</div>}
+                                                                        {sBankName && <div className="invoice-cea-bank-line">Bank Name: {sBankName}</div>}
+                                                                        {sAccountNum && <div className="invoice-cea-bank-line">Account Number: {sAccountNum}</div>}
+                                                                        {sIban && <div className="invoice-cea-bank-line">IBAN: {sIban}</div>}
+                                                                        {sSortCode && <div className="invoice-cea-bank-line">Sort Code: {sSortCode}</div>}
+                                                                        {sBic && <div className="invoice-cea-bank-line">BIC: {sBic}</div>}
+                                                                    </div>
+                                                                )}
+                                                                {sHasAddr && (
+                                                                    <div className="invoice-cea-bank-col invoice-cea-company-address-col">
+                                                                        <div className="invoice-cea-bank-line" style={{ fontWeight: 600 }}>Company Address:</div>
+                                                                        {sAddrLines.map((addrLine, aIdx) => (
+                                                                            <div key={aIdx} className="invoice-cea-bank-line">{addrLine}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                             </>
                                         );
                                     })()}

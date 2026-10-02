@@ -95,6 +95,44 @@ const hexToRgb = (hex) => {
     ];
 };
 
+const resolveCompanyAddressLines = (comp) => {
+    if (!comp) return [];
+    const lines = [];
+    if (comp.address && comp.address.trim()) {
+        const rawLines = comp.address.trim().split(/\r?\n+/);
+        rawLines.forEach(l => {
+            const trimmed = l.trim().replace(/,\s*$/, '');
+            if (trimmed) lines.push(trimmed);
+        });
+    }
+    const locParts = [];
+    if (comp.city && comp.city.trim()) {
+        locParts.push(comp.city.trim().replace(/,\s*$/, ''));
+    }
+    if (comp.state && comp.state.trim()) {
+        locParts.push(comp.state.trim().replace(/,\s*$/, ''));
+    }
+    const cityState = locParts.join(', ');
+    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+
+    const alreadyPresent = lines.some(l => l.toLowerCase().includes(fullLoc.toLowerCase())) ||
+        (comp.address && comp.address.toLowerCase().includes(fullLoc.toLowerCase()));
+
+    if (fullLoc && !alreadyPresent) {
+        lines.push(fullLoc);
+    }
+    if (lines.length === 0 && (comp.city || comp.state || comp.zip)) {
+        const fallbackLoc = [comp.city, comp.state, comp.zip].filter(Boolean).join(', ');
+        if (fallbackLoc) lines.push(fallbackLoc);
+    }
+    return lines;
+};
+
+const resolveInvoiceCompanyAddress = (comp) => {
+    const lines = resolveCompanyAddressLines(comp);
+    return lines.join(', ');
+};
+
 const safeAutoTable = (doc, options) => {
     if (typeof doc.autoTable === 'function') {
         return doc.autoTable(options);
@@ -2318,19 +2356,17 @@ const PurchaseBill = () => {
         }
 
         // Stage 4: Guaranteed Fallback to ceaArchitectsLogoBase64
-        if (!logoBase64 && ceaArchitectsLogoBase64) {
-            logoBase64 = ceaArchitectsLogoBase64;
-            logoNaturalWidth = 177;
-            logoNaturalHeight = 76;
+        if (!logoBase64) {
+            logoBase64 = null;
         }
 
         // Vendor details
         const targetVendor = bill.vendor || (vendors && vendors.find(v => String(v.id) === String(bill.vendorId))) || {};
-        const vendorName = targetVendor.name || bill.billingName || 'Vendor';
+        const vendorName = targetVendor.name || bill.billingName || '';
         const vendorAddr = targetVendor.address || bill.billingAddress || '';
         const vendorCityStateZip = [
             targetVendor.city || bill.billingCity,
-            targetVendor.state ? (targetVendor.state.includes('Co') ? targetVendor.state : `Co, ${targetVendor.state}`) : '',
+            targetVendor.state || '',
             targetVendor.zipCode || targetVendor.zip || bill.billingZipCode
         ].filter(Boolean).join(' ');
         const vendorPhone = targetVendor.phone || bill.billingPhone || '';
@@ -2475,13 +2511,13 @@ const PurchaseBill = () => {
         })();
 
         // Bank details
-        const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
-        const bankIban = comp.iban || 'IE03BOFI90290116673832';
-        const bankBic = comp.bic || 'BOFIIE2D';
-        const bankAccount = comp.accountNumber || '16673832';
-        const bankSortCode = comp.sortCode || '902901';
-        const bankName = comp.bankName || 'Bank Of Ireland';
-        const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
+        const bankAccountName = comp.accountName || comp.accountHolder || '';
+        const bankIban = comp.iban || '';
+        const bankBic = comp.bic || '';
+        const bankAccount = comp.accountNumber || '';
+        const bankSortCode = comp.sortCode || comp.ifsc || '';
+        const bankName = comp.bankName || '';
+        const bankAddress = resolveInvoiceCompanyAddress(comp);
 
         const doc = new jsPDF('p', 'mm', 'a4');
 
@@ -2498,31 +2534,40 @@ const PurchaseBill = () => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(17, 24, 39);
-        let compY = printPdfBlock(comp.name || 'CEAC Ltd', 14, 18, 135, 5.2);
+        let compY = 18;
+        if (comp.name) {
+            compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
+        }
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(55, 65, 81);
-        if (comp.address) {
-            compY = printPdfBlock(comp.address, 14, compY, 135, 4.2);
+        if (comp.address && comp.address.trim()) {
+            compY = printPdfBlock(comp.address.trim(), 14, compY, 135, 4.2);
         }
 
-        const compCityLine = (comp.city && comp.zip)
-            ? `${comp.city.replace(/,\s*$/, '')}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip || comp.zipCode || ''}`.trim()
-            : 'Cork, Co, Cork T12VCY2';
-        if (compCityLine && compCityLine !== comp.address) {
+        const cityParts = [];
+        if (comp.city && comp.city.trim()) {
+            cityParts.push(comp.city.trim().replace(/,\s*$/, ''));
+        }
+        if (comp.state && comp.state.trim()) {
+            cityParts.push(comp.state.trim().replace(/,\s*$/, ''));
+        }
+        const cityState = cityParts.join(', ');
+        const compCityLine = [cityState, (comp.zip || comp.zipCode || '').trim()].filter(Boolean).join(' ');
+        if (compCityLine && (!comp.address || !comp.address.includes(compCityLine))) {
             compY = printPdfBlock(compCityLine, 14, compY, 135, 4.2);
         }
-        if (comp.phone) {
-            compY = printPdfBlock(comp.phone, 14, compY, 135, 4.2);
+        if (comp.phone && comp.phone.trim()) {
+            compY = printPdfBlock(comp.phone.trim(), 14, compY, 135, 4.2);
         }
-        if (comp.email) {
-            compY = printPdfBlock(comp.email, 14, compY, 135, 4.2);
+        if (comp.email && comp.email.trim()) {
+            compY = printPdfBlock(comp.email.trim(), 14, compY, 135, 4.2);
         }
 
-        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber || '4120278GH';
-        if (vatId) {
-            compY = printPdfBlock(`VAT ID: ${vatId}`, 14, compY, 135, 4.2);
+        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
+        if (vatId && String(vatId).trim()) {
+            compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
         }
 
         // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
@@ -2868,32 +2913,62 @@ const PurchaseBill = () => {
         });
 
         // --- 6. BANK DETAILS ROUNDED BOX ---
-        let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
-        if (bankY + 21 > 275) {
-            doc.addPage();
-            bankY = 20;
-        }
+        const bankLines = [];
+        if (bankAccountName) bankLines.push(`Account Name : ${bankAccountName}`);
+        if (bankName) bankLines.push(`Bank Name: ${bankName}`);
+        if (bankAccount) bankLines.push(`Account Number: ${bankAccount}`);
+        if (bankIban) bankLines.push(`IBAN: ${bankIban}`);
+        if (bankSortCode) bankLines.push(`Sort Code: ${bankSortCode}`);
+        if (bankBic) bankLines.push(`BIC: ${bankBic}`);
 
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(14, bankY, 182, 20, 2, 2, 'FD');
+        const companyAddrLines = resolveCompanyAddressLines(comp);
+        const hasBankDetails = bankLines.length > 0;
+        const hasCompanyAddress = companyAddrLines.length > 0;
 
-        const bankBarRgb = _isLight ? [148, 163, 184] : themeRgb;
-        doc.setFillColor(bankBarRgb[0], bankBarRgb[1], bankBarRgb[2]);
-        doc.rect(14, bankY, 2, 20, 'F');
+        if (hasBankDetails || hasCompanyAddress) {
+            const leftLinesCount = bankLines.length;
+            const rightLinesCount = hasCompanyAddress ? (companyAddrLines.length + 1) : 0;
+            const maxLines = Math.max(leftLinesCount, rightLinesCount, 1);
+            const bankBoxHeight = Math.max(16, 5 + (maxLines * 3.8));
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.2);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`Name: ${bankAccountName}`, 18, bankY + 4.5);
-        doc.text(`IBAN:${bankIban}`, 18, bankY + 8.5);
-        doc.text(`BIC: ${bankBic}`, 18, bankY + 12.5);
-        doc.text(`Account: ${bankAccount}`, 18, bankY + 16.5);
+            let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
+            if (bankY + bankBoxHeight + 4 > 275) {
+                doc.addPage();
+                bankY = 20;
+            }
 
-        doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 4.5);
-        doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 8.5);
-        if (comp.bankAddress && comp.bankAddress !== '97 Main Street, Midleton, Co. Cork') {
-            doc.text(String(comp.bankAddress), 108, bankY + 12.5);
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(14, bankY, 182, bankBoxHeight, 2, 2, 'FD');
+
+            const bankBarRgb = _isLight ? [148, 163, 184] : themeRgb;
+            doc.setFillColor(bankBarRgb[0], bankBarRgb[1], bankBarRgb[2]);
+            doc.rect(14, bankY, 2, bankBoxHeight, 'F');
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.2);
+            doc.setTextColor(71, 85, 105);
+
+            // Left Column (Only render bank details that actually exist)
+            let bLineY = bankY + 4.2;
+            bankLines.forEach((bLine) => {
+                doc.text(bLine, 18, bLineY);
+                bLineY += 3.8;
+            });
+
+            // Right Column (Company Address) - Right-aligned against right margin (192mm)
+            if (hasCompanyAddress) {
+                let rY = bankY + 4.2;
+                doc.setFont('helvetica', 'bold');
+                doc.text('Company Address:', 192, rY, { align: 'right' });
+                doc.setFont('helvetica', 'normal');
+                rY += 3.8;
+                companyAddrLines.forEach((line) => {
+                    const wrapped = doc.splitTextToSize(line, 80);
+                    doc.text(wrapped, 192, rY, { align: 'right' });
+                    rY += (wrapped.length * 3.8);
+                });
+            }
         }
 
         // --- 7. PAYMENT HISTORY TABLE ---
@@ -2989,7 +3064,7 @@ const PurchaseBill = () => {
         const vendorAddr = targetVendor.address || viewBill.billingAddress || '';
         const vendorCityStateZip = [
             targetVendor.city || viewBill.billingCity,
-            targetVendor.state ? (targetVendor.state.includes('Co') ? targetVendor.state : `Co, ${targetVendor.state}`) : '',
+            targetVendor.state || '',
             targetVendor.zipCode || targetVendor.zip || viewBill.billingZipCode
         ].filter(Boolean).join(' ');
         const vendorPhone = targetVendor.phone || viewBill.billingPhone || '';
@@ -3118,13 +3193,15 @@ const PurchaseBill = () => {
         })();
 
         // Bank details
-        const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
-        const bankIban = comp.iban || 'IE03BOFI90290116673832';
-        const bankBic = comp.bic || 'BOFIIE2D';
-        const bankAccount = comp.accountNumber || '16673832';
-        const bankSortCode = comp.sortCode || '902901';
-        const bankName = comp.bankName || 'Bank Of Ireland';
-        const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
+        const bankAccountName = comp.accountName || comp.accountHolder || '';
+        const bankIban = comp.iban || '';
+        const bankBic = comp.bic || '';
+        const bankAccount = comp.accountNumber || '';
+        const bankSortCode = comp.sortCode || comp.ifsc || '';
+        const bankName = comp.bankName || '';
+        const compAddrLines = resolveCompanyAddressLines(comp);
+        const hasBankDetails = Boolean(bankAccountName || bankName || bankAccount || bankIban || bankSortCode || bankBic);
+        const hasCompanyAddress = compAddrLines.length > 0;
 
         const billCurrency = viewBill.currency || comp.currency || 'EUR';
 
@@ -3227,28 +3304,47 @@ const PurchaseBill = () => {
                         {/* 1. HEADER: Company Details (Left) and Logo (Right) */}
                         <div className="invoice-cea-header">
                             <div className="invoice-cea-company">
-                                <div className="invoice-cea-company-name">{comp.name || 'CEAC Ltd'}</div>
-                                <div className="invoice-cea-company-line">{comp.address || '17 South Mall'}</div>
-                                <div className="invoice-cea-company-line">
-                                    {comp.city && comp.zip
-                                        ? `${comp.city}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip}`
-                                        : 'Cork, Co, Cork T12VCY2'}
+                                <div className="invoice-cea-company-name">{comp.name || ''}</div>
+                                {comp.address && (
+                                    <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
+                                        {comp.address}
+                                    </div>
+                                )}
+                                {(() => {
+                                    const cityParts = [];
+                                    if (comp.city && comp.city.trim()) {
+                                        cityParts.push(comp.city.trim().replace(/,\s*$/, ''));
+                                    }
+                                    if (comp.state && comp.state.trim()) {
+                                        cityParts.push(comp.state.trim().replace(/,\s*$/, ''));
+                                    }
+                                    const cityState = cityParts.join(', ');
+                                    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+                                    if (fullLoc && (!comp.address || !comp.address.includes(fullLoc))) {
+                                        return <div className="invoice-cea-company-line">{fullLoc}</div>;
+                                    }
+                                    return null;
+                                })()}
+                                {comp.phone && <div className="invoice-cea-company-line">{comp.phone}</div>}
+                                {comp.email && <div className="invoice-cea-company-line">{comp.email}</div>}
+                                {(comp.vatNumber || comp.taxNumber || comp.gstNumber) && (
+                                    <div className="invoice-cea-company-line">
+                                        VAT ID: {comp.vatNumber || comp.taxNumber || comp.gstNumber}
+                                    </div>
+                                )}
+                            </div>
+                            {companyLogoSrc && (
+                                <div className="invoice-cea-logo-container">
+                                    <img
+                                        src={companyLogoSrc}
+                                        alt={comp.name || "Company Logo"}
+                                        className="invoice-cea-logo-img"
+                                        onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                        }}
+                                    />
                                 </div>
-                                <div className="invoice-cea-company-line">{comp.phone || '+353214272000'}</div>
-                                <div className="invoice-cea-company-line">{comp.email || 'accounts@ceaarchitects.com'}</div>
-                                <div className="invoice-cea-company-line">VAT ID: {comp.vatNumber || comp.taxNumber || '4120278GH'}</div>
-                            </div>
-                            <div className="invoice-cea-logo-container">
-                                <img
-                                    src={companyLogoSrc}
-                                    alt={comp.name || "Company Logo"}
-                                    className="invoice-cea-logo-img"
-                                    onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = ceaArchitectsLogo;
-                                    }}
-                                />
-                            </div>
+                            )}
                         </div>
 
                         {/* 2. MIDDLE: Document Title & BILL FROM / VENDOR (Left) and Metadata Grid (Right) */}
@@ -3529,21 +3625,30 @@ const PurchaseBill = () => {
                         </div>
 
                         {/* 7. BANK DETAILS BOX */}
-                        <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
-                            <div className="invoice-cea-bank-grid">
-                                <div className="invoice-cea-bank-col">
-                                    <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
-                                    <div className="invoice-cea-bank-line">IBAN:{bankIban}</div>
-                                    <div className="invoice-cea-bank-line">BIC: {bankBic}</div>
-                                    <div className="invoice-cea-bank-line">Account: {bankAccount}</div>
-                                </div>
-                                <div className="invoice-cea-bank-col">
-                                    <div className="invoice-cea-bank-line">NSC (SORT CODE): {bankSortCode}</div>
-                                    <div className="invoice-cea-bank-line">{bankName}</div>
-                                    <div className="invoice-cea-bank-line">{bankAddress}</div>
+                        {(hasBankDetails || hasCompanyAddress) && (
+                            <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
+                                <div className="invoice-cea-bank-grid">
+                                    {hasBankDetails && (
+                                        <div className="invoice-cea-bank-col">
+                                            {bankAccountName && <div className="invoice-cea-bank-line">Account Name : {bankAccountName}</div>}
+                                            {bankName && <div className="invoice-cea-bank-line">Bank Name: {bankName}</div>}
+                                            {bankAccount && <div className="invoice-cea-bank-line">Account Number: {bankAccount}</div>}
+                                            {bankIban && <div className="invoice-cea-bank-line">IBAN: {bankIban}</div>}
+                                            {bankSortCode && <div className="invoice-cea-bank-line">Sort Code: {bankSortCode}</div>}
+                                            {bankBic && <div className="invoice-cea-bank-line">BIC: {bankBic}</div>}
+                                        </div>
+                                    )}
+                                    {hasCompanyAddress && (
+                                        <div className="invoice-cea-bank-col invoice-cea-company-address-col">
+                                            <div className="invoice-cea-bank-line" style={{ fontWeight: 600 }}>Company Address:</div>
+                                            {compAddrLines.map((addrLine, aIdx) => (
+                                                <div key={aIdx} className="invoice-cea-bank-line">{addrLine}</div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* 8. PAYMENT HISTORY SECTION */}
                         {/* {(() => {

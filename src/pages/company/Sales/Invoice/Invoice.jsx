@@ -101,7 +101,45 @@ const hexToRgb = (hex) => {
     ];
 };
 
-const getCompanyLogoSrc = (logoVal, fallback = ceaArchitectsLogo) => {
+const resolveCompanyAddressLines = (comp) => {
+    if (!comp) return [];
+    const lines = [];
+    if (comp.address && comp.address.trim()) {
+        const rawLines = comp.address.trim().split(/\r?\n+/);
+        rawLines.forEach(l => {
+            const trimmed = l.trim().replace(/,\s*$/, '');
+            if (trimmed) lines.push(trimmed);
+        });
+    }
+    const locParts = [];
+    if (comp.city && comp.city.trim()) {
+        locParts.push(comp.city.trim().replace(/,\s*$/, ''));
+    }
+    if (comp.state && comp.state.trim()) {
+        locParts.push(comp.state.trim().replace(/,\s*$/, ''));
+    }
+    const cityState = locParts.join(', ');
+    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+
+    const alreadyPresent = lines.some(l => l.toLowerCase().includes(fullLoc.toLowerCase())) ||
+        (comp.address && comp.address.toLowerCase().includes(fullLoc.toLowerCase()));
+
+    if (fullLoc && !alreadyPresent) {
+        lines.push(fullLoc);
+    }
+    if (lines.length === 0 && (comp.city || comp.state || comp.zip)) {
+        const fallbackLoc = [comp.city, comp.state, comp.zip].filter(Boolean).join(', ');
+        if (fallbackLoc) lines.push(fallbackLoc);
+    }
+    return lines;
+};
+
+const resolveInvoiceCompanyAddress = (comp) => {
+    const lines = resolveCompanyAddressLines(comp);
+    return lines.join(', ');
+};
+
+const getCompanyLogoSrc = (logoVal, fallback = null) => {
     if (!logoVal) return fallback;
     if (typeof logoVal === 'string') {
         const resolved = resolveLogoUrl(logoVal);
@@ -175,7 +213,7 @@ const safeSavePdf = (doc, fileName) => {
                     document.body.removeChild(a);
                 }
                 URL.revokeObjectURL(url);
-            } catch {}
+            } catch { }
         }, 60000);
     } catch (saveErr) {
         console.warn('Sanitized blob download failed, trying doc.save fallback:', saveErr);
@@ -1196,7 +1234,7 @@ const Invoice = () => {
                                     setViewMode(true);
                                     found = true;
                                 }
-                            } catch (e) {}
+                            } catch (e) { }
                         }
 
                         if (!found) {
@@ -1211,7 +1249,7 @@ const Invoice = () => {
                                     }
                                     found = true;
                                 }
-                            } catch (e) {}
+                            } catch (e) { }
                         }
 
                         if (!found && invoiceType !== 'POS_INVOICE') {
@@ -1222,7 +1260,7 @@ const Invoice = () => {
                                     setViewMode(true);
                                     found = true;
                                 }
-                            } catch (e) {}
+                            } catch (e) { }
                         }
                     }
 
@@ -1252,15 +1290,15 @@ const Invoice = () => {
                     const currentSourceName = location.state?.sourceName;
                     const currentReturnState = location.state?.returnState;
                     const currentFromReport = location.state?.fromReport;
-                    navigate({ pathname: location.pathname, search: '' }, { 
-                        replace: true, 
-                        state: { 
+                    navigate({ pathname: location.pathname, search: '' }, {
+                        replace: true,
+                        state: {
                             from: currentFrom,
                             sourceName: currentSourceName,
                             returnState: currentReturnState,
                             fromReport: currentFromReport,
                             deepLinkDone: true
-                        } 
+                        }
                     });
                 }
             };
@@ -1669,7 +1707,7 @@ const Invoice = () => {
                         const enteredName = (customerFormData.name || '').trim().toLowerCase();
                         const backendExisting = error.response?.data?.data || error.data;
 
-                        const matched = freshCustomers.find(item => 
+                        const matched = freshCustomers.find(item =>
                             (backendExisting && item.id === backendExisting.id) ||
                             (enteredEmail && item.email && item.email.trim().toLowerCase() === enteredEmail) ||
                             (enteredName && item.name && item.name.trim().toLowerCase() === enteredName)
@@ -2957,9 +2995,9 @@ const Invoice = () => {
         try {
             const companyId = GetCompanyId();
             const isCombined = invoiceToDelete.type === 'COMBINED' ||
-                               invoiceToDelete.isCombined ||
-                               String(invoiceToDelete.id).toLowerCase().startsWith('combined-') ||
-                               String(invoiceToDelete.invoiceNumber || '').toUpperCase().startsWith('COMBINED-');
+                invoiceToDelete.isCombined ||
+                String(invoiceToDelete.id).toLowerCase().startsWith('combined-') ||
+                String(invoiceToDelete.invoiceNumber || '').toUpperCase().startsWith('COMBINED-');
 
             if (isCombined) {
                 const subInvoices = invoiceToDelete.invoices || [];
@@ -3067,855 +3105,890 @@ const Invoice = () => {
         if (!invInput) return null;
         const tol = 0.01;
         let inv = invInput;
-            const companyId = GetCompanyId();
-            const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
+        const companyId = GetCompanyId();
+        const isCombined = inv.isCombined || String(inv.id).startsWith('combined-') || String(inv.invoiceNumber || '').startsWith('COMBINED-');
 
-            if (!isCombined) {
-                if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0 || inv.allocations === undefined)) {
-                    try {
-                        const res = await salesInvoiceService.getById(inv.id, companyId);
-                        if (res?.data?.success) {
-                            inv = res.data.data;
-                        }
-                    } catch (e) {
-                        console.warn('Could not fetch single invoice details:', e);
+        if (!isCombined) {
+            if (inv.type !== 'POS_INVOICE' && (!inv.invoiceitem || inv.invoiceitem.length === 0 || inv.allocations === undefined)) {
+                try {
+                    const res = await salesInvoiceService.getById(inv.id, companyId);
+                    if (res?.data?.success) {
+                        inv = res.data.data;
                     }
-                } else if (inv.type === 'POS_INVOICE' && (!inv.posinvoiceitem || inv.posinvoiceitem.length === 0)) {
-                    try {
-                        const res = await posService.getPOSInvoiceById(inv.id, companyId);
-                        if (res?.success) {
-                            inv = { ...res.data, type: 'POS_INVOICE' };
-                        }
-                    } catch (e) {
-                        console.warn('Could not fetch POS invoice details:', e);
-                    }
+                } catch (e) {
+                    console.warn('Could not fetch single invoice details:', e);
                 }
-            } else if (isCombined && (!inv.items || inv.items.length === 0) && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
-                const allItems = [];
-                let combinedOtherCharges = 0;
-                let combinedRoundOff = 0;
-                let combinedPaid = 0;
-                inv.invoices.forEach(childInv => {
-                    const cItems = childInv.invoiceitem || childInv.posinvoiceitem || childInv.items || [];
-                    let cfData = {};
-                    try {
-                        cfData = typeof childInv.customFields === 'string' ? JSON.parse(childInv.customFields) : (childInv.customFields || {});
-                    } catch (e) { cfData = {}; }
-                    const cMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
-                    if (Array.isArray(cfData?._otherCharges)) {
-                        combinedOtherCharges += cfData._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount || c.value || 0) || 0), 0);
+            } else if (inv.type === 'POS_INVOICE' && (!inv.posinvoiceitem || inv.posinvoiceitem.length === 0)) {
+                try {
+                    const res = await posService.getPOSInvoiceById(inv.id, companyId);
+                    if (res?.success) {
+                        inv = { ...res.data, type: 'POS_INVOICE' };
                     }
-                    combinedRoundOff += parseFloat(childInv.roundOffAmount || 0) || 0;
-                    const childPaid = childInv.paidAmount !== undefined ? parseFloat(childInv.paidAmount) : (parseFloat(childInv.totalAmount || 0) - parseFloat(childInv.balanceAmount || 0));
-                    combinedPaid += (isNaN(childPaid) ? 0 : childPaid);
+                } catch (e) {
+                    console.warn('Could not fetch POS invoice details:', e);
+                }
+            }
+        } else if (isCombined && (!inv.items || inv.items.length === 0) && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
+            const allItems = [];
+            let combinedOtherCharges = 0;
+            let combinedRoundOff = 0;
+            let combinedPaid = 0;
+            inv.invoices.forEach(childInv => {
+                const cItems = childInv.invoiceitem || childInv.posinvoiceitem || childInv.items || [];
+                let cfData = {};
+                try {
+                    cfData = typeof childInv.customFields === 'string' ? JSON.parse(childInv.customFields) : (childInv.customFields || {});
+                } catch (e) { cfData = {}; }
+                const cMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
+                if (Array.isArray(cfData?._otherCharges)) {
+                    combinedOtherCharges += cfData._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount || c.value || 0) || 0), 0);
+                }
+                combinedRoundOff += parseFloat(childInv.roundOffAmount || 0) || 0;
+                const childPaid = childInv.paidAmount !== undefined ? parseFloat(childInv.paidAmount) : (parseFloat(childInv.totalAmount || 0) - parseFloat(childInv.balanceAmount || 0));
+                combinedPaid += (isNaN(childPaid) ? 0 : childPaid);
 
-                    cItems.forEach((it, idx) => {
-                        const meta = cMeta[idx] || cMeta.find(m => (m.productId && String(m.productId) === String(it.productId)) || (m.serviceId && String(m.serviceId) === String(it.serviceId)));
-                        const line = computeInvoiceLine(it, meta);
-                        allItems.push({
-                            ...it,
-                            ...line,
-                            quantity: line.qty,
-                            qty: line.qty,
-                            rate: line.rate,
-                            discount: line.discVal,
-                            discountType: line.discType,
-                            taxRate: line.taxRate,
-                            amount: line.net,
-                            activity: meta?.itemName || it.activity || it.name || it.description || '',
-                            description: it.description || meta?.description || ''
-                        });
+                cItems.forEach((it, idx) => {
+                    const meta = cMeta[idx] || cMeta.find(m => (m.productId && String(m.productId) === String(it.productId)) || (m.serviceId && String(m.serviceId) === String(it.serviceId)));
+                    const line = computeInvoiceLine(it, meta);
+                    allItems.push({
+                        ...it,
+                        ...line,
+                        quantity: line.qty,
+                        qty: line.qty,
+                        rate: line.rate,
+                        discount: line.discVal,
+                        discountType: line.discType,
+                        taxRate: line.taxRate,
+                        amount: line.net,
+                        activity: meta?.itemName || it.activity || it.name || it.description || '',
+                        description: it.description || meta?.description || ''
                     });
                 });
-                inv = {
-                    ...inv,
-                    items: allItems,
-                    otherCharges: combinedOtherCharges,
-                    roundOffAmount: combinedRoundOff,
-                    paidAmount: combinedPaid
-                };
-            }
-
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const comp = inv.company || companySettings || {};
-            const currency = inv.currency || comp.currency || 'EUR';
-            const rawItems = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
-            const lineItems = rawItems.length > 0 ? rawItems : [
-                {
-                    activity: 'Services',
-                    description: 'Services',
-                    taxRate: 23,
-                    quantity: 1,
-                    rate: 0,
-                    amount: 0
-                }
-            ];
-
-            // Resolve company logo with multi-stage fallback (guarantees logo is NEVER missing)
-            let logoBase64 = null;
-            let logoNaturalWidth = 177;
-            let logoNaturalHeight = 76;
-
-            const candidateLogo = comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo;
-            const logoRaw = candidateLogo ? getCompanyLogoSrc(candidateLogo, ceaArchitectsLogoBase64) : ceaArchitectsLogoBase64;
-
-            const measureDimensions = (src) => new Promise((resolve) => {
-                if (!src || typeof window === 'undefined') return resolve({ width: 177, height: 76 });
-                const img = new Image();
-                const t = setTimeout(() => resolve({ width: 177, height: 76 }), 1500);
-                img.onload = () => {
-                    clearTimeout(t);
-                    resolve({
-                        width: img.naturalWidth || img.width || 177,
-                        height: img.naturalHeight || img.height || 76
-                    });
-                };
-                img.onerror = () => {
-                    clearTimeout(t);
-                    resolve({ width: 177, height: 76 });
-                };
-                img.src = src;
             });
-
-            const drawToCanvasBase64 = (imgElement) => {
-                try {
-                    const w = imgElement.naturalWidth || imgElement.width || 177;
-                    const h = imgElement.naturalHeight || imgElement.height || 76;
-                    if (w <= 0 || h <= 0) return null;
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, w, h);
-                    ctx.drawImage(imgElement, 0, 0, w, h);
-                    const data = canvas.toDataURL('image/jpeg', 0.95);
-                    return (data && data.startsWith('data:image/')) ? { base64: data, width: w, height: h } : null;
-                } catch (e) {
-                    return null;
-                }
+            inv = {
+                ...inv,
+                items: allItems,
+                otherCharges: combinedOtherCharges,
+                roundOffAmount: combinedRoundOff,
+                paidAmount: combinedPaid
             };
+        }
 
-            // Stage 1: If logoRaw is already a valid Data URL (Base64)
-            if (typeof logoRaw === 'string' && logoRaw.startsWith('data:image/')) {
-                const dims = await measureDimensions(logoRaw);
-                logoBase64 = logoRaw;
-                logoNaturalWidth = dims.width;
-                logoNaturalHeight = dims.height;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const comp = inv.company || companySettings || {};
+        const currency = inv.currency || comp.currency || 'EUR';
+        const rawItems = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
+        const lineItems = rawItems.length > 0 ? rawItems : [
+            {
+                activity: 'Services',
+                description: 'Services',
+                taxRate: 23,
+                quantity: 1,
+                rate: 0,
+                amount: 0
             }
+        ];
 
-            // Stage 2: If currently rendered in the DOM preview (e.g. user viewing invoice preview)
-            if (!logoBase64 && typeof document !== 'undefined') {
-                const domImg = document.querySelector('.invoice-cea-logo-img') || document.querySelector('.invoice-cea-logo-container img');
-                if (domImg && domImg.complete && domImg.naturalWidth > 0) {
-                    const canvasRes = drawToCanvasBase64(domImg);
-                    if (canvasRes?.base64) {
-                        logoBase64 = canvasRes.base64;
-                        logoNaturalWidth = canvasRes.width;
-                        logoNaturalHeight = canvasRes.height;
-                    } else if (domImg.src && domImg.src.startsWith('data:image/')) {
-                        logoBase64 = domImg.src;
-                        logoNaturalWidth = domImg.naturalWidth;
-                        logoNaturalHeight = domImg.naturalHeight;
+        // Resolve company logo with multi-stage fallback (guarantees logo is NEVER missing)
+        let logoBase64 = null;
+        let logoNaturalWidth = 177;
+        let logoNaturalHeight = 76;
+
+        const candidateLogo = comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo;
+        const logoRaw = candidateLogo ? getCompanyLogoSrc(candidateLogo, ceaArchitectsLogoBase64) : ceaArchitectsLogoBase64;
+
+        const measureDimensions = (src) => new Promise((resolve) => {
+            if (!src || typeof window === 'undefined') return resolve({ width: 177, height: 76 });
+            const img = new Image();
+            const t = setTimeout(() => resolve({ width: 177, height: 76 }), 1500);
+            img.onload = () => {
+                clearTimeout(t);
+                resolve({
+                    width: img.naturalWidth || img.width || 177,
+                    height: img.naturalHeight || img.height || 76
+                });
+            };
+            img.onerror = () => {
+                clearTimeout(t);
+                resolve({ width: 177, height: 76 });
+            };
+            img.src = src;
+        });
+
+        const drawToCanvasBase64 = (imgElement) => {
+            try {
+                const w = imgElement.naturalWidth || imgElement.width || 177;
+                const h = imgElement.naturalHeight || imgElement.height || 76;
+                if (w <= 0 || h <= 0) return null;
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(imgElement, 0, 0, w, h);
+                const data = canvas.toDataURL('image/jpeg', 0.95);
+                return (data && data.startsWith('data:image/')) ? { base64: data, width: w, height: h } : null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        // Stage 1: If logoRaw is already a valid Data URL (Base64)
+        if (typeof logoRaw === 'string' && logoRaw.startsWith('data:image/')) {
+            const dims = await measureDimensions(logoRaw);
+            logoBase64 = logoRaw;
+            logoNaturalWidth = dims.width;
+            logoNaturalHeight = dims.height;
+        }
+
+        // Stage 2: If currently rendered in the DOM preview (e.g. user viewing invoice preview)
+        if (!logoBase64 && typeof document !== 'undefined') {
+            const domImg = document.querySelector('.invoice-cea-logo-img') || document.querySelector('.invoice-cea-logo-container img');
+            if (domImg && domImg.complete && domImg.naturalWidth > 0) {
+                const canvasRes = drawToCanvasBase64(domImg);
+                if (canvasRes?.base64) {
+                    logoBase64 = canvasRes.base64;
+                    logoNaturalWidth = canvasRes.width;
+                    logoNaturalHeight = canvasRes.height;
+                } else if (domImg.src && domImg.src.startsWith('data:image/')) {
+                    logoBase64 = domImg.src;
+                    logoNaturalWidth = domImg.naturalWidth;
+                    logoNaturalHeight = domImg.naturalHeight;
+                }
+            }
+        }
+
+        // Stage 3: Direct fetch as Blob -> FileReader (bypasses canvas CORS tainting completely)
+        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && (logoRaw.startsWith('http://') || logoRaw.startsWith('https://') || logoRaw.startsWith('/'))) {
+            try {
+                const sep = logoRaw.includes('?') ? '&' : '?';
+                const fetchUrl = `${logoRaw}${sep}_cb=${Date.now()}`;
+                const res = await fetch(fetchUrl, { mode: 'cors' });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const b64 = await new Promise((resBlob) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resBlob(reader.result);
+                        reader.onerror = () => resBlob(null);
+                        reader.readAsDataURL(blob);
+                    });
+                    if (b64 && b64.startsWith('data:image/')) {
+                        const dims = await measureDimensions(b64);
+                        logoBase64 = b64;
+                        logoNaturalWidth = dims.width;
+                        logoNaturalHeight = dims.height;
                     }
                 }
+            } catch (fetchErr) {
+                console.warn('Direct fetch of logo failed:', fetchErr);
             }
+        }
 
-            // Stage 3: Direct fetch as Blob -> FileReader (bypasses canvas CORS tainting completely)
-            if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && (logoRaw.startsWith('http://') || logoRaw.startsWith('https://') || logoRaw.startsWith('/'))) {
-                try {
+        // Stage 4: Try standard Image loading with canvas flattening
+        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+            try {
+                const canvasRes = await new Promise((resCanvas) => {
+                    const timer = setTimeout(() => resCanvas(null), 2500);
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => {
+                        clearTimeout(timer);
+                        const drawn = drawToCanvasBase64(img);
+                        resCanvas(drawn);
+                    };
+                    img.onerror = () => {
+                        clearTimeout(timer);
+                        resCanvas(null);
+                    };
                     const sep = logoRaw.includes('?') ? '&' : '?';
-                    const fetchUrl = `${logoRaw}${sep}_cb=${Date.now()}`;
-                    const res = await fetch(fetchUrl, { mode: 'cors' });
-                    if (res.ok) {
-                        const blob = await res.blob();
-                        const b64 = await new Promise((resBlob) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resBlob(reader.result);
-                            reader.onerror = () => resBlob(null);
-                            reader.readAsDataURL(blob);
-                        });
-                        if (b64 && b64.startsWith('data:image/')) {
-                            const dims = await measureDimensions(b64);
-                            logoBase64 = b64;
-                            logoNaturalWidth = dims.width;
-                            logoNaturalHeight = dims.height;
-                        }
-                    }
-                } catch (fetchErr) {
-                    console.warn('Direct fetch of logo failed:', fetchErr);
+                    img.src = `${logoRaw}${sep}_cb=${Date.now()}`;
+                });
+                if (canvasRes?.base64) {
+                    logoBase64 = canvasRes.base64;
+                    logoNaturalWidth = canvasRes.width;
+                    logoNaturalHeight = canvasRes.height;
                 }
+            } catch (imgErr) {
+                console.warn('Image canvas flattening failed:', imgErr);
             }
+        }
 
-            // Stage 4: Try standard Image loading with canvas flattening
-            if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
-                try {
-                    const canvasRes = await new Promise((resCanvas) => {
-                        const timer = setTimeout(() => resCanvas(null), 2500);
-                        const img = new Image();
-                        img.crossOrigin = 'Anonymous';
-                        img.onload = () => {
-                            clearTimeout(timer);
-                            const drawn = drawToCanvasBase64(img);
-                            resCanvas(drawn);
-                        };
-                        img.onerror = () => {
-                            clearTimeout(timer);
-                            resCanvas(null);
-                        };
-                        const sep = logoRaw.includes('?') ? '&' : '?';
-                        img.src = `${logoRaw}${sep}_cb=${Date.now()}`;
-                    });
-                    if (canvasRes?.base64) {
-                        logoBase64 = canvasRes.base64;
-                        logoNaturalWidth = canvasRes.width;
-                        logoNaturalHeight = canvasRes.height;
-                    }
-                } catch (imgErr) {
-                    console.warn('Image canvas flattening failed:', imgErr);
-                }
+        // Stage 5: No hardcoded logo fallback - only show logo if company uploaded one
+        if (!logoBase64) {
+            logoBase64 = null;
+        }
+
+        // Calculations
+        const targetCust = (customers && customers.find(c => String(c.id) === String(inv.customerId || inv.customer?.id))) || inv.customer || {};
+        const billName = inv.billingName || targetCust.billingName || targetCust.name || '';
+        const billAddr = inv.billingAddress || targetCust.billingAddress || targetCust.companyLocation || targetCust.address || targetCust.shippingAddress || '';
+        const billCityStateZip = [
+            inv.billingCity || targetCust.billingCity || targetCust.city,
+            inv.billingState || targetCust.billingState || targetCust.state || '',
+            inv.billingZipCode || targetCust.billingZipCode || targetCust.zipCode
+        ].filter(Boolean).join(' ');
+        const billPhone = inv.billingPhone || targetCust.billingPhone || targetCust.phone || '';
+        const billEmail = inv.billingEmail || targetCust.email || '';
+        const billVat = targetCust.gstin || targetCust.gstNumber || targetCust.vatNumber || '';
+
+        let cfData = {};
+        if (inv.customFields) {
+            try {
+                cfData = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
+            } catch (e) {
+                cfData = {};
             }
+        }
+        const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
 
-            // Stage 5: Guaranteed Fallback to ceaArchitectsLogoBase64
-            if (!logoBase64 && ceaArchitectsLogoBase64) {
-                logoBase64 = ceaArchitectsLogoBase64;
-                logoNaturalWidth = 177;
-                logoNaturalHeight = 76;
-            }
+        const explicitOtherCharges = Array.isArray(cfData?._otherCharges)
+            ? cfData._otherCharges
+            : (parseFloat(inv.otherCharges || 0) || 0);
+        const explicitRoundOff = parseFloat(inv.roundOffAmount || 0) || 0;
 
-            // Calculations
-            const targetCust = (customers && customers.find(c => String(c.id) === String(inv.customerId || inv.customer?.id))) || inv.customer || {};
-            const billName = inv.billingName || targetCust.billingName || targetCust.name || 'Garv';
-            const billAddr = inv.billingAddress || targetCust.billingAddress || targetCust.companyLocation || targetCust.address || targetCust.shippingAddress || '56 New cork road, Midleton, Co. Cork';
-            const billCityStateZip = [
-                inv.billingCity || targetCust.billingCity || targetCust.city,
-                inv.billingState ? `Co, ${inv.billingState.replace(/^Co\.?,?\s*/i, '')}` : (targetCust.billingState ? `Co, ${targetCust.billingState.replace(/^Co\.?,?\s*/i, '')}` : ''),
-                inv.billingZipCode || targetCust.billingZipCode || targetCust.zipCode
-            ].filter(Boolean).join(' ');
-            const billPhone = inv.billingPhone || targetCust.billingPhone || targetCust.phone || '';
-            const billEmail = inv.billingEmail || targetCust.email || '';
-            const billVat = targetCust.gstin || targetCust.gstNumber || targetCust.vatNumber || '';
+        const financials = computeInvoiceFinancials(inv, {
+            itemsMeta,
+            otherCharges: explicitOtherCharges,
+            roundOff: explicitRoundOff
+        });
 
-            let cfData = {};
-            if (inv.customFields) {
-                try {
-                    cfData = typeof inv.customFields === 'string' ? JSON.parse(inv.customFields) : inv.customFields;
-                } catch (e) {
-                    cfData = {};
-                }
-            }
-            const itemsMeta = Array.isArray(cfData?._itemsDiscountMeta) ? cfData._itemsDiscountMeta : [];
+        const subtotalVal = financials.subtotal;
+        const discountVal = financials.discount;
+        const taxableVal = financials.taxableAmount;
+        const taxVal = financials.vatTotal;
+        const totalVal = financials.total;
+        const paidVal = financials.paidAmount;
+        const balanceVal = financials.balanceDue;
+        const vatSummaryList = financials.vatSummaryList;
 
-            const explicitOtherCharges = Array.isArray(cfData?._otherCharges)
-                ? cfData._otherCharges
-                : (parseFloat(inv.otherCharges || 0) || 0);
-            const explicitRoundOff = parseFloat(inv.roundOffAmount || 0) || 0;
+        const processedItems = financials.computedLines.map((item, idx) => {
+            const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
+            const actName = meta?.itemName
+                || item.service?.name
+                || item.product?.name
+                || item.activity
+                || item.name
+                || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
+                || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
+                || item.description
+                || (item.serviceId ? 'Service' : 'Item');
+            const desc = item.description || meta?.description || item.service?.name || item.product?.name || actName || '';
+            const itemTax = item.taxRate;
+            const qty = item.qty;
+            const rate = item.rate;
+            const amt = item.net;
 
-            const financials = computeInvoiceFinancials(inv, {
-                itemsMeta,
-                otherCharges: explicitOtherCharges,
-                roundOff: explicitRoundOff
-            });
+            const isZeroTax = itemTax === 0;
+            const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(itemTax.toFixed(2))}%`);
+            const discText = item.discVal > 0
+                ? (item.discType === 'percentage' ? `${item.discVal}%` : `-${Number(item.discVal).toFixed(2)}`)
+                : '0%';
 
-            const subtotalVal = financials.subtotal;
-            const discountVal = financials.discount;
-            const taxableVal = financials.taxableAmount;
-            const taxVal = financials.vatTotal;
-            const totalVal = financials.total;
-            const paidVal = financials.paidAmount;
-            const balanceVal = financials.balanceDue;
-            const vatSummaryList = financials.vatSummaryList;
+            const uom = item.unit || item.uom || meta?.uom || meta?.unit || '';
 
-            const processedItems = financials.computedLines.map((item, idx) => {
-                const meta = itemsMeta[idx] || itemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
-                const actName = meta?.itemName
-                    || item.service?.name 
-                    || item.product?.name 
-                    || item.activity 
-                    || item.name 
-                    || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
-                    || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
-                    || item.description 
-                    || (item.serviceId ? 'Service' : 'Item');
-                const desc = item.description || meta?.description || item.service?.name || item.product?.name || actName || '';
-                const itemTax = item.taxRate;
-                const qty = item.qty;
-                const rate = item.rate;
-                const amt = item.net;
-
-                const isZeroTax = itemTax === 0;
-                const taxDisplay = isZeroTax ? 'No VAT' : (item.taxName && !item.taxName.toLowerCase().includes('standard') ? item.taxName : `${parseFloat(itemTax.toFixed(2))}%`);
-                const discText = item.discVal > 0
-                    ? (item.discType === 'percentage' ? `${item.discVal}%` : `-${Number(item.discVal).toFixed(2)}`)
-                    : '0%';
-
-                const uom = item.unit || item.uom || meta?.uom || meta?.unit || '';
-
-                return {
-                    actName,
-                    desc,
-                    taxDisplay,
-                    discText,
-                    qty,
-                    rate,
-                    amt,
-                    uom
-                };
-            });
-
-            const isDuePassedDate = Boolean(inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
-            const rawStatus = String(inv.status || financials.status || '').toUpperCase();
-
-            const currentStatus = (() => {
-                if (rawStatus === 'CANCELLED') return 'CANCELLED';
-                // If balance is zero or paid amount meets or exceeds total, it is PAID!
-                if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
-                if (balanceVal <= tol && totalVal === 0) return 'PAID';
-                if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
-                if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
-                if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
-                if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
-                if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
-                if (financials.status) return financials.status;
-                if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
-                return 'UNPAID';
-            })();
-
-            const formatCeaDate = (dateVal) => {
-                if (!dateVal) return '';
-                const d = new Date(dateVal);
-                if (isNaN(d.getTime())) return String(dateVal);
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = d.getFullYear();
-                return `${day}-${month}-${year}`;
+            return {
+                actName,
+                desc,
+                taxDisplay,
+                discText,
+                qty,
+                rate,
+                amt,
+                uom
             };
+        });
 
-            const bankAccountName = comp.accountName || comp.accountHolder || comp.name || 'CEAC LTD';
-            const bankIban = comp.iban || 'IE03BOFI90290116673832';
-            const bankBic = comp.bic || 'BOFIIE2D';
-            const bankAccount = comp.accountNumber || '16673832';
-            const bankSortCode = comp.sortCode || '902901';
-            const bankName = comp.bankName || 'Bank Of Ireland';
-            const bankAddress = comp.bankAddress || '97 Main Street, Midleton, Co. Cork';
+        const isDuePassedDate = Boolean(inv.dueDate && new Date(inv.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
+        const rawStatus = String(inv.status || financials.status || '').toUpperCase();
 
-            // Helper to render text with word-wrapping and dynamic Y tracking to prevent overlapping
-            const printPdfBlock = (text, x, startY, maxWidth = 96, lineHeight = 4.2) => {
-                if (!text || !String(text).trim()) return startY;
-                const cleanText = String(text).trim();
-                const lines = doc.splitTextToSize(cleanText, maxWidth);
-                doc.text(lines, x, startY);
-                return startY + (lines.length * lineHeight);
-            };
+        const currentStatus = (() => {
+            if (rawStatus === 'CANCELLED') return 'CANCELLED';
+            // If balance is zero or paid amount meets or exceeds total, it is PAID!
+            if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
+            if (balanceVal <= tol && totalVal === 0) return 'PAID';
+            if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
+            if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
+            if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
+            if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
+            if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+            if (financials.status) return financials.status;
+            if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
+            return 'UNPAID';
+        })();
 
-            // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(13);
-            doc.setTextColor(17, 24, 39);
-            let compY = printPdfBlock(comp.name || 'CEAC Ltd', 14, 18, 135, 5.2);
+        const formatCeaDate = (dateVal) => {
+            if (!dateVal) return '';
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return String(dateVal);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}-${month}-${year}`;
+        };
 
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(55, 65, 81);
-            if (comp.address) {
-                compY = printPdfBlock(comp.address, 14, compY, 135, 4.2);
-            }
+        const bankAccountName = comp.accountName || comp.accountHolder || '';
+        const bankIban = comp.iban || '';
+        const bankBic = comp.bic || '';
+        const bankAccount = comp.accountNumber || '';
+        const bankSortCode = comp.sortCode || comp.ifsc || '';
+        const bankName = comp.bankName || '';
+        const bankAddress = resolveInvoiceCompanyAddress(comp);
 
-            const compCityLine = (comp.city && comp.zip)
-                ? `${comp.city.replace(/,\s*$/, '')}, ${comp.state ? (comp.state.includes('Co') ? comp.state : `Co, ${comp.state}`) : 'Co, Cork'} ${comp.zip || comp.zipCode || ''}`.trim()
-                : 'Cork, Co, Cork T12VCY2';
-            if (compCityLine && compCityLine !== comp.address) {
-                compY = printPdfBlock(compCityLine, 14, compY, 135, 4.2);
-            }
-            if (comp.phone) {
-                compY = printPdfBlock(comp.phone, 14, compY, 135, 4.2);
-            }
-            if (comp.email) {
-                compY = printPdfBlock(comp.email, 14, compY, 135, 4.2);
-            }
+        // Helper to render text with word-wrapping and dynamic Y tracking to prevent overlapping
+        const printPdfBlock = (text, x, startY, maxWidth = 96, lineHeight = 4.2) => {
+            if (!text || !String(text).trim()) return startY;
+            const cleanText = String(text).trim();
+            const lines = doc.splitTextToSize(cleanText, maxWidth);
+            doc.text(lines, x, startY);
+            return startY + (lines.length * lineHeight);
+        };
 
-            const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber || '4120278GH';
-            if (vatId) {
-                compY = printPdfBlock(`VAT ID: ${vatId}`, 14, compY, 135, 4.2);
-            }
+        // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(17, 24, 39);
+        let compY = 18;
+        if (comp.name) {
+            compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
+        }
 
-            // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
-            let logoPdfHeight = 0;
-            if (logoBase64) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(55, 65, 81);
+        if (comp.address && comp.address.trim()) {
+            compY = printPdfBlock(comp.address.trim(), 14, compY, 135, 4.2);
+        }
+
+        const cityParts = [];
+        if (comp.city && comp.city.trim()) {
+            cityParts.push(comp.city.trim().replace(/,\s*$/, ''));
+        }
+        if (comp.state && comp.state.trim()) {
+            cityParts.push(comp.state.trim().replace(/,\s*$/, ''));
+        }
+        const cityState = cityParts.join(', ');
+        const compCityLine = [cityState, (comp.zip || comp.zipCode || '').trim()].filter(Boolean).join(' ');
+        if (compCityLine && (!comp.address || !comp.address.includes(compCityLine))) {
+            compY = printPdfBlock(compCityLine, 14, compY, 135, 4.2);
+        }
+        if (comp.phone && comp.phone.trim()) {
+            compY = printPdfBlock(comp.phone.trim(), 14, compY, 135, 4.2);
+        }
+        if (comp.email && comp.email.trim()) {
+            compY = printPdfBlock(comp.email.trim(), 14, compY, 135, 4.2);
+        }
+
+        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
+        if (vatId && String(vatId).trim()) {
+            compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
+        }
+
+        // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
+        let logoPdfHeight = 0;
+        if (logoBase64) {
+            try {
+                const maxW = 42; // Maximum logo width in mm
+                const maxH = 22; // Maximum logo height in mm
+                const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
+                    ? (logoNaturalWidth / logoNaturalHeight)
+                    : (177 / 76);
+
+                let logoWidth, logoHeight;
+                if (aspect > maxW / maxH) {
+                    // Wide landscape image
+                    logoWidth = maxW;
+                    logoHeight = maxW / aspect;
+                } else {
+                    // Tall portrait or square image
+                    logoHeight = maxH;
+                    logoWidth = maxH * aspect;
+                }
+
+                logoPdfHeight = logoHeight;
+                const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
+                doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
+            } catch (imgErr) {
+                console.warn('Could not add primary image to PDF, trying CEA fallback:', imgErr);
                 try {
-                    const maxW = 42; // Maximum logo width in mm
-                    const maxH = 22; // Maximum logo height in mm
-                    const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
-                        ? (logoNaturalWidth / logoNaturalHeight)
-                        : (177 / 76);
-
-                    let logoWidth, logoHeight;
-                    if (aspect > maxW / maxH) {
-                        // Wide landscape image
-                        logoWidth = maxW;
-                        logoHeight = maxW / aspect;
-                    } else {
-                        // Tall portrait or square image
-                        logoHeight = maxH;
-                        logoWidth = maxH * aspect;
+                    if (ceaArchitectsLogoBase64) {
+                        doc.addImage(ceaArchitectsLogoBase64, 'PNG', 196 - 42, 12, 42, 18);
+                        logoPdfHeight = 18;
                     }
-
-                    logoPdfHeight = logoHeight;
-                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
-                    doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
-                } catch (imgErr) {
-                    console.warn('Could not add primary image to PDF, trying CEA fallback:', imgErr);
-                    try {
-                        if (ceaArchitectsLogoBase64) {
-                            doc.addImage(ceaArchitectsLogoBase64, 'PNG', 196 - 42, 12, 42, 18);
-                            logoPdfHeight = 18;
-                        }
-                    } catch (fallbackErr) {
-                        console.error('All PDF logo additions failed:', fallbackErr);
-                    }
+                } catch (fallbackErr) {
+                    console.error('All PDF logo additions failed:', fallbackErr);
                 }
             }
+        }
 
-            // --- 2. MIDDLE (Left: INVOICE & BILL TO, Right: METADATA GRID) ---
-            const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#dedede';
-            const _isLight = isLightColor(themeColorHex);
-            const themeRgb = hexToRgb(themeColorHex);
-            const contrastRgb = getContrastTextColor(themeColorHex) === '#ffffff' ? [255, 255, 255] : [30, 41, 59];
-            const _combinedTitleRgb = _isLight ? [30, 41, 59] : themeRgb;
-            const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
-            const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
+        // --- 2. MIDDLE (Left: INVOICE & BILL TO, Right: METADATA GRID) ---
+        const themeColorHex = comp.invoiceColor || companySettings?.invoiceColor || '#dedede';
+        const _isLight = isLightColor(themeColorHex);
+        const themeRgb = hexToRgb(themeColorHex);
+        const contrastRgb = getContrastTextColor(themeColorHex) === '#ffffff' ? [255, 255, 255] : [30, 41, 59];
+        const _combinedTitleRgb = _isLight ? [30, 41, 59] : themeRgb;
+        const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
+        const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
 
-            let midY = Math.max(50, compY + 4, 12 + logoPdfHeight + 4);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(13);
-            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
-            const docTitle = inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (comp?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE'));
-            let billY = printPdfBlock(docTitle, 14, midY, 96, 5.2);
-            billY += 1.5;
+        let midY = Math.max(50, compY + 4, 12 + logoPdfHeight + 4);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+        const docTitle = inv.type === 'POS_INVOICE' ? 'POS RECEIPT' : (getDocumentTitle('invoice') || (comp?.isVatRegistered ? 'VAT INVOICE' : 'INVOICE'));
+        let billY = printPdfBlock(docTitle, 14, midY, 96, 5.2);
+        billY += 1.5;
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.setTextColor(136, 136, 136);
-            billY = printPdfBlock(getInvoiceLabel('billTo') || 'BILL TO', 14, billY, 96, 4.0);
-            billY += 1.0;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(136, 136, 136);
+        billY = printPdfBlock(getInvoiceLabel('billTo') || 'BILL TO', 14, billY, 96, 4.0);
+        billY += 1.0;
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.setTextColor(17, 24, 39);
-            billY = printPdfBlock(billName || '', 14, billY, 96, 4.6);
-            billY += 0.5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        billY = printPdfBlock(billName || '', 14, billY, 96, 4.6);
+        billY += 0.5;
 
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(55, 65, 81);
-            if (billAddr) {
-                billY = printPdfBlock(billAddr, 14, billY, 96, 4.2);
-            }
-            if (billCityStateZip && billCityStateZip !== billAddr) {
-                billY = printPdfBlock(billCityStateZip, 14, billY, 96, 4.2);
-            }
-            if (billPhone) {
-                billY = printPdfBlock(billPhone, 14, billY, 96, 4.2);
-            }
-            if (billEmail) {
-                billY = printPdfBlock(billEmail, 14, billY, 96, 4.2);
-            }
-            if (billVat) {
-                billY = printPdfBlock(`VAT ID: ${billVat}`, 14, billY, 96, 4.2);
-            }
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(55, 65, 81);
+        if (billAddr) {
+            billY = printPdfBlock(billAddr, 14, billY, 96, 4.2);
+        }
+        if (billCityStateZip && billCityStateZip !== billAddr) {
+            billY = printPdfBlock(billCityStateZip, 14, billY, 96, 4.2);
+        }
+        if (billPhone) {
+            billY = printPdfBlock(billPhone, 14, billY, 96, 4.2);
+        }
+        if (billEmail) {
+            billY = printPdfBlock(billEmail, 14, billY, 96, 4.2);
+        }
+        if (billVat) {
+            billY = printPdfBlock(`VAT ID: ${billVat}`, 14, billY, 96, 4.2);
+        }
 
-            // Right Metadata Grid
-            const metaKeyX = 118;
-            const metaValX = 196;
-            const metaRows = [
-                { key: getInvoiceLabel('number') || 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
-                { key: getInvoiceLabel('issue') || 'DATE', val: formatCeaDate(inv.date) },
-                ...(inv.poNumber && typeof inv.poNumber === 'string' && inv.poNumber.trim() ? [{ key: 'P.O. #', val: inv.poNumber.trim() }] : []),
-                { key: 'TERMS', val: inv.paymentTerms || 'Net 7' },
-                { key: getInvoiceLabel('dueDate') || 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
-            ];
+        // Right Metadata Grid
+        const metaKeyX = 118;
+        const metaValX = 196;
+        const metaRows = [
+            { key: getInvoiceLabel('number') || 'INVOICE', val: String(inv.invoiceNumber || 'N/A').replace(/^#/, '') },
+            { key: getInvoiceLabel('issue') || 'DATE', val: formatCeaDate(inv.date) },
+            ...(inv.poNumber && typeof inv.poNumber === 'string' && inv.poNumber.trim() ? [{ key: 'P.O. #', val: inv.poNumber.trim() }] : []),
+            { key: 'TERMS', val: inv.paymentTerms || 'Net 7' },
+            { key: getInvoiceLabel('dueDate') || 'DUE DATE', val: formatCeaDate(inv.dueDate || inv.date) }
+        ];
 
-            let metaY = midY + 5;
-            metaRows.forEach((m) => {
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(100, 116, 139);
-                doc.text(m.key, metaKeyX, metaY);
-
-                const keyW = doc.getTextWidth(m.key);
-                const maxValW = (metaValX - metaKeyX) - keyW - 3;
-
-                doc.setFont('helvetica', 'bold');
-                let valFontSize = 8.5;
-                doc.setFontSize(valFontSize);
-                while (doc.getTextWidth(m.val) > maxValW && valFontSize > 6) {
-                    valFontSize -= 0.5;
-                    doc.setFontSize(valFontSize);
-                }
-                doc.setTextColor(15, 23, 42);
-                doc.text(m.val, metaValX, metaY, { align: 'right' });
-                metaY += 4.6;
-            });
-
-            // --- 3. ITEMS TABLE ---
-            const tableStartY = Math.max(billY + 5, metaY + 5);
-
-            const showUom = getInvoiceLabel('showUom') === true;
-            const showQty = getInvoiceLabel('showQty') !== false;
-            const showRate = getInvoiceLabel('showRate') !== false;
-            const hasAppliedDiscount = Boolean(
-                (parseFloat(discountVal || 0) > 0) ||
-                (processedItems && processedItems.some(it => it.discText && it.discText !== '0%')) ||
-                (financials?.computedLines && financials.computedLines.some(l => (parseFloat(l.discVal || 0) > 0 || parseFloat(l.lineDiscount || 0) > 0)))
-            );
-            const showDiscount = hasAppliedDiscount;
-            const showTax = getInvoiceLabel('showTax') !== false;
-
-            const cols = [
-                { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 36, align: 'left', fontStyle: 'bold', getData: it => it.actName },
-                { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
-                ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 14, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
-                ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
-                ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
-                ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 22, align: 'center', fontStyle: 'normal', getData: it => it.discText }] : []),
-                ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 18, align: 'center', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
-                { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
-            ];
-
-            const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
-            const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
-            const flexWidth = Math.max(30, totalPrintableWidth - fixedWidthSum);
-
-            const tableHead = [
-                cols.map(c => ({
-                    content: c.header,
-                    styles: { halign: c.align }
-                }))
-            ];
-            const tableBody = processedItems.map(it => cols.map(c => c.getData(it)));
-
-            const columnStyles = {};
-            cols.forEach((c, idx) => {
-                columnStyles[idx] = {
-                    cellWidth: c.isFlex ? flexWidth : c.fixedWidth,
-                    halign: c.align,
-                    valign: 'middle',
-                    ...(c.fontStyle === 'bold' ? { fontStyle: 'bold' } : {})
-                };
-            });
-
-            safeAutoTable(doc, {
-                startY: tableStartY,
-                head: tableHead,
-                body: tableBody,
-                theme: 'plain',
-                tableWidth: totalPrintableWidth,
-                styles: {
-                    overflow: 'linebreak',
-                    valign: 'middle',
-                    fontSize: 7.8,
-                    lineColor: [226, 232, 240],
-                    lineWidth: { bottom: 0.1 }
-                },
-                headStyles: {
-                    fillColor: tableHeaderBgRgb,
-                    textColor: tableHeaderTextRgb,
-                    fontStyle: 'bold',
-                    fontSize: 7.8,
-                    cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
-                    valign: 'middle'
-                },
-                bodyStyles: {
-                    textColor: [15, 23, 42],
-                    fontSize: 7.8,
-                    cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
-                    valign: 'middle',
-                    overflow: 'linebreak',
-                    lineHeight: 1.2
-                },
-                columnStyles: columnStyles,
-                didParseCell: (data) => {
-                    const col = cols[data.column.index];
-                    if (col && col.align) {
-                        data.cell.styles.halign = col.align;
-                    }
-                },
-                rowPageBreak: 'avoid',
-                margin: { left: 14, right: 14 }
-            });
-
-            // --- 4. DIVIDER & TOTALS SECTION ---
-            let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 2.5;
-            if (postTableY + 45 > 275) {
-                doc.addPage();
-                postTableY = 20;
-            }
-            doc.setDrawColor(203, 213, 225);
-            doc.setLineDashPattern([1, 1], 0);
-            doc.line(14, postTableY, 196, postTableY);
-            doc.setLineDashPattern([], 0);
-
+        let metaY = midY + 5;
+        metaRows.forEach((m) => {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
             doc.setTextColor(100, 116, 139);
-            doc.text('We appreciate your business.', 14, postTableY + 4);
+            doc.text(m.key, metaKeyX, metaY);
 
-            const totLabelX = 138;
-            const totValX = 196;
-            let totY = postTableY + 4;
+            const keyW = doc.getTextWidth(m.key);
+            const maxValW = (metaValX - metaKeyX) - keyW - 3;
 
-            const printTotalLine = (label, val, isBold = false, isDiscount = false) => {
-                doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-                doc.setFontSize(8);
-                if (isDiscount && discountVal > 0) {
-                    doc.setTextColor(220, 38, 38);
-                } else {
-                    doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
-                }
-                doc.text(label, totLabelX, totY);
-                doc.text(val, totValX, totY, { align: 'right' });
-                totY += 4.0;
+            doc.setFont('helvetica', 'bold');
+            let valFontSize = 8.5;
+            doc.setFontSize(valFontSize);
+            while (doc.getTextWidth(m.val) > maxValW && valFontSize > 6) {
+                valFontSize -= 0.5;
+                doc.setFontSize(valFontSize);
+            }
+            doc.setTextColor(15, 23, 42);
+            doc.text(m.val, metaValX, metaY, { align: 'right' });
+            metaY += 4.6;
+        });
+
+        // --- 3. ITEMS TABLE ---
+        const tableStartY = Math.max(billY + 5, metaY + 5);
+
+        const showUom = getInvoiceLabel('showUom') === true;
+        const showQty = getInvoiceLabel('showQty') !== false;
+        const showRate = getInvoiceLabel('showRate') !== false;
+        const hasAppliedDiscount = Boolean(
+            (parseFloat(discountVal || 0) > 0) ||
+            (processedItems && processedItems.some(it => it.discText && it.discText !== '0%')) ||
+            (financials?.computedLines && financials.computedLines.some(l => (parseFloat(l.discVal || 0) > 0 || parseFloat(l.lineDiscount || 0) > 0)))
+        );
+        const showDiscount = hasAppliedDiscount;
+        const showTax = getInvoiceLabel('showTax') !== false;
+
+        const cols = [
+            { key: 'activity', header: getTableHeader('item', 'ACTIVITY'), fixedWidth: 36, align: 'left', fontStyle: 'bold', getData: it => it.actName },
+            { key: 'description', header: getTableHeader('warehouse', 'DESCRIPTION'), isFlex: true, align: 'left', fontStyle: 'normal', getData: it => it.desc },
+            ...(showUom ? [{ key: 'uom', header: getTableHeader('uom', 'UOM'), fixedWidth: 14, align: 'center', fontStyle: 'normal', getData: it => it.uom || 'Units' }] : []),
+            ...(showQty ? [{ key: 'quantity', header: getTableHeader('quantity', 'QUANTITY'), fixedWidth: 18, align: 'right', fontStyle: 'normal', getData: it => it.qty }] : []),
+            ...(showRate ? [{ key: 'rate', header: getTableHeader('rate', 'RATE'), fixedWidth: 20, align: 'right', fontStyle: 'normal', getData: it => Number(it.rate).toFixed(2) }] : []),
+            ...(showDiscount ? [{ key: 'discount', header: getTableHeader('discount', 'DISCOUNT'), fixedWidth: 22, align: 'center', fontStyle: 'normal', getData: it => it.discText }] : []),
+            ...(showTax ? [{ key: 'tax', header: getTableHeader('tax', 'TAX'), fixedWidth: 18, align: 'center', fontStyle: 'normal', getData: it => it.taxDisplay }] : []),
+            { key: 'price', header: getTableHeader('price', 'PRICE'), fixedWidth: 24, align: 'right', fontStyle: 'normal', getData: it => Number(it.amt).toFixed(2) }
+        ];
+
+        const totalPrintableWidth = 182; // 210mm A4 - 14mm margins on each side
+        const fixedWidthSum = cols.filter(c => !c.isFlex).reduce((sum, c) => sum + c.fixedWidth, 0);
+        const flexWidth = Math.max(30, totalPrintableWidth - fixedWidthSum);
+
+        const tableHead = [
+            cols.map(c => ({
+                content: c.header,
+                styles: { halign: c.align }
+            }))
+        ];
+        const tableBody = processedItems.map(it => cols.map(c => c.getData(it)));
+
+        const columnStyles = {};
+        cols.forEach((c, idx) => {
+            columnStyles[idx] = {
+                cellWidth: c.isFlex ? flexWidth : c.fixedWidth,
+                halign: c.align,
+                valign: 'middle',
+                ...(c.fontStyle === 'bold' ? { fontStyle: 'bold' } : {})
             };
+        });
 
-            printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
-            if (discountVal > 0) {
-                printTotalLine('DISCOUNT', `-${Number(discountVal).toFixed(2)}`, false, true);
-                printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
-            }
-            if (financials.otherCharges > 0) {
-                printTotalLine('OTHER CHARGES', Number(financials.otherCharges).toFixed(2));
-            }
-            if (financials.roundOff !== 0) {
-                printTotalLine('ROUND OFF', Number(financials.roundOff).toFixed(2));
-            }
-            printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
-            printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
-            const pdfPayHistory = resolveInvoicePaymentHistory(inv);
-            if (pdfPayHistory.length > 0) {
-                pdfPayHistory.forEach(pmt => {
-                    const pmtD = pmt.date ? new Date(pmt.date) : null;
-                    const pmtLabel = pmtD && !isNaN(pmtD.getTime())
-                        ? `PAYMENT ON ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
-                        : (pmt.receiptNumber ? `PAYMENT (${pmt.receiptNumber})` : 'PAYMENT');
-                    // Blue label, green value for per-payment lines
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(8);
-                    doc.setTextColor(37, 99, 235); // #2563eb blue
-                    doc.text(pmtLabel, totLabelX, totY);
-                    doc.setTextColor(22, 163, 74); // #16a34a green
-                    doc.text(`-${Number(pmt.amount || 0).toFixed(2)}`, totValX, totY, { align: 'right' });
-                    totY += 4.0;
-                });
-            } else if (parseFloat(paidVal) > 0) {
-                printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
-            }
+        safeAutoTable(doc, {
+            startY: tableStartY,
+            head: tableHead,
+            body: tableBody,
+            theme: 'plain',
+            tableWidth: totalPrintableWidth,
+            styles: {
+                overflow: 'linebreak',
+                valign: 'middle',
+                fontSize: 7.8,
+                lineColor: [226, 232, 240],
+                lineWidth: { bottom: 0.1 }
+            },
+            headStyles: {
+                fillColor: tableHeaderBgRgb,
+                textColor: tableHeaderTextRgb,
+                fontStyle: 'bold',
+                fontSize: 7.8,
+                cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
+                valign: 'middle'
+            },
+            bodyStyles: {
+                textColor: [15, 23, 42],
+                fontSize: 7.8,
+                cellPadding: { top: 2.5, bottom: 2.5, left: 1.5, right: 1.5 },
+                valign: 'middle',
+                overflow: 'linebreak',
+                lineHeight: 1.2
+            },
+            columnStyles: columnStyles,
+            didParseCell: (data) => {
+                const col = cols[data.column.index];
+                if (col && col.align) {
+                    data.cell.styles.halign = col.align;
+                }
+            },
+            rowPageBreak: 'avoid',
+            margin: { left: 14, right: 14 }
+        });
 
-            // Dotted divider before Balance Due
-            doc.setDrawColor(203, 213, 225);
-            doc.setLineDashPattern([1, 1], 0);
-            doc.line(14, totY + 1, 196, totY + 1);
-            doc.setLineDashPattern([], 0);
+        // --- 4. DIVIDER & TOTALS SECTION ---
+        let postTableY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : tableStartY + 30) + 2.5;
+        if (postTableY + 45 > 275) {
+            doc.addPage();
+            postTableY = 20;
+        }
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(14, postTableY, 196, postTableY);
+        doc.setLineDashPattern([], 0);
 
-            totY += 5;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5);
-            doc.setTextColor(71, 85, 105);
-            doc.text('BALANCE DUE', totLabelX, totY);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('We appreciate your business.', 14, postTableY + 4);
 
-            doc.setFontSize(10.5);
-            doc.setTextColor(17, 24, 39);
-            doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
+        const totLabelX = 138;
+        const totValX = 196;
+        let totY = postTableY + 4;
 
-            // Status Clean Text Display (Unboxed matching client specification)
-            totY += 4.5;
-            const isStatusPaid = currentStatus === 'PAID' || currentStatus === 'COMPLETED' || currentStatus === 'FULLY PAID';
-            const statusTextColor = isStatusPaid ? [22, 163, 74] // #16a34a
-                : currentStatus === 'OVERDUE' ? [220, 38, 38]
-                : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? [234, 88, 12]
-                : currentStatus === 'CANCELLED' ? [100, 116, 139]
-                : [220, 38, 38];
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10.5);
-            doc.setTextColor(statusTextColor[0], statusTextColor[1], statusTextColor[2]);
-            doc.text(currentStatus, totValX, totY, { align: 'right' });
-
-            // --- 5. VAT SUMMARY TABLE ---
-            let vatSectionY = totY + 5.5;
-            const vatEstHeight = 8 + (vatSummaryList.length * 5);
-            if (vatSectionY + vatEstHeight > 275) {
-                doc.addPage();
-                vatSectionY = 20;
-            }
-
-            doc.setFont('helvetica', 'bold');
+        const printTotalLine = (label, val, isBold = false, isDiscount = false) => {
+            doc.setFont('helvetica', isBold ? 'bold' : 'normal');
             doc.setFontSize(8);
-            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
-            doc.text('VAT SUMMARY', 14, vatSectionY);
+            if (isDiscount && discountVal > 0) {
+                doc.setTextColor(220, 38, 38);
+            } else {
+                doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
+            }
+            doc.text(label, totLabelX, totY);
+            doc.text(val, totValX, totY, { align: 'right' });
+            totY += 4.0;
+        };
 
-            const vatTableHead = [[
-                { content: '', styles: { halign: 'left' } },
-                { content: 'RATE', styles: { halign: 'left' } },
-                { content: 'VAT', styles: { halign: 'right' } },
-                { content: 'NET', styles: { halign: 'right' } }
-            ]];
-            const vatTableBody = vatSummaryList.map(v => [
-                '',
-                parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate !== undefined ? v.rate : 23).toFixed(2))}%`,
-                Number(v.vatAmount).toFixed(2),
-                Number(v.netAmount).toFixed(2)
-            ]);
-
-            safeAutoTable(doc, {
-                startY: vatSectionY + 2,
-                head: vatTableHead,
-                body: vatTableBody,
-                theme: 'plain',
-                headStyles: {
-                    fillColor: tableHeaderBgRgb,
-                    textColor: tableHeaderTextRgb,
-                    fontStyle: 'bold',
-                    fontSize: 7.2,
-                    cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
-                },
-                bodyStyles: {
-                    textColor: [15, 23, 42],
-                    fontSize: 7.2,
-                    cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
-                },
-                columnStyles: {
-                    0: { cellWidth: 70, halign: 'left' },
-                    1: { cellWidth: 40, halign: 'left' },
-                    2: { cellWidth: 36, halign: 'right' },
-                    3: { cellWidth: 36, halign: 'right' }
-                },
-                didParseCell: (data) => {
-                    if (data.column.index === 0) data.cell.styles.halign = 'left';
-                    if (data.column.index === 1) data.cell.styles.halign = 'left';
-                    if (data.column.index === 2) data.cell.styles.halign = 'right';
-                    if (data.column.index === 3) data.cell.styles.halign = 'right';
-                },
-                margin: { left: 14, right: 14 }
+        printTotalLine('SUBTOTAL', Number(subtotalVal).toFixed(2));
+        if (discountVal > 0) {
+            printTotalLine('DISCOUNT', `-${Number(discountVal).toFixed(2)}`, false, true);
+            printTotalLine('TAXABLE AMOUNT', Number(taxableVal).toFixed(2));
+        }
+        if (financials.otherCharges > 0) {
+            printTotalLine('OTHER CHARGES', Number(financials.otherCharges).toFixed(2));
+        }
+        if (financials.roundOff !== 0) {
+            printTotalLine('ROUND OFF', Number(financials.roundOff).toFixed(2));
+        }
+        printTotalLine(getInvoiceLabel('tax') || 'TAX', Number(taxVal).toFixed(2));
+        printTotalLine(getInvoiceLabel('total') || 'TOTAL', Number(totalVal).toFixed(2), true);
+        const pdfPayHistory = resolveInvoicePaymentHistory(inv);
+        if (pdfPayHistory.length > 0) {
+            pdfPayHistory.forEach(pmt => {
+                const pmtD = pmt.date ? new Date(pmt.date) : null;
+                const pmtLabel = pmtD && !isNaN(pmtD.getTime())
+                    ? `PAYMENT ON ${String(pmtD.getDate()).padStart(2, '0')}-${String(pmtD.getMonth() + 1).padStart(2, '0')}-${pmtD.getFullYear()}`
+                    : (pmt.receiptNumber ? `PAYMENT (${pmt.receiptNumber})` : 'PAYMENT');
+                // Blue label, green value for per-payment lines
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(37, 99, 235); // #2563eb blue
+                doc.text(pmtLabel, totLabelX, totY);
+                doc.setTextColor(22, 163, 74); // #16a34a green
+                doc.text(`-${Number(pmt.amount || 0).toFixed(2)}`, totValX, totY, { align: 'right' });
+                totY += 4.0;
             });
+        } else if (parseFloat(paidVal) > 0) {
+            printTotalLine('PAYMENT', `-${Number(paidVal).toFixed(2)}`);
+        }
 
-            // --- 6. BANK DETAILS ROUNDED BOX ---
+        // Dotted divider before Balance Due
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(14, totY + 1, 196, totY + 1);
+        doc.setLineDashPattern([], 0);
+
+        totY += 5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text('BALANCE DUE', totLabelX, totY);
+
+        doc.setFontSize(10.5);
+        doc.setTextColor(17, 24, 39);
+        doc.text(`${currency} ${Number(balanceVal).toFixed(2)}`, totValX, totY, { align: 'right' });
+
+        // Status Clean Text Display (Unboxed matching client specification)
+        totY += 4.5;
+        const isStatusPaid = currentStatus === 'PAID' || currentStatus === 'COMPLETED' || currentStatus === 'FULLY PAID';
+        const statusTextColor = isStatusPaid ? [22, 163, 74] // #16a34a
+            : currentStatus === 'OVERDUE' ? [220, 38, 38]
+                : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? [234, 88, 12]
+                    : currentStatus === 'CANCELLED' ? [100, 116, 139]
+                        : [220, 38, 38];
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(statusTextColor[0], statusTextColor[1], statusTextColor[2]);
+        doc.text(currentStatus, totValX, totY, { align: 'right' });
+
+        // --- 5. VAT SUMMARY TABLE ---
+        let vatSectionY = totY + 5.5;
+        const vatEstHeight = 8 + (vatSummaryList.length * 5);
+        if (vatSectionY + vatEstHeight > 275) {
+            doc.addPage();
+            vatSectionY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+        doc.text('VAT SUMMARY', 14, vatSectionY);
+
+        const vatTableHead = [[
+            { content: '', styles: { halign: 'left' } },
+            { content: 'RATE', styles: { halign: 'left' } },
+            { content: 'VAT', styles: { halign: 'right' } },
+            { content: 'NET', styles: { halign: 'right' } }
+        ]];
+        const vatTableBody = vatSummaryList.map(v => [
+            '',
+            parseFloat(v.rate) === 0 ? 'No VAT' : `VAT @ ${parseFloat(Number(v.rate !== undefined ? v.rate : 23).toFixed(2))}%`,
+            Number(v.vatAmount).toFixed(2),
+            Number(v.netAmount).toFixed(2)
+        ]);
+
+        safeAutoTable(doc, {
+            startY: vatSectionY + 2,
+            head: vatTableHead,
+            body: vatTableBody,
+            theme: 'plain',
+            headStyles: {
+                fillColor: tableHeaderBgRgb,
+                textColor: tableHeaderTextRgb,
+                fontStyle: 'bold',
+                fontSize: 7.2,
+                cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
+            },
+            bodyStyles: {
+                textColor: [15, 23, 42],
+                fontSize: 7.2,
+                cellPadding: { top: 1.6, bottom: 1.6, left: 2.5, right: 2.5 }
+            },
+            columnStyles: {
+                0: { cellWidth: 70, halign: 'left' },
+                1: { cellWidth: 40, halign: 'left' },
+                2: { cellWidth: 36, halign: 'right' },
+                3: { cellWidth: 36, halign: 'right' }
+            },
+            didParseCell: (data) => {
+                if (data.column.index === 0) data.cell.styles.halign = 'left';
+                if (data.column.index === 1) data.cell.styles.halign = 'left';
+                if (data.column.index === 2) data.cell.styles.halign = 'right';
+                if (data.column.index === 3) data.cell.styles.halign = 'right';
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // --- 6. BANK DETAILS ROUNDED BOX ---
+        const bankLines = [];
+        if (bankAccountName) bankLines.push(`Account Name : ${bankAccountName}`);
+        if (bankName) bankLines.push(`Bank Name: ${bankName}`);
+        if (bankAccount) bankLines.push(`Account Number: ${bankAccount}`);
+        if (bankIban) bankLines.push(`IBAN: ${bankIban}`);
+        if (bankSortCode) bankLines.push(`Sort Code: ${bankSortCode}`);
+        if (bankBic) bankLines.push(`BIC: ${bankBic}`);
+
+        const companyAddrLines = resolveCompanyAddressLines(comp);
+        const hasBankDetails = bankLines.length > 0;
+        const hasCompanyAddress = companyAddrLines.length > 0;
+
+        if (hasBankDetails || hasCompanyAddress) {
+            const leftLinesCount = bankLines.length;
+            const rightLinesCount = hasCompanyAddress ? (companyAddrLines.length + 1) : 0;
+            const maxLines = Math.max(leftLinesCount, rightLinesCount, 1);
+            const bankBoxHeight = Math.max(16, 5 + (maxLines * 3.8));
+
             let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
-            if (bankY + 21 > 275) {
+            if (bankY + bankBoxHeight + 4 > 275) {
                 doc.addPage();
                 bankY = 20;
             }
 
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
-            doc.roundedRect(14, bankY, 182, 20, 2, 2, 'FD');
+            doc.roundedRect(14, bankY, 182, bankBoxHeight, 2, 2, 'FD');
 
             // Left accent border bar (Clean neutral slate/gray bar, never blue)
             const bankBarRgb = _isLight ? [148, 163, 184] : themeRgb;
             doc.setFillColor(bankBarRgb[0], bankBarRgb[1], bankBarRgb[2]);
-            doc.rect(14, bankY, 2, 20, 'F');
+            doc.rect(14, bankY, 2, bankBoxHeight, 'F');
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.2);
             doc.setTextColor(71, 85, 105);
-            // Left Column
-            doc.text(`Name: ${bankAccountName}`, 18, bankY + 4.5);
-            doc.text(`IBAN:${bankIban}`, 18, bankY + 8.5);
-            doc.text(`BIC: ${bankBic}`, 18, bankY + 12.5);
-            doc.text(`Account: ${bankAccount}`, 18, bankY + 16.5);
 
-            // Right Column
-            doc.text(`NSC (SORT CODE): ${bankSortCode || '902901'}`, 108, bankY + 4.5);
-            doc.text(String(bankName || 'Bank Of Ireland'), 108, bankY + 8.5);
-            if (comp.bankAddress && comp.bankAddress !== '97 Main Street, Midleton, Co. Cork') {
-                doc.text(String(comp.bankAddress), 108, bankY + 12.5);
-            }
+            // Left Column (Only render bank details that actually exist)
+            let bLineY = bankY + 4.2;
+            bankLines.forEach((bLine) => {
+                doc.text(bLine, 18, bLineY);
+                bLineY += 3.8;
+            });
 
-            // --- 7. PAYMENT HISTORY TABLE (commented out) ---
-            /* const sortedHistory = resolveInvoicePaymentHistory(inv);
-
-            if (sortedHistory.length > 0) {
-                let pmtSectionY = bankY + 20 + 3.5;
-                const pmtEstHeight = 8 + (sortedHistory.length * 5.2);
-                if (pmtSectionY + pmtEstHeight > 275) {
-                    doc.addPage();
-                    pmtSectionY = 20;
-                }
-
+            // Right Column (Company Address) - Right-aligned against right margin (192mm)
+            if (hasCompanyAddress) {
+                let rY = bankY + 4.2;
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(8);
-                doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
-                doc.text('PAYMENT HISTORY', 14, pmtSectionY);
-
-                const pmtTableHead = [[
-                    { content: 'Payment Date', styles: { halign: 'left' } },
-                    { content: 'Receipt Number', styles: { halign: 'left' } },
-                    { content: 'Payment Amount', styles: { halign: 'right' } },
-                    { content: 'Payment Method', styles: { halign: 'center' } },
-                    { content: 'Balance After Payment', styles: { halign: 'right' } }
-                ]];
-
-                const pmtTableBody = sortedHistory.map(p => {
-                    const d = p.date ? new Date(p.date) : null;
-                    const dateStr = d && !isNaN(d.getTime())
-                        ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-                        : '-';
-                    const amtStr = `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    const balAfterStr = (p.balanceAfterPayment !== undefined && p.balanceAfterPayment !== null)
-                        ? `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.balanceAfterPayment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : '-';
-                    return [
-                        dateStr,
-                        p.receiptNumber || '-',
-                        amtStr,
-                        (p.paymentMode || 'BANK').toUpperCase(),
-                        balAfterStr
-                    ];
-                });
-
-                safeAutoTable(doc, {
-                    startY: pmtSectionY + 2,
-                    head: pmtTableHead,
-                    body: pmtTableBody,
-                    theme: 'plain',
-                    headStyles: {
-                        fillColor: tableHeaderBgRgb,
-                        textColor: tableHeaderTextRgb,
-                        fontStyle: 'bold',
-                        fontSize: 7.2,
-                        cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
-                    },
-                    bodyStyles: {
-                        textColor: [15, 23, 42],
-                        fontSize: 7.2,
-                        cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
-                    },
-                    columnStyles: {
-                        0: { cellWidth: 32, halign: 'left' },
-                        1: { cellWidth: 38, halign: 'left' },
-                        2: { cellWidth: 38, halign: 'right' },
-                        3: { cellWidth: 34, halign: 'center' },
-                        4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
-                    },
-                    didParseCell: (data) => {
-                        if (data.column.index === 0 || data.column.index === 1) data.cell.styles.halign = 'left';
-                        if (data.column.index === 2 || data.column.index === 4) data.cell.styles.halign = 'right';
-                        if (data.column.index === 3) data.cell.styles.halign = 'center';
-                    },
-                    margin: { left: 14, right: 14 }
-                });
-            } */
-
-            // --- 7. FOOTER ---
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
+                doc.text('Company Address:', 192, rY, { align: 'right' });
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7.5);
-                doc.setTextColor(148, 163, 184);
-                doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+                rY += 3.8;
+                companyAddrLines.forEach((line) => {
+                    const wrapped = doc.splitTextToSize(line, 80);
+                    doc.text(wrapped, 192, rY, { align: 'right' });
+                    rY += (wrapped.length * 3.8);
+                });
+            }
+        }
+
+        // --- 7. PAYMENT HISTORY TABLE (commented out) ---
+        /* const sortedHistory = resolveInvoicePaymentHistory(inv);
+
+        if (sortedHistory.length > 0) {
+            let pmtSectionY = bankY + 20 + 3.5;
+            const pmtEstHeight = 8 + (sortedHistory.length * 5.2);
+            if (pmtSectionY + pmtEstHeight > 275) {
+                doc.addPage();
+                pmtSectionY = 20;
             }
 
-            return { doc, inv };
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+            doc.text('PAYMENT HISTORY', 14, pmtSectionY);
+
+            const pmtTableHead = [[
+                { content: 'Payment Date', styles: { halign: 'left' } },
+                { content: 'Receipt Number', styles: { halign: 'left' } },
+                { content: 'Payment Amount', styles: { halign: 'right' } },
+                { content: 'Payment Method', styles: { halign: 'center' } },
+                { content: 'Balance After Payment', styles: { halign: 'right' } }
+            ]];
+
+            const pmtTableBody = sortedHistory.map(p => {
+                const d = p.date ? new Date(p.date) : null;
+                const dateStr = d && !isNaN(d.getTime())
+                    ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+                    : '-';
+                const amtStr = `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const balAfterStr = (p.balanceAfterPayment !== undefined && p.balanceAfterPayment !== null)
+                    ? `${currency === 'EUR' ? '€' : `${currency} `}${Number(p.balanceAfterPayment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : '-';
+                return [
+                    dateStr,
+                    p.receiptNumber || '-',
+                    amtStr,
+                    (p.paymentMode || 'BANK').toUpperCase(),
+                    balAfterStr
+                ];
+            });
+
+            safeAutoTable(doc, {
+                startY: pmtSectionY + 2,
+                head: pmtTableHead,
+                body: pmtTableBody,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: tableHeaderBgRgb,
+                    textColor: tableHeaderTextRgb,
+                    fontStyle: 'bold',
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                },
+                bodyStyles: {
+                    textColor: [15, 23, 42],
+                    fontSize: 7.2,
+                    cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }
+                },
+                columnStyles: {
+                    0: { cellWidth: 32, halign: 'left' },
+                    1: { cellWidth: 38, halign: 'left' },
+                    2: { cellWidth: 38, halign: 'right' },
+                    3: { cellWidth: 34, halign: 'center' },
+                    4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+                },
+                didParseCell: (data) => {
+                    if (data.column.index === 0 || data.column.index === 1) data.cell.styles.halign = 'left';
+                    if (data.column.index === 2 || data.column.index === 4) data.cell.styles.halign = 'right';
+                    if (data.column.index === 3) data.cell.styles.halign = 'center';
+                },
+                margin: { left: 14, right: 14 }
+            });
+        } */
+
+        // --- 7. FOOTER ---
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+        }
+
+        return { doc, inv };
     }
 
     const handleDownloadSingleInvoicePDF = async (invInput) => {
@@ -4087,7 +4160,7 @@ const Invoice = () => {
                         if (Array.isArray(cf?._otherCharges)) {
                             otherCharges = cf._otherCharges.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
 
                 const invCurrency = (inv.currency || baseCurrency).toUpperCase();
@@ -5558,12 +5631,12 @@ const Invoice = () => {
                             <button
                                 type="button"
                                 className="Invoice-btn-primary-detail payment"
-                                onClick={() => navigate('/company/sales/payment', { 
-                                    state: { 
-                                        targetInvoiceId: selectedInvoice.id, 
-                                        invoiceType: selectedInvoice.type, 
-                                        customerId: selectedInvoice.customerId 
-                                    } 
+                                onClick={() => navigate('/company/sales/payment', {
+                                    state: {
+                                        targetInvoiceId: selectedInvoice.id,
+                                        invoiceType: selectedInvoice.type,
+                                        customerId: selectedInvoice.customerId
+                                    }
                                 })}
                                 title="Receive Payment for this Invoice"
                             >
@@ -5571,9 +5644,9 @@ const Invoice = () => {
                                 <span>Receive Payment</span>
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 type="button"
-                                className="Invoice-btn-primary-detail print" 
+                                className="Invoice-btn-primary-detail print"
                                 onClick={handlePrint}
                                 title="Print Invoice"
                             >
@@ -5607,7 +5680,7 @@ const Invoice = () => {
 
                 {(() => {
                     const companyDetails = selectedInvoice?.company || companySettings || {};
-                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo);
+                    const companyLogoSrc = getCompanyLogoSrc(companyDetails.invoiceLogo || companyDetails.logo || companySettings?.invoiceLogo || companySettings?.logo, null);
                     const themeColor = companyDetails.invoiceColor || companySettings?.invoiceColor || '#dedede';
                     const isLightColor = (color) => {
                         if (!color) return true;
@@ -5646,8 +5719,8 @@ const Invoice = () => {
                     };
 
                     const targetCust = customers.find(c => String(c.id) === String(selectedInvoice?.customerId || selectedInvoice?.customer?.id)) || selectedInvoice?.customer;
-                    const billName = selectedInvoice?.billingName || targetCust?.billingName || targetCust?.name || 'Frank Sheridan';
-                    const billAddr = selectedInvoice?.billingAddress || targetCust?.billingAddress || targetCust?.companyLocation || targetCust?.address || '56 New cork road, Midleton, Co. Cork';
+                    const billName = selectedInvoice?.billingName || targetCust?.billingName || targetCust?.name || '';
+                    const billAddr = selectedInvoice?.billingAddress || targetCust?.billingAddress || targetCust?.companyLocation || targetCust?.address || '';
                     const billCityStateZip = [
                         selectedInvoice?.billingCity || targetCust?.billingCity || targetCust?.city,
                         selectedInvoice?.billingState || targetCust?.billingState || targetCust?.state,
@@ -5671,7 +5744,7 @@ const Invoice = () => {
                     const initialLineItems = rawItems.length > 0 ? rawItems : [
                         {
                             activity: 'Services',
-                            description: billAddr || '56 New cork road, Midleton, Co. Cork',
+                            description: billAddr || 'Services',
                             taxRate: 23,
                             quantity: 1,
                             rate: 200,
@@ -5713,13 +5786,15 @@ const Invoice = () => {
                         return financials.status || 'UNPAID';
                     })();
 
-                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || companyDetails.name || 'CEAC LTD';
-                    const bankIban = companyDetails.iban || 'IE03BOFI90290116673832';
-                    const bankBic = companyDetails.bic || 'BOFIIE2D';
-                    const bankAccount = companyDetails.accountNumber || '16673832';
-                    const bankSortCode = companyDetails.sortCode || '902901';
-                    const bankName = companyDetails.bankName || 'Bank Of Ireland';
-                    const bankAddress = companyDetails.bankAddress || '97 Main Street, Midleton, Co. Cork';
+                    const bankAccountName = companyDetails.accountName || companyDetails.accountHolder || '';
+                    const bankIban = companyDetails.iban || '';
+                    const bankBic = companyDetails.bic || '';
+                    const bankAccount = companyDetails.accountNumber || '';
+                    const bankSortCode = companyDetails.sortCode || companyDetails.ifsc || '';
+                    const bankName = companyDetails.bankName || '';
+                    const compAddrLines = resolveCompanyAddressLines(companyDetails);
+                    const hasBankDetails = Boolean(bankAccountName || bankName || bankAccount || bankIban || bankSortCode || bankBic);
+                    const hasCompanyAddress = compAddrLines.length > 0;
 
                     const effectiveItemCount = lineItems.reduce((acc, it) => {
                         const descLen = (it.description || '').length;
@@ -5745,28 +5820,47 @@ const Invoice = () => {
                                 {showHeader && (
                                     <div className="invoice-cea-header">
                                         <div className="invoice-cea-company">
-                                            <div className="invoice-cea-company-name">{companyDetails.name || 'CEAC Ltd'}</div>
-                                            <div className="invoice-cea-company-line">{companyDetails.address || '17 South Mall'}</div>
-                                            <div className="invoice-cea-company-line">
-                                                {companyDetails.city && companyDetails.zip
-                                                    ? `${companyDetails.city}, ${companyDetails.state ? (companyDetails.state.includes('Co') ? companyDetails.state : `Co, ${companyDetails.state}`) : 'Co, Cork'} ${companyDetails.zip}`
-                                                    : 'Cork, Co, Cork T12VCY2'}
+                                            <div className="invoice-cea-company-name">{companyDetails.name || ''}</div>
+                                            {companyDetails.address && (
+                                                <div className="invoice-cea-company-line" style={{ whiteSpace: 'pre-line' }}>
+                                                    {companyDetails.address}
+                                                </div>
+                                            )}
+                                            {(() => {
+                                                const cityParts = [];
+                                                if (companyDetails.city && companyDetails.city.trim()) {
+                                                    cityParts.push(companyDetails.city.trim().replace(/,\s*$/, ''));
+                                                }
+                                                if (companyDetails.state && companyDetails.state.trim()) {
+                                                    cityParts.push(companyDetails.state.trim().replace(/,\s*$/, ''));
+                                                }
+                                                const cityState = cityParts.join(', ');
+                                                const fullLoc = [cityState, (companyDetails.zip || '').trim()].filter(Boolean).join(' ');
+                                                if (fullLoc && (!companyDetails.address || !companyDetails.address.includes(fullLoc))) {
+                                                    return <div className="invoice-cea-company-line">{fullLoc}</div>;
+                                                }
+                                                return null;
+                                            })()}
+                                            {companyDetails.phone && <div className="invoice-cea-company-line">{companyDetails.phone}</div>}
+                                            {companyDetails.email && <div className="invoice-cea-company-line">{companyDetails.email}</div>}
+                                            {(companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber) && (
+                                                <div className="invoice-cea-company-line">
+                                                    VAT ID: {companyDetails.vatNumber || companyDetails.taxNumber || companyDetails.gstNumber}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {companyLogoSrc && (
+                                            <div className="invoice-cea-logo-container">
+                                                <img
+                                                    src={companyLogoSrc}
+                                                    alt={companyDetails.name || "Company Logo"}
+                                                    className="invoice-cea-logo-img"
+                                                    onError={(e) => {
+                                                        e.currentTarget.style.display = 'none';
+                                                    }}
+                                                />
                                             </div>
-                                            <div className="invoice-cea-company-line">{companyDetails.phone || '+353214272000'}</div>
-                                            <div className="invoice-cea-company-line">{companyDetails.email || 'accounts@ceaarchitects.com'}</div>
-                                            <div className="invoice-cea-company-line">VAT ID: {companyDetails.vatNumber || '4120278GH'}</div>
-                                        </div>
-                                        <div className="invoice-cea-logo-container">
-                                            <img
-                                                src={companyLogoSrc}
-                                                alt={companyDetails.name || "Company Logo"}
-                                                className="invoice-cea-logo-img"
-                                                onError={(e) => {
-                                                    e.currentTarget.onerror = null;
-                                                    e.currentTarget.src = ceaArchitectsLogo;
-                                                }}
-                                            />
-                                        </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -5853,14 +5947,14 @@ const Invoice = () => {
                                     <tbody>
                                         {lineItems.map((item, idx) => {
                                             const meta = previewItemsMeta[idx] || previewItemsMeta.find(m => (m.productId && String(m.productId) === String(item.productId)) || (m.serviceId && String(m.serviceId) === String(item.serviceId)));
-                                            const productName = meta?.itemName 
-                                                || item.service?.name 
-                                                || item.product?.name 
-                                                || item.activity 
-                                                || item.name 
+                                            const productName = meta?.itemName
+                                                || item.service?.name
+                                                || item.product?.name
+                                                || item.activity
+                                                || item.name
                                                 || (Array.isArray(allProducts) ? allProducts.find(p => String(p.id) === String(item.productId))?.name : null)
                                                 || (Array.isArray(allServices) ? allServices.find(s => String(s.id) === String(item.serviceId))?.name : null)
-                                                || item.description 
+                                                || item.description
                                                 || (item.serviceId ? 'Service' : 'Item');
                                             const itemDesc = item.description || meta?.description || (item.product?.name ? item.product.name : (item.service?.name || ''));
                                             const computedLine = financials.computedLines[idx] || computeInvoiceLine(item, meta);
@@ -5995,9 +6089,9 @@ const Invoice = () => {
                                                     lineHeight: '1.2',
                                                     color: currentStatus === 'PAID' || currentStatus === 'COMPLETED' ? '#16a34a'
                                                         : currentStatus === 'OVERDUE' ? '#dc2626'
-                                                        : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? '#ea580c'
-                                                        : currentStatus === 'CANCELLED' ? '#64748b'
-                                                        : '#dc2626'
+                                                            : (currentStatus === 'PARTIAL' || currentStatus === 'PARTIALLY PAID') ? '#ea580c'
+                                                                : currentStatus === 'CANCELLED' ? '#64748b'
+                                                                    : '#dc2626'
                                                 }}
                                             >
                                                 {currentStatus}
@@ -6032,21 +6126,30 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 7. BANK DETAILS BOX */}
-                                <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
-                                    <div className="invoice-cea-bank-grid">
-                                        <div className="invoice-cea-bank-col">
-                                            <div className="invoice-cea-bank-line">Name: {bankAccountName}</div>
-                                            <div className="invoice-cea-bank-line">IBAN:{bankIban}</div>
-                                            <div className="invoice-cea-bank-line">BIC: {bankBic}</div>
-                                            <div className="invoice-cea-bank-line">Account: {bankAccount}</div>
-                                        </div>
-                                        <div className="invoice-cea-bank-col">
-                                            <div className="invoice-cea-bank-line">NSC (SORT CODE): {bankSortCode}</div>
-                                            <div className="invoice-cea-bank-line">{bankName}</div>
-                                            <div className="invoice-cea-bank-line">{bankAddress}</div>
+                                {(hasBankDetails || hasCompanyAddress) && (
+                                    <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
+                                        <div className="invoice-cea-bank-grid">
+                                            {hasBankDetails && (
+                                                <div className="invoice-cea-bank-col">
+                                                    {bankAccountName && <div className="invoice-cea-bank-line">Account Name : {bankAccountName}</div>}
+                                                    {bankName && <div className="invoice-cea-bank-line">Bank Name: {bankName}</div>}
+                                                    {bankAccount && <div className="invoice-cea-bank-line">Account Number: {bankAccount}</div>}
+                                                    {bankIban && <div className="invoice-cea-bank-line">IBAN: {bankIban}</div>}
+                                                    {bankSortCode && <div className="invoice-cea-bank-line">Sort Code: {bankSortCode}</div>}
+                                                    {bankBic && <div className="invoice-cea-bank-line">BIC: {bankBic}</div>}
+                                                </div>
+                                            )}
+                                            {hasCompanyAddress && (
+                                                <div className="invoice-cea-bank-col invoice-cea-company-address-col">
+                                                    <div className="invoice-cea-bank-line" style={{ fontWeight: 600 }}>Company Address:</div>
+                                                    {compAddrLines.map((addrLine, aIdx) => (
+                                                        <div key={aIdx} className="invoice-cea-bank-line">{addrLine}</div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* INVOICES INCLUDED IN COMBINED STATEMENT */}
                                 {Boolean(selectedInvoice?.isCombined || (Array.isArray(selectedInvoice?.invoices) && selectedInvoice.invoices.length > 0)) && (
@@ -6158,139 +6261,139 @@ const Invoice = () => {
                     );
                 })()}
 
-                        {/* Attachments Section in View Mode */}
-                        {(() => {
-                            let customFieldVals = {};
-                            if (selectedInvoice?.customFields) {
-                                try {
-                                    customFieldVals = typeof selectedInvoice.customFields === 'string'
-                                        ? JSON.parse(selectedInvoice.customFields)
-                                        : selectedInvoice.customFields;
-                                } catch (e) {
-                                    console.error('Error parsing invoice custom fields for view:', e);
-                                }
-                            }
-                            const atts = customFieldVals?._attachments;
-                            const photos = atts?.photos || [];
-                            const files = atts?.files || [];
-                            if (photos.length === 0 && files.length === 0) return null;
-                            return (
-                                <div className="Invoice-no-print" style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', textAlign: 'left' }}>
-                                    <h3 className="invoice-section-header" style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Attachments</h3>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                                        {photos.map((item, idx) => (
-                                            <a key={`p-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
-                                                <span>🖼️</span> {item.name}
-                                            </a>
-                                        ))}
-                                        {files.map((item, idx) => (
-                                            <a key={`f-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
-                                                <span>📎</span> {item.name}
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-                        {/* Collect Payment Modal */}
-                        {showPaymentModal && selectedInvoice && (
-                        <div className="POSINV-payment-overlay">
-                            <div className="POSINV-payment-modal">
-                                <div className="POSINV-payment-header">
-                                    <h2 className="POSINV-payment-title">Collect Payment - {selectedInvoice.invoiceNumber}</h2>
-                                    <button className="POSINV-payment-close" onClick={() => setShowPaymentModal(false)}>
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                                <div className="POSINV-payment-body">
-                                    <div className="POSINV-payment-info-box">
-                                        <span className="POSINV-payment-info-label">Outstanding Balance:</span>
-                                        <span className="POSINV-payment-info-value">{formatCurrency(selectedInvoice.balanceAmount)}</span>
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Amount to Collect</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            className="POSINV-payment-input"
-                                            value={paymentAmount}
-                                            onChange={(e) => setPaymentAmount(e.target.value)}
-                                            placeholder="Enter amount"
-                                        />
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Payment Mode</label>
-                                        <select
-                                            className="POSINV-payment-select"
-                                            value={paymentMode}
-                                            onChange={(e) => {
-                                                setPaymentMode(e.target.value);
-                                                const modeName = e.target.value === 'CASH' ? 'cash' : 'bank';
-                                                const matched = accounts.find(a => a.name.toLowerCase().includes(modeName));
-                                                if (matched) setSelectedAccountId(matched.id.toString());
-                                            }}
-                                        >
-                                            <option value="CASH">Cash</option>
-                                            <option value="BANK">Bank Transfer</option>
-                                            <option value="CARD">Card Payment</option>
-                                            <option value="UPI">UPI</option>
-                                            <option value="CHEQUE">Cheque</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Received Into (Account)</label>
-                                        <select
-                                            className="POSINV-payment-select"
-                                            value={selectedAccountId}
-                                            onChange={(e) => setSelectedAccountId(e.target.value)}
-                                        >
-                                            <option value="">Select Account</option>
-                                            {accounts.map(acc => (
-                                                <option key={acc.id} value={acc.id.toString()}>{acc.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Payment Date</label>
-                                        <input
-                                            type="date"
-                                            className="POSINV-payment-input"
-                                            value={paymentDate}
-                                            onChange={(e) => setPaymentDate(e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Notes</label>
-                                        <textarea
-                                            className="POSINV-payment-input"
-                                            rows={2}
-                                            value={paymentNotes}
-                                            onChange={(e) => setPaymentNotes(e.target.value)}
-                                            placeholder="Add any payment notes..."
-                                        />
-                                    </div>
-                                </div>
-                                <div className="POSINV-payment-footer">
-                                    <button className="POSINV-payment-btn-cancel" onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}>
-                                        Cancel
-                                    </button>
-                                    <button className="POSINV-payment-btn-submit" onClick={handleConfirmPayment} disabled={paymentSubmitting}>
-                                        {paymentSubmitting ? 'Recording...' : 'Record Payment'}
-                                    </button>
-                                </div>
+                {/* Attachments Section in View Mode */}
+                {(() => {
+                    let customFieldVals = {};
+                    if (selectedInvoice?.customFields) {
+                        try {
+                            customFieldVals = typeof selectedInvoice.customFields === 'string'
+                                ? JSON.parse(selectedInvoice.customFields)
+                                : selectedInvoice.customFields;
+                        } catch (e) {
+                            console.error('Error parsing invoice custom fields for view:', e);
+                        }
+                    }
+                    const atts = customFieldVals?._attachments;
+                    const photos = atts?.photos || [];
+                    const files = atts?.files || [];
+                    if (photos.length === 0 && files.length === 0) return null;
+                    return (
+                        <div className="Invoice-no-print" style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem', textAlign: 'left' }}>
+                            <h3 className="invoice-section-header" style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Attachments</h3>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {photos.map((item, idx) => (
+                                    <a key={`p-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
+                                        <span>🖼️</span> {item.name}
+                                    </a>
+                                ))}
+                                {files.map((item, idx) => (
+                                    <a key={`f-${idx}`} href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>
+                                        <span>📎</span> {item.name}
+                                    </a>
+                                ))}
                             </div>
                         </div>
-                    )}
-                    {renderSubModals()}
-                </div>
-            );
-        }
+                    );
+                })()}
+
+                {/* Collect Payment Modal */}
+                {showPaymentModal && selectedInvoice && (
+                    <div className="POSINV-payment-overlay">
+                        <div className="POSINV-payment-modal">
+                            <div className="POSINV-payment-header">
+                                <h2 className="POSINV-payment-title">Collect Payment - {selectedInvoice.invoiceNumber}</h2>
+                                <button className="POSINV-payment-close" onClick={() => setShowPaymentModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="POSINV-payment-body">
+                                <div className="POSINV-payment-info-box">
+                                    <span className="POSINV-payment-info-label">Outstanding Balance:</span>
+                                    <span className="POSINV-payment-info-value">{formatCurrency(selectedInvoice.balanceAmount)}</span>
+                                </div>
+
+                                <div className="POSINV-payment-field">
+                                    <label>Amount to Collect</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="POSINV-payment-input"
+                                        value={paymentAmount}
+                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                        placeholder="Enter amount"
+                                    />
+                                </div>
+
+                                <div className="POSINV-payment-field">
+                                    <label>Payment Mode</label>
+                                    <select
+                                        className="POSINV-payment-select"
+                                        value={paymentMode}
+                                        onChange={(e) => {
+                                            setPaymentMode(e.target.value);
+                                            const modeName = e.target.value === 'CASH' ? 'cash' : 'bank';
+                                            const matched = accounts.find(a => a.name.toLowerCase().includes(modeName));
+                                            if (matched) setSelectedAccountId(matched.id.toString());
+                                        }}
+                                    >
+                                        <option value="CASH">Cash</option>
+                                        <option value="BANK">Bank Transfer</option>
+                                        <option value="CARD">Card Payment</option>
+                                        <option value="UPI">UPI</option>
+                                        <option value="CHEQUE">Cheque</option>
+                                    </select>
+                                </div>
+
+                                <div className="POSINV-payment-field">
+                                    <label>Received Into (Account)</label>
+                                    <select
+                                        className="POSINV-payment-select"
+                                        value={selectedAccountId}
+                                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                                    >
+                                        <option value="">Select Account</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id.toString()}>{acc.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="POSINV-payment-field">
+                                    <label>Payment Date</label>
+                                    <input
+                                        type="date"
+                                        className="POSINV-payment-input"
+                                        value={paymentDate}
+                                        onChange={(e) => setPaymentDate(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="POSINV-payment-field">
+                                    <label>Notes</label>
+                                    <textarea
+                                        className="POSINV-payment-input"
+                                        rows={2}
+                                        value={paymentNotes}
+                                        onChange={(e) => setPaymentNotes(e.target.value)}
+                                        placeholder="Add any payment notes..."
+                                    />
+                                </div>
+                            </div>
+                            <div className="POSINV-payment-footer">
+                                <button className="POSINV-payment-btn-cancel" onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}>
+                                    Cancel
+                                </button>
+                                <button className="POSINV-payment-btn-submit" onClick={handleConfirmPayment} disabled={paymentSubmitting}>
+                                    {paymentSubmitting ? 'Recording...' : 'Record Payment'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {renderSubModals()}
+            </div>
+        );
+    }
 
     // --- DEFAULT RENDER (LIST) ---
     return (
@@ -6482,9 +6585,9 @@ const Invoice = () => {
                                                                 }}>
                                                                     {inv.type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
                                                                 </span>
-                                                                <span 
-                                                                    className="font-bold text-blue-600" 
-                                                                    style={{ cursor: 'pointer', fontSize: '0.82rem' }} 
+                                                                <span
+                                                                    className="font-bold text-blue-600"
+                                                                    style={{ cursor: 'pointer', fontSize: '0.82rem' }}
                                                                     onClick={() => handleView(inv)}
                                                                     title="Click to view invoice"
                                                                 >
@@ -6526,9 +6629,9 @@ const Invoice = () => {
                                                         </td>
                                                         <td className="text-right">
                                                             <div className="Invoice-invoice-action-buttons text-nowrap" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                                <button 
+                                                                <button
                                                                     type="button"
-                                                                    className="Invoice-btn-view-primary" 
+                                                                    className="Invoice-btn-view-primary"
                                                                     onClick={() => handleView(inv)}
                                                                     title="View Invoice"
                                                                 >
@@ -6661,9 +6764,9 @@ const Invoice = () => {
                                                                     }}>
                                                                         {group.invoices[0].type === 'POS_INVOICE' ? 'POS' : 'INVOICE'}
                                                                     </span>
-                                                                    <span 
-                                                                        className="font-bold text-blue-600" 
-                                                                        style={{ cursor: 'pointer', fontSize: '0.82rem' }} 
+                                                                    <span
+                                                                        className="font-bold text-blue-600"
+                                                                        style={{ cursor: 'pointer', fontSize: '0.82rem' }}
                                                                         onClick={() => handleView(group.invoices[0])}
                                                                         title="Click to view invoice"
                                                                     >
@@ -6779,9 +6882,9 @@ const Invoice = () => {
                                                                 </div>
                                                             ) : (
                                                                 <>
-                                                                    <button 
+                                                                    <button
                                                                         type="button"
-                                                                        className="Invoice-btn-view-primary" 
+                                                                        className="Invoice-btn-view-primary"
                                                                         onClick={() => handleView(group.invoices[0])}
                                                                         title="View Invoice"
                                                                     >
@@ -6888,9 +6991,9 @@ const Invoice = () => {
                                                                                         </td>
                                                                                         <td className="text-right">
                                                                                             <div className="Invoice-invoice-action-buttons" style={{ justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                                                                <button 
+                                                                                                <button
                                                                                                     type="button"
-                                                                                                    className="Invoice-btn-view-primary" 
+                                                                                                    className="Invoice-btn-view-primary"
                                                                                                     onClick={() => handleView(si)}
                                                                                                     title="View Invoice"
                                                                                                     style={{ padding: '3px 8px', fontSize: '0.72rem' }}
@@ -8220,935 +8323,1078 @@ const Invoice = () => {
                 </div>
             )}
 
-                    {showDuplicateModal && (
+            {showDuplicateModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 99999
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        padding: '24px',
+                        borderRadius: '12px',
+                        width: '400px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        textAlign: 'center',
+                        fontFamily: 'inherit'
+                    }}>
                         <div style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            zIndex: 99999
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            backgroundColor: '#fee2e2',
+                            color: '#ef4444',
+                            marginBottom: '16px'
                         }}>
-                            <div style={{
-                                backgroundColor: '#ffffff',
-                                padding: '24px',
-                                borderRadius: '12px',
-                                width: '400px',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                                textAlign: 'center',
-                                fontFamily: 'inherit'
-                            }}>
-                                <div style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: '48px',
-                                    height: '48px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#fee2e2',
-                                    color: '#ef4444',
-                                    marginBottom: '16px'
-                                }}>
-                                    <AlertTriangle size={24} />
-                                </div>
-                                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 'bold', color: '#1f2937' }}>
-                                    Duplicate Manual Number
-                                </h3>
-                                <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: '#4b5563', lineHeight: '1.5' }}>
-                                    This is a duplicate manual number. Do you want to change it?
-                                </p>
-                                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                                    <button
-                                        onClick={async () => {
-                                            setShowDuplicateModal(false);
-                                            await handleSave(true, duplicateRefToRetry);
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            padding: '10px 16px',
-                                            borderRadius: '6px',
-                                            border: '1px solid #d1d5db',
-                                            backgroundColor: '#ffffff',
-                                            color: '#374151',
-                                            fontWeight: '500',
-                                            cursor: 'pointer',
-                                            transition: 'background-color 0.2s'
-                                        }}
-                                        onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                                        onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                                    >
-                                        Yes
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowDuplicateModal(false);
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            padding: '10px 16px',
-                                            borderRadius: '6px',
-                                            border: 'none',
-                                            backgroundColor: '#10b981',
-                                            color: '#ffffff',
-                                            fontWeight: '500',
-                                            cursor: 'pointer',
-                                            transition: 'background-color 0.2s'
-                                        }}
-                                        onMouseEnter={(e) => e.target.style.backgroundColor = '#334155'}
-                                        onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
-                                    >
-                                        No
-                                    </button>
-                                </div>
+                            <AlertTriangle size={24} />
+                        </div>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 'bold', color: '#1f2937' }}>
+                            Duplicate Manual Number
+                        </h3>
+                        <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: '#4b5563', lineHeight: '1.5' }}>
+                            This is a duplicate manual number. Do you want to change it?
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                            <button
+                                onClick={async () => {
+                                    setShowDuplicateModal(false);
+                                    await handleSave(true, duplicateRefToRetry);
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #d1d5db',
+                                    backgroundColor: '#ffffff',
+                                    color: '#374151',
+                                    fontWeight: '500',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                                onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
+                            >
+                                Yes
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowDuplicateModal(false);
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    backgroundColor: '#10b981',
+                                    color: '#ffffff',
+                                    fontWeight: '500',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.backgroundColor = '#334155'}
+                                onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAddSalespersonModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        width: '350px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }}>
+                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#1f2937' }}>Add New Salesperson</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Name *</label>
+                                <input
+                                    type="text"
+                                    value={salespersonFormData.name}
+                                    onChange={(e) => setSalespersonFormData({ ...salespersonFormData, name: e.target.value })}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Salesperson Name"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Phone / Number</label>
+                                <input
+                                    type="text"
+                                    value={salespersonFormData.phone}
+                                    onChange={(e) => setSalespersonFormData({ ...salespersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    maxLength={10}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Phone number"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Email</label>
+                                <input
+                                    type="email"
+                                    value={salespersonFormData.email}
+                                    onChange={(e) => setSalespersonFormData({ ...salespersonFormData, email: e.target.value })}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Email address"
+                                />
                             </div>
                         </div>
-                    )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddSalespersonModal(false)}
+                                style={{
+                                    padding: '6px 12px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#ffffff',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!salespersonFormData.name.trim()) {
+                                        toast.error("Name is required");
+                                        return;
+                                    }
+                                    try {
+                                        const companyId = GetCompanyId();
+                                        const res = await salespersonService.create({
+                                            ...salespersonFormData,
+                                            companyId: parseInt(companyId)
+                                        });
+                                        if (res.success) {
+                                            toast.success("Salesperson added successfully");
+                                            setSalespersonId(res.data.id);
+                                            // Refresh list
+                                            const listRes = await salespersonService.getAll(companyId);
+                                            if (listRes.success) setSalespersonsList(listRes.data);
+                                            setShowAddSalespersonModal(false);
+                                        } else {
+                                            toast.error(res.message || "Failed to create salesperson");
+                                        }
+                                    } catch (e) {
+                                        toast.error(e.message || "Failed to create salesperson");
+                                    }
+                                }}
+                                style={{
+                                    padding: '6px 12px',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#1e293b',
+                                    color: '#ffffff',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                    {showAddSalespersonModal && (
-                        <div style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 9999
-                        }}>
-                            <div style={{
-                                backgroundColor: '#ffffff',
-                                padding: '20px',
-                                borderRadius: '8px',
-                                width: '350px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                            }}>
-                                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#1f2937' }}>Add New Salesperson</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Name *</label>
-                                        <input
-                                            type="text"
-                                            value={salespersonFormData.name}
-                                            onChange={(e) => setSalespersonFormData({ ...salespersonFormData, name: e.target.value })}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Salesperson Name"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Phone / Number</label>
-                                        <input
-                                            type="text"
-                                            value={salespersonFormData.phone}
-                                            onChange={(e) => setSalespersonFormData({ ...salespersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                                            maxLength={10}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Phone number"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Email</label>
-                                        <input
-                                            type="email"
-                                            value={salespersonFormData.email}
-                                            onChange={(e) => setSalespersonFormData({ ...salespersonFormData, email: e.target.value })}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Email address"
-                                        />
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAddSalespersonModal(false)}
-                                        style={{
-                                            padding: '6px 12px',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '4px',
-                                            backgroundColor: '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            if (!salespersonFormData.name.trim()) {
-                                                toast.error("Name is required");
-                                                return;
-                                            }
-                                            try {
-                                                const companyId = GetCompanyId();
-                                                const res = await salespersonService.create({
-                                                    ...salespersonFormData,
-                                                    companyId: parseInt(companyId)
-                                                });
-                                                if (res.success) {
-                                                    toast.success("Salesperson added successfully");
-                                                    setSalespersonId(res.data.id);
-                                                    // Refresh list
-                                                    const listRes = await salespersonService.getAll(companyId);
-                                                    if (listRes.success) setSalespersonsList(listRes.data);
-                                                    setShowAddSalespersonModal(false);
-                                                } else {
-                                                    toast.error(res.message || "Failed to create salesperson");
-                                                }
-                                            } catch (e) {
-                                                toast.error(e.message || "Failed to create salesperson");
-                                            }
-                                        }}
-                                        style={{
-                                            padding: '6px 12px',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            backgroundColor: '#1e293b',
-                                            color: '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Save
-                                    </button>
-                                </div>
+            {showAddDeliveryPersonModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        width: '350px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }}>
+                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#1f2937' }}>Add New Delivery Person</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Name *</label>
+                                <input
+                                    type="text"
+                                    value={deliverypersonFormData.name}
+                                    onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, name: e.target.value })}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Delivery Person Name"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Phone / Number</label>
+                                <input
+                                    type="text"
+                                    value={deliverypersonFormData.phone}
+                                    onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    maxLength={10}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Phone number"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Email</label>
+                                <input
+                                    type="email"
+                                    value={deliverypersonFormData.email}
+                                    onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, email: e.target.value })}
+                                    className="Invoice-compact-input"
+                                    style={{ width: '100%' }}
+                                    placeholder="Email address"
+                                />
                             </div>
                         </div>
-                    )}
-
-                    {showAddDeliveryPersonModal && (
-                        <div style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 9999
-                        }}>
-                            <div style={{
-                                backgroundColor: '#ffffff',
-                                padding: '20px',
-                                borderRadius: '8px',
-                                width: '350px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                            }}>
-                                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#1f2937' }}>Add New Delivery Person</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Name *</label>
-                                        <input
-                                            type="text"
-                                            value={deliverypersonFormData.name}
-                                            onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, name: e.target.value })}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Delivery Person Name"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Phone / Number</label>
-                                        <input
-                                            type="text"
-                                            value={deliverypersonFormData.phone}
-                                            onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                                            maxLength={10}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Phone number"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px' }}>Email</label>
-                                        <input
-                                            type="email"
-                                            value={deliverypersonFormData.email}
-                                            onChange={(e) => setDeliverypersonFormData({ ...deliverypersonFormData, email: e.target.value })}
-                                            className="Invoice-compact-input"
-                                            style={{ width: '100%' }}
-                                            placeholder="Email address"
-                                        />
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAddDeliveryPersonModal(false)}
-                                        style={{
-                                            padding: '6px 12px',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '4px',
-                                            backgroundColor: '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            if (!deliverypersonFormData.name.trim()) {
-                                                toast.error("Name is required");
-                                                return;
-                                            }
-                                            try {
-                                                const companyId = GetCompanyId();
-                                                const res = await deliverypersonService.create({
-                                                    ...deliverypersonFormData,
-                                                    companyId: parseInt(companyId)
-                                                });
-                                                if (res.success) {
-                                                    toast.success("Delivery person added successfully");
-                                                    setSelectedDeliveryPersonId(res.data.id);
-                                                    setInvoiceMeta(prev => ({
-                                                        ...prev,
-                                                        deliveryPersonName: res.data.name,
-                                                        deliveryPersonMobile: res.data.phone || '',
-                                                        deliveryPersonEmail: res.data.email || ''
-                                                    }));
-                                                    // Refresh list
-                                                    const listRes = await deliverypersonService.getAll(companyId);
-                                                    if (listRes.success) setDeliverypersonsList(listRes.data);
-                                                    setShowAddDeliveryPersonModal(false);
-                                                } else {
-                                                    toast.error(res.message || "Failed to create delivery person");
-                                                }
-                                            } catch (e) {
-                                                toast.error(e.message || "Failed to create delivery person");
-                                            }
-                                        }}
-                                        style={{
-                                            padding: '6px 12px',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            backgroundColor: '#1e293b',
-                                            color: '#ffffff',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddDeliveryPersonModal(false)}
+                                style={{
+                                    padding: '6px 12px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#ffffff',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!deliverypersonFormData.name.trim()) {
+                                        toast.error("Name is required");
+                                        return;
+                                    }
+                                    try {
+                                        const companyId = GetCompanyId();
+                                        const res = await deliverypersonService.create({
+                                            ...deliverypersonFormData,
+                                            companyId: parseInt(companyId)
+                                        });
+                                        if (res.success) {
+                                            toast.success("Delivery person added successfully");
+                                            setSelectedDeliveryPersonId(res.data.id);
+                                            setInvoiceMeta(prev => ({
+                                                ...prev,
+                                                deliveryPersonName: res.data.name,
+                                                deliveryPersonMobile: res.data.phone || '',
+                                                deliveryPersonEmail: res.data.email || ''
+                                            }));
+                                            // Refresh list
+                                            const listRes = await deliverypersonService.getAll(companyId);
+                                            if (listRes.success) setDeliverypersonsList(listRes.data);
+                                            setShowAddDeliveryPersonModal(false);
+                                        } else {
+                                            toast.error(res.message || "Failed to create delivery person");
+                                        }
+                                    } catch (e) {
+                                        toast.error(e.message || "Failed to create delivery person");
+                                    }
+                                }}
+                                style={{
+                                    padding: '6px 12px',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#1e293b',
+                                    color: '#ffffff',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Save
+                            </button>
                         </div>
-                    )}
+                    </div>
+                </div>
+            )}
 
-                    {/* Selection Modal */}
-                    {showSelectionModal && (
-                        <div className="Invoice-modal-overlay">
-                            <div className="Invoice-modal-content Invoice-selection-modal-small">
-                                <div className="Invoice-modal-header-simple">
-                                    <h2 className="text-xl font-bold">Select Invoice Source</h2>
-                                    <button className="Invoice-close-btn-simple" onClick={() => setShowSelectionModal(false)}>
-                                        <X size={24} />
-                                    </button>
+            {/* Selection Modal */}
+            {showSelectionModal && (
+                <div className="Invoice-modal-overlay">
+                    <div className="Invoice-modal-content Invoice-selection-modal-small">
+                        <div className="Invoice-modal-header-simple">
+                            <h2 className="text-xl font-bold">Select Invoice Source</h2>
+                            <button className="Invoice-close-btn-simple" onClick={() => setShowSelectionModal(false)}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="Invoice-selection-grid-p">
+                            <button className="Invoice-sel-btn-p" onClick={() => { setCreationMode('direct'); setShowSelectionModal(false); setShowAddModal(true); }}>
+                                <div className="Invoice-sel-icon-p"><FileText /></div>
+                                <div className="Invoice-sel-text-p">
+                                    <strong>Direct Invoice</strong>
+                                    <span>Create manually without link</span>
                                 </div>
-                                <div className="Invoice-selection-grid-p">
-                                    <button className="Invoice-sel-btn-p" onClick={() => { setCreationMode('direct'); setShowSelectionModal(false); setShowAddModal(true); }}>
-                                        <div className="Invoice-sel-icon-p"><FileText /></div>
-                                        <div className="Invoice-sel-text-p">
-                                            <strong>Direct Invoice</strong>
-                                            <span>Create manually without link</span>
-                                        </div>
-                                    </button>
-                                    <button className="Invoice-sel-btn-p" onClick={() => setCreationMode('select_so')}>
-                                        <div className="Invoice-sel-icon-p"><ShoppingCart /></div>
-                                        <div className="Invoice-sel-text-p">
-                                            <strong>From Sales Order</strong>
-                                            <span>Fetch data from existing order</span>
-                                        </div>
-                                    </button>
-                                    <button className="Invoice-sel-btn-p" onClick={() => setCreationMode('select_dc')}>
-                                        <div className="Invoice-sel-icon-p"><Truck /></div>
-                                        <div className="Invoice-sel-text-p">
-                                            <strong>From Delivery Challan</strong>
-                                            <span>Fetch data from delivery note</span>
-                                        </div>
-                                    </button>
+                            </button>
+                            <button className="Invoice-sel-btn-p" onClick={() => setCreationMode('select_so')}>
+                                <div className="Invoice-sel-icon-p"><ShoppingCart /></div>
+                                <div className="Invoice-sel-text-p">
+                                    <strong>From Sales Order</strong>
+                                    <span>Fetch data from existing order</span>
                                 </div>
+                            </button>
+                            <button className="Invoice-sel-btn-p" onClick={() => setCreationMode('select_dc')}>
+                                <div className="Invoice-sel-icon-p"><Truck /></div>
+                                <div className="Invoice-sel-text-p">
+                                    <strong>From Delivery Challan</strong>
+                                    <span>Fetch data from delivery note</span>
+                                </div>
+                            </button>
+                        </div>
 
-                                {creationMode === 'select_so' && (
-                                    <div className="Invoice-source-list-container">
-                                        <h3 className="Invoice-section-title-s">Pick a Sales Order</h3>
-                                        <div className="Invoice-source-search-box flex gap-3 mb-4">
-                                            <div className="Invoice-form-group-mini" style={{ flex: 1 }}>
-                                                <select
-                                                    className="Invoice-full-width-input"
-                                                    value={invoiceFilterCustomerId}
-                                                    onChange={(e) => setInvoiceFilterCustomerId(e.target.value)}
-                                                >
-                                                    <option value="">Select Customer First...</option>
-                                                    {customers.map(c => {
-                                                        const orderCount = activeOrders.filter(o => o.customerId === c.id).length;
-                                                        return (
-                                                            <option key={c.id} value={c.id}>
-                                                                {c.name} ({orderCount} Orders)
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
+                        {creationMode === 'select_so' && (
+                            <div className="Invoice-source-list-container">
+                                <h3 className="Invoice-section-title-s">Pick a Sales Order</h3>
+                                <div className="Invoice-source-search-box flex gap-3 mb-4">
+                                    <div className="Invoice-form-group-mini" style={{ flex: 1 }}>
+                                        <select
+                                            className="Invoice-full-width-input"
+                                            value={invoiceFilterCustomerId}
+                                            onChange={(e) => setInvoiceFilterCustomerId(e.target.value)}
+                                        >
+                                            <option value="">Select Customer First...</option>
+                                            {customers.map(c => {
+                                                const orderCount = activeOrders.filter(o => o.customerId === c.id).length;
+                                                return (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name} ({orderCount} Orders)
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div className="Invoice-source-search-inner" style={{ flex: 1 }}>
+                                        <Search size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search Sales Order #..."
+                                            value={sourceSearchTerm}
+                                            onChange={(e) => setSourceSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="Invoice-source-items-list">
+                                    {activeOrders.filter(order => {
+                                        const matchesSearch = order.orderNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
+                                            order.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase());
+                                        const matchesCustomer = !invoiceFilterCustomerId || order.customerId === parseInt(invoiceFilterCustomerId);
+                                        return matchesSearch && matchesCustomer;
+                                    }).map(order => (
+                                        <div key={order.id} className="Invoice-source-item-row" onClick={() => { handleSelectOrder(order); setShowAddModal(true); setSourceSearchTerm(''); }}>
+                                            <div className="Invoice-source-info">
+                                                <span className="Invoice-source-id">{order.orderNumber}</span>
+                                                <span className="Invoice-source-cust">{order.customer?.name}</span>
                                             </div>
-                                            <div className="Invoice-source-search-inner" style={{ flex: 1 }}>
-                                                <Search size={16} />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Search Sales Order #..."
-                                                    value={sourceSearchTerm}
-                                                    onChange={(e) => setSourceSearchTerm(e.target.value)}
+                                            <div className="Invoice-source-meta">
+                                                <span>{new Date(order.date).toLocaleDateString()}</span>
+                                                <ArrowRight size={14} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {activeOrders.filter(order =>
+                                        order.orderNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
+                                        order.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase())
+                                    ).length === 0 && <div className="Invoice-no-source-found">No orders found</div>}
+                                </div>
+                                <button className="Invoice-btn-back-sel" onClick={() => { setCreationMode('direct'); setSourceSearchTerm(''); }}>Back</button>
+                            </div>
+                        )}
+
+                        {creationMode === 'select_dc' && (
+                            <div className="Invoice-source-list-container">
+                                <h3 className="Invoice-section-title-s">Pick a Delivery Challan</h3>
+                                <div className="Invoice-source-search-box flex gap-3 mb-4">
+                                    <div className="Invoice-form-group-mini" style={{ flex: 1 }}>
+                                        <select
+                                            className="Invoice-full-width-input"
+                                            value={invoiceFilterCustomerId}
+                                            onChange={(e) => setInvoiceFilterCustomerId(e.target.value)}
+                                        >
+                                            <option value="">Select Customer First...</option>
+                                            {customers.map(c => {
+                                                const dcCount = activeChallans.filter(dc => dc.customerId === c.id).length;
+                                                return (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name} ({dcCount} Challans)
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div className="Invoice-source-search-inner" style={{ flex: 1 }}>
+                                        <Search size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search Challan #..."
+                                            value={sourceSearchTerm}
+                                            onChange={(e) => setSourceSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="Invoice-source-items-list">
+                                    {activeChallans.filter(dc => {
+                                        const matchesSearch = dc.challanNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
+                                            dc.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase());
+                                        const matchesCustomer = !invoiceFilterCustomerId || dc.customerId === parseInt(invoiceFilterCustomerId);
+                                        return matchesSearch && matchesCustomer;
+                                    }).map(dc => (
+                                        <div key={dc.id} className="Invoice-source-item-row" onClick={() => { handleSelectChallan(dc); setShowAddModal(true); setSourceSearchTerm(''); }}>
+                                            <div className="Invoice-source-info">
+                                                <span className="Invoice-source-id">{dc.challanNumber}</span>
+                                                <span className="Invoice-source-cust">{dc.customer?.name}</span>
+                                            </div>
+                                            <div className="Invoice-source-meta">
+                                                <span>{new Date(dc.date).toLocaleDateString()}</span>
+                                                <ArrowRight size={14} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {activeChallans.filter(dc =>
+                                        dc.challanNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
+                                        dc.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase())
+                                    ).length === 0 && <div className="Invoice-no-source-found">No challans found</div>}
+                                </div>
+                                <button className="Invoice-btn-back-sel" onClick={() => { setCreationMode('direct'); setSourceSearchTerm(''); }}>Back</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+
+            {showUnpayModal && (
+                <div className="InvDelete-modal-overlay">
+                    <div className="InvDelete-modal-content">
+                        <div className="InvDelete-modal-header">
+                            <h2>Mark Invoice as Unpaid</h2>
+                            <button className="InvDelete-close-btn" onClick={() => setShowUnpayModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="InvDelete-modal-body">
+                            <div className="InvDelete-icon-box" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                                <RotateCcw size={32} />
+                            </div>
+                            <h3 className="InvDelete-title">Are you sure?</h3>
+                            <p className="InvDelete-desc">You are about to revert all payments for invoice</p>
+                            <div className="InvDelete-invoice-no">#{invoiceToUnpay?.invoiceNumber}</div>
+                            <p className="InvDelete-desc" style={{ fontSize: '0.85rem', marginTop: '0.5rem', padding: '0 10px', lineHeight: '1.4' }}>
+                                This will permanently delete associated payment receipts, revert ledger balances in your Chart of Accounts, and restore the customer's balance.
+                            </p>
+                        </div>
+                        <div className="InvDelete-modal-footer">
+                            <button className="InvDelete-btn-cancel" onClick={() => setShowUnpayModal(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="InvDelete-btn-confirm"
+                                onClick={confirmUnpay}
+                                style={{ background: '#f59e0b', boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.3)' }}
+                            >
+                                Revert & Unpaid
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Collect Payment Modal */}
+            {showPaymentModal && selectedInvoice && (
+                <div className="POSINV-payment-overlay">
+                    <div className="POSINV-payment-modal">
+                        <div className="POSINV-payment-header">
+                            <h2 className="POSINV-payment-title">Collect Payment - {selectedInvoice.invoiceNumber}</h2>
+                            <button className="POSINV-payment-close" onClick={() => setShowPaymentModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="POSINV-payment-body">
+                            <div className="POSINV-payment-info-box">
+                                <span className="POSINV-payment-info-label">Outstanding Balance:</span>
+                                <span className="POSINV-payment-info-value">{formatCurrency(selectedInvoice.balanceAmount)}</span>
+                            </div>
+
+                            <div className="POSINV-payment-field">
+                                <label>Amount to Collect</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className="POSINV-payment-input"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    placeholder="Enter amount"
+                                />
+                            </div>
+
+                            <div className="POSINV-payment-field">
+                                <label>Payment Mode</label>
+                                <select
+                                    className="POSINV-payment-select"
+                                    value={paymentMode}
+                                    onChange={(e) => {
+                                        setPaymentMode(e.target.value);
+                                        const modeName = e.target.value === 'CASH' ? 'cash' : 'bank';
+                                        const matched = accounts.find(a => a.name.toLowerCase().includes(modeName));
+                                        if (matched) setSelectedAccountId(matched.id.toString());
+                                    }}
+                                >
+                                    <option value="CASH">Cash</option>
+                                    <option value="BANK">Bank Transfer</option>
+                                    <option value="CARD">Card Payment</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="CHEQUE">Cheque</option>
+                                </select>
+                            </div>
+
+                            <div className="POSINV-payment-field">
+                                <label>Received Into (Account)</label>
+                                <select
+                                    className="POSINV-payment-select"
+                                    value={selectedAccountId}
+                                    onChange={(e) => setSelectedAccountId(e.target.value)}
+                                >
+                                    <option value="">Select Account</option>
+                                    {accounts.map(acc => (
+                                        <option key={acc.id} value={acc.id.toString()}>{acc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="POSINV-payment-field">
+                                <label>Payment Date</label>
+                                <input
+                                    type="date"
+                                    className="POSINV-payment-input"
+                                    value={paymentDate}
+                                    onChange={(e) => setPaymentDate(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="POSINV-payment-field">
+                                <label>Notes</label>
+                                <textarea
+                                    className="POSINV-payment-input"
+                                    rows={2}
+                                    value={paymentNotes}
+                                    onChange={(e) => setPaymentNotes(e.target.value)}
+                                    placeholder="Add any payment notes..."
+                                />
+                            </div>
+                        </div>
+                        <div className="POSINV-payment-footer">
+                            <button className="POSINV-payment-btn-cancel" onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}>
+                                Cancel
+                            </button>
+                            <button className="POSINV-payment-btn-submit" onClick={handleConfirmPayment} disabled={paymentSubmitting}>
+                                {paymentSubmitting ? 'Recording...' : 'Record Payment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Full Add Customer Modal */}
+            {showAddCustomerModal && (
+                <div className="Customers-modal-overlay" style={{ zIndex: 20000 }}>
+                    <div className="Customers-modal-content Customers-modal-large" style={{ textAlign: 'left' }}>
+                        <div className="Customers-modal-header">
+                            <h2 className="Customers-modal-title">Add Customer</h2>
+                            <button className="Customers-close-btn" onClick={() => setShowAddCustomerModal(false)}>×</button>
+                        </div>
+
+                        <div className="Customers-modal-body">
+                            {/* Basic Information */}
+                            <div className="Customers-form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                                <h3 className="Customers-section-subtitle">Basic Information</h3>
+                                <div className="Customers-form-row">
+                                    <div className="Customers-form-group Customers-half-width" style={{ flex: 1, width: '100%' }}>
+                                        <label className="Customers-form-label">Name <span className="Customers-text-red">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="name"
+                                            value={customerFormData.name}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter Name"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="Customers-form-row Customers-mixed-col">
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Company Name</label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="companyName"
+                                            value={customerFormData.companyName}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter company name"
+                                        />
+                                    </div>
+                                    <div className="Customers-form-group Customers-google-loc">
+                                        <label className="Customers-form-label">Company Google Location</label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="companyLocation"
+                                            value={customerFormData.companyLocation}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter Google Maps link"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* File Uploads */}
+                                <div className="Customers-form-row Customers-mixed-col">
+                                    <div className="Customers-form-group Customers-profile-img">
+                                        <label className="Customers-form-label">Profile Image</label>
+                                        {customerFormData.profileImage ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                                <img
+                                                    src={customerFormData.profileImage}
+                                                    alt="Profile"
+                                                    style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                                 />
-                                            </div>
-                                        </div>
-                                        <div className="Invoice-source-items-list">
-                                            {activeOrders.filter(order => {
-                                                const matchesSearch = order.orderNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
-                                                    order.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase());
-                                                const matchesCustomer = !invoiceFilterCustomerId || order.customerId === parseInt(invoiceFilterCustomerId);
-                                                return matchesSearch && matchesCustomer;
-                                            }).map(order => (
-                                                <div key={order.id} className="Invoice-source-item-row" onClick={() => { handleSelectOrder(order); setShowAddModal(true); setSourceSearchTerm(''); }}>
-                                                    <div className="Invoice-source-info">
-                                                        <span className="Invoice-source-id">{order.orderNumber}</span>
-                                                        <span className="Invoice-source-cust">{order.customer?.name}</span>
-                                                    </div>
-                                                    <div className="Invoice-source-meta">
-                                                        <span>{new Date(order.date).toLocaleDateString()}</span>
-                                                        <ArrowRight size={14} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {activeOrders.filter(order =>
-                                                order.orderNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
-                                                order.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase())
-                                            ).length === 0 && <div className="Invoice-no-source-found">No orders found</div>}
-                                        </div>
-                                        <button className="Invoice-btn-back-sel" onClick={() => { setCreationMode('direct'); setSourceSearchTerm(''); }}>Back</button>
-                                    </div>
-                                )}
-
-                                {creationMode === 'select_dc' && (
-                                    <div className="Invoice-source-list-container">
-                                        <h3 className="Invoice-section-title-s">Pick a Delivery Challan</h3>
-                                        <div className="Invoice-source-search-box flex gap-3 mb-4">
-                                            <div className="Invoice-form-group-mini" style={{ flex: 1 }}>
-                                                <select
-                                                    className="Invoice-full-width-input"
-                                                    value={invoiceFilterCustomerId}
-                                                    onChange={(e) => setInvoiceFilterCustomerId(e.target.value)}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCustomerFormData(prev => ({ ...prev, profileImage: '' }))}
+                                                    style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem' }}
                                                 >
-                                                    <option value="">Select Customer First...</option>
-                                                    {customers.map(c => {
-                                                        const dcCount = activeChallans.filter(dc => dc.customerId === c.id).length;
-                                                        return (
-                                                            <option key={c.id} value={c.id}>
-                                                                {c.name} ({dcCount} Challans)
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
+                                                    x Remove
+                                                </button>
                                             </div>
-                                            <div className="Invoice-source-search-inner" style={{ flex: 1 }}>
-                                                <Search size={16} />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Search Challan #..."
-                                                    value={sourceSearchTerm}
-                                                    onChange={(e) => setSourceSearchTerm(e.target.value)}
-                                                />
+                                        ) : null}
+                                        <input
+                                            type="file"
+                                            ref={profileImageRef}
+                                            accept="image/jpeg,image/png,image/jpg"
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => handleCustomerFileUpload(e.target.files[0], 'profileImage', 'customers')}
+                                        />
+                                        <div className="Customers-file-input-wrapper" onClick={() => profileImageRef.current?.click()} style={{ cursor: 'pointer' }}>
+                                            <div className="Customers-file-label">
+                                                <span className="Customers-file-btn">{uploadingProfileImage ? 'Uploading...' : 'Choose File'}</span>
+                                                <span className="Customers-file-name">{customerFormData.profileImage ? 'Image uploaded ✓' : 'No file chosen'}</span>
                                             </div>
                                         </div>
-                                        <div className="Invoice-source-items-list">
-                                            {activeChallans.filter(dc => {
-                                                const matchesSearch = dc.challanNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
-                                                    dc.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase());
-                                                const matchesCustomer = !invoiceFilterCustomerId || dc.customerId === parseInt(invoiceFilterCustomerId);
-                                                return matchesSearch && matchesCustomer;
-                                            }).map(dc => (
-                                                <div key={dc.id} className="Invoice-source-item-row" onClick={() => { handleSelectChallan(dc); setShowAddModal(true); setSourceSearchTerm(''); }}>
-                                                    <div className="Invoice-source-info">
-                                                        <span className="Invoice-source-id">{dc.challanNumber}</span>
-                                                        <span className="Invoice-source-cust">{dc.customer?.name}</span>
-                                                    </div>
-                                                    <div className="Invoice-source-meta">
-                                                        <span>{new Date(dc.date).toLocaleDateString()}</span>
-                                                        <ArrowRight size={14} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {activeChallans.filter(dc =>
-                                                dc.challanNumber?.toLowerCase().includes(sourceSearchTerm.toLowerCase()) ||
-                                                dc.customer?.name?.toLowerCase().includes(sourceSearchTerm.toLowerCase())
-                                            ).length === 0 && <div className="Invoice-no-source-found">No challans found</div>}
+                                        <span className="Customers-file-note">JPEG, PNG or JPG (max 5MB)</span>
+                                    </div>
+                                    <div className="Customers-form-group Customers-any-file">
+                                        <label className="Customers-form-label">Any File</label>
+                                        {customerFormData.anyFile ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                                <a
+                                                    href={customerFormData.anyFile}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{ color: '#2563eb', fontSize: '0.8rem', textDecoration: 'underline', wordBreak: 'break-all', maxWidth: '200px' }}
+                                                >
+                                                    View File
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCustomerFormData(prev => ({ ...prev, anyFile: '' }))}
+                                                    style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem' }}
+                                                >
+                                                    x Remove
+                                                </button>
+                                            </div>
+                                        ) : null}
+                                        <input
+                                            type="file"
+                                            ref={anyFileRef}
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => handleCustomerFileUpload(e.target.files[0], 'anyFile', 'customers')}
+                                        />
+                                        <div className="Customers-file-input-wrapper" onClick={() => anyFileRef.current?.click()} style={{ cursor: 'pointer' }}>
+                                            <div className="Customers-file-label">
+                                                <span className="Customers-file-btn">{uploadingAnyFile ? 'Uploading...' : 'Choose File'}</span>
+                                                <span className="Customers-file-name">{customerFormData.anyFile ? 'File uploaded ✓' : 'No file chosen'}</span>
+                                            </div>
                                         </div>
-                                        <button className="Invoice-btn-back-sel" onClick={() => { setCreationMode('direct'); setSourceSearchTerm(''); }}>Back</button>
+                                        <span className="Customers-file-note">Any file type. Max 10MB</span>
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-
-                    {showUnpayModal && (
-                        <div className="InvDelete-modal-overlay">
-                            <div className="InvDelete-modal-content">
-                                <div className="InvDelete-modal-header">
-                                    <h2>Mark Invoice as Unpaid</h2>
-                                    <button className="InvDelete-close-btn" onClick={() => setShowUnpayModal(false)}>
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                                <div className="InvDelete-modal-body">
-                                    <div className="InvDelete-icon-box" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-                                        <RotateCcw size={32} />
-                                    </div>
-                                    <h3 className="InvDelete-title">Are you sure?</h3>
-                                    <p className="InvDelete-desc">You are about to revert all payments for invoice</p>
-                                    <div className="InvDelete-invoice-no">#{invoiceToUnpay?.invoiceNumber}</div>
-                                    <p className="InvDelete-desc" style={{ fontSize: '0.85rem', marginTop: '0.5rem', padding: '0 10px', lineHeight: '1.4' }}>
-                                        This will permanently delete associated payment receipts, revert ledger balances in your Chart of Accounts, and restore the customer's balance.
-                                    </p>
-                                </div>
-                                <div className="InvDelete-modal-footer">
-                                    <button className="InvDelete-btn-cancel" onClick={() => setShowUnpayModal(false)}>
-                                        Cancel
-                                    </button>
-                                    <button
-                                        className="InvDelete-btn-confirm"
-                                        onClick={confirmUnpay}
-                                        style={{ background: '#f59e0b', boxShadow: '0 4px 6px -1px rgba(245, 158, 11, 0.3)' }}
-                                    >
-                                        Revert & Unpaid
-                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    )}
 
-                    {/* Collect Payment Modal */}
-                    {showPaymentModal && selectedInvoice && (
-                        <div className="POSINV-payment-overlay">
-                            <div className="POSINV-payment-modal">
-                                <div className="POSINV-payment-header">
-                                    <h2 className="POSINV-payment-title">Collect Payment - {selectedInvoice.invoiceNumber}</h2>
-                                    <button className="POSINV-payment-close" onClick={() => setShowPaymentModal(false)}>
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                                <div className="POSINV-payment-body">
-                                    <div className="POSINV-payment-info-box">
-                                        <span className="POSINV-payment-info-label">Outstanding Balance:</span>
-                                        <span className="POSINV-payment-info-value">{formatCurrency(selectedInvoice.balanceAmount)}</span>
+                            {/* Account Information */}
+                            <div className="Customers-form-section">
+                                <h3 className="Customers-section-subtitle">Account Information</h3>
+                                <div className="Customers-form-row Customers-mixed-col">
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Customer Type <span className="Customers-text-red">*</span></label>
+                                        <select
+                                            className="Customers-form-select"
+                                            name="accountType"
+                                            value={customerFormData.accountType || 'Credit'}
+                                            onChange={handleCustomerInputChange}
+                                        >
+                                            <option value="Credit">Credit Customer</option>
+                                            <option value="Cash">Cash Customer</option>
+                                        </select>
                                     </div>
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Balance Type</label>
+                                        <select
+                                            className="Customers-form-select"
+                                            name="balanceType"
+                                            value={customerFormData.balanceType}
+                                            onChange={handleCustomerInputChange}
+                                        >
+                                            <option value="Debit">Debit</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                                    <div className="POSINV-payment-field">
-                                        <label>Amount to Collect</label>
+                                <div className="Customers-form-row Customers-mixed-col">
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <div className="Customers-input-with-note">
+                                            <label className="Customers-form-label">Account Name <span className="Customers-text-red">*</span></label>
+                                            <input
+                                                type="text"
+                                                className="Customers-form-input"
+                                                value={customerFormData.name}
+                                                readOnly
+                                                disabled
+                                                style={{ backgroundColor: '#f3f4f6' }}
+                                            />
+                                            <span className="Customers-input-note">This will auto-fill from selection above</span>
+                                        </div>
+                                    </div>
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Account Balance <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="number"
-                                            step="0.01"
-                                            className="POSINV-payment-input"
-                                            value={paymentAmount}
-                                            onChange={(e) => setPaymentAmount(e.target.value)}
-                                            placeholder="Enter amount"
+                                            className="Customers-form-input"
+                                            name="accountBalance"
+                                            value={customerFormData.accountBalance}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="0.00"
+                                            min="0"
+                                            onKeyDown={(e) => {
+                                                if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                                                    e.preventDefault();
+                                                }
+                                            }}
                                         />
                                     </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Payment Mode</label>
-                                        <select
-                                            className="POSINV-payment-select"
-                                            value={paymentMode}
-                                            onChange={(e) => {
-                                                setPaymentMode(e.target.value);
-                                                const modeName = e.target.value === 'CASH' ? 'cash' : 'bank';
-                                                const matched = accounts.find(a => a.name.toLowerCase().includes(modeName));
-                                                if (matched) setSelectedAccountId(matched.id.toString());
-                                            }}
-                                        >
-                                            <option value="CASH">Cash</option>
-                                            <option value="BANK">Bank Transfer</option>
-                                            <option value="CARD">Card Payment</option>
-                                            <option value="UPI">UPI</option>
-                                            <option value="CHEQUE">Cheque</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Received Into (Account)</label>
-                                        <select
-                                            className="POSINV-payment-select"
-                                            value={selectedAccountId}
-                                            onChange={(e) => setSelectedAccountId(e.target.value)}
-                                        >
-                                            <option value="">Select Account</option>
-                                            {accounts.map(acc => (
-                                                <option key={acc.id} value={acc.id.toString()}>{acc.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Payment Date</label>
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Creation Date <span className="Customers-text-red">*</span></label>
                                         <input
                                             type="date"
-                                            className="POSINV-payment-input"
-                                            value={paymentDate}
-                                            onChange={(e) => setPaymentDate(e.target.value)}
+                                            className="Customers-form-input"
+                                            name="creationDate"
+                                            value={customerFormData.creationDate}
+                                            onChange={handleCustomerInputChange}
                                         />
                                     </div>
-
-                                    <div className="POSINV-payment-field">
-                                        <label>Notes</label>
-                                        <textarea
-                                            className="POSINV-payment-input"
-                                            rows={2}
-                                            value={paymentNotes}
-                                            onChange={(e) => setPaymentNotes(e.target.value)}
-                                            placeholder="Add any payment notes..."
-                                        />
-                                    </div>
-                                </div>
-                                <div className="POSINV-payment-footer">
-                                    <button className="POSINV-payment-btn-cancel" onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}>
-                                        Cancel
-                                    </button>
-                                    <button className="POSINV-payment-btn-submit" onClick={handleConfirmPayment} disabled={paymentSubmitting}>
-                                        {paymentSubmitting ? 'Recording...' : 'Record Payment'}
-                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                    {/* Full Add Customer Modal */}
-                    {showAddCustomerModal && (
-                        <div className="Customers-modal-overlay" style={{ zIndex: 20000 }}>
-                            <div className="Customers-modal-content Customers-modal-large" style={{ textAlign: 'left' }}>
-                                <div className="Customers-modal-header">
-                                    <h2 className="Customers-modal-title">Add Customer</h2>
-                                    <button className="Customers-close-btn" onClick={() => setShowAddCustomerModal(false)}>×</button>
+
+                            {/* Bank Details */}
+                            <div className="Customers-form-section">
+                                <h3 className="Customers-section-subtitle">Bank Details</h3>
+                                <div className="Customers-form-row Customers-three-col">
+                                    <div className="Customers-form-group">
+                                        <label className="Customers-form-label">Bank Account Number</label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="bankAccountNumber"
+                                            value={customerFormData.bankAccountNumber}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter bank account number"
+                                        />
+                                    </div>
+                                    <div className="Customers-form-group">
+                                        <label className="Customers-form-label">Bank IFSC</label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="bankIFSC"
+                                            value={customerFormData.bankIFSC}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter bank IFSC"
+                                        />
+                                    </div>
+                                    <div className="Customers-form-group">
+                                        <label className="Customers-form-label">Bank Name & Branch</label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="bankNameBranch"
+                                            value={customerFormData.bankNameBranch}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter bank name & branch"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Contact & GST */}
+                            <div className="Customers-form-section">
+                                <h3 className="Customers-section-subtitle">Contact & Status</h3>
+                                <div className="Customers-form-row Customers-mixed-col">
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Phone <span className="Customers-text-red">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="Customers-form-input"
+                                            name="phone"
+                                            value={customerFormData.phone}
+                                            onChange={handleCustomerInputChange}
+                                            maxLength={10}
+                                            placeholder="Enter Phone"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Email <span className="Customers-text-red">*</span></label>
+                                        <input
+                                            type="email"
+                                            className="Customers-form-input"
+                                            name="email"
+                                            value={customerFormData.email}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter Email"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="Customers-form-group Customers-half-width">
+                                        <label className="Customers-form-label">Credit Period (days)</label>
+                                        <input
+                                            type="number"
+                                            className="Customers-form-input"
+                                            name="creditPeriod"
+                                            value={customerFormData.creditPeriod}
+                                            onChange={handleCustomerInputChange}
+                                            placeholder="Enter credit period"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="Customers-modal-body">
-                                    {/* Basic Information */}
-                                    <div className="Customers-form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
-                                        <h3 className="Customers-section-subtitle">Basic Information</h3>
+                                <div className="Customers-form-row" style={{ alignItems: 'center' }}>
+                                    <label className="Customers-switch" style={{ marginRight: '10px' }}>
+                                        <input
+                                            type="checkbox"
+                                            name="gstEnabled"
+                                            checked={customerFormData.gstEnabled}
+                                            onChange={handleCustomerInputChange}
+                                        />
+                                        <span className="Customers-slider Customers-round"></span>
+                                    </label>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Enable VAT</span>
+
+                                    {customerFormData.gstEnabled && (
+                                        <div className="Customers-form-group" style={{ marginLeft: '2rem', flex: 1 }}>
+                                            <input
+                                                type="text"
+                                                className="Customers-form-input"
+                                                name="gstNumber"
+                                                value={customerFormData.gstNumber}
+                                                onChange={handleCustomerInputChange}
+                                                placeholder="Enter GSTIN"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Addresses */}
+                            <div className="Customers-form-section">
+                                <div className="Customers-form-row">
+                                    {/* Billing Address */}
+                                    <div style={{ flex: 1 }}>
+                                        <h3 className="Customers-section-subtitle">Billing Address</h3>
+                                        <div className="Customers-form-group">
+                                            <label className="Customers-form-label">Name</label>
+                                            <input
+                                                type="text"
+                                                className="Customers-form-input"
+                                                name="billingName"
+                                                value={customerFormData.billingName}
+                                                onChange={handleCustomerInputChange}
+                                                placeholder="Enter Name"
+                                            />
+                                        </div>
+                                        <div className="Customers-form-group">
+                                            <label className="Customers-form-label">Phone</label>
+                                            <input
+                                                type="text"
+                                                className="Customers-form-input"
+                                                name="billingPhone"
+                                                value={customerFormData.billingPhone}
+                                                onChange={handleCustomerInputChange}
+                                                maxLength={10}
+                                                placeholder="Enter Phone"
+                                            />
+                                        </div>
+                                        <div className="Customers-form-group">
+                                            <label className="Customers-form-label">Address</label>
+                                            <textarea
+                                                className="Customers-form-textarea"
+                                                name="billingAddress"
+                                                value={customerFormData.billingAddress}
+                                                onChange={handleCustomerInputChange}
+                                                placeholder="Enter Address"
+                                                rows="3"
+                                            />
+                                        </div>
                                         <div className="Customers-form-row">
-                                            <div className="Customers-form-group Customers-half-width" style={{ flex: 1, width: '100%' }}>
-                                                <label className="Customers-form-label">Name <span className="Customers-text-red">*</span></label>
+                                            <div className="Customers-form-group" style={{ flex: 1 }}>
                                                 <input
                                                     type="text"
                                                     className="Customers-form-input"
-                                                    name="name"
-                                                    value={customerFormData.name}
+                                                    name="billingCity"
+                                                    value={customerFormData.billingCity}
                                                     onChange={handleCustomerInputChange}
-                                                    placeholder="Enter Name"
-                                                    required
+                                                    placeholder="City"
+                                                />
+                                            </div>
+                                            <div className="Customers-form-group" style={{ flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    className="Customers-form-input"
+                                                    name="billingState"
+                                                    value={customerFormData.billingState}
+                                                    onChange={handleCustomerInputChange}
+                                                    placeholder="State"
                                                 />
                                             </div>
                                         </div>
-
-                                        <div className="Customers-form-row Customers-mixed-col">
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Company Name</label>
+                                        <div className="Customers-form-row">
+                                            <div className="Customers-form-group" style={{ flex: 1 }}>
                                                 <input
                                                     type="text"
                                                     className="Customers-form-input"
-                                                    name="companyName"
-                                                    value={customerFormData.companyName}
+                                                    name="billingCountry"
+                                                    value={customerFormData.billingCountry}
                                                     onChange={handleCustomerInputChange}
-                                                    placeholder="Enter company name"
+                                                    placeholder="Country"
                                                 />
                                             </div>
-                                            <div className="Customers-form-group Customers-google-loc">
-                                                <label className="Customers-form-label">Company Google Location</label>
+                                            <div className="Customers-form-group" style={{ flex: 1 }}>
                                                 <input
                                                     type="text"
                                                     className="Customers-form-input"
-                                                    name="companyLocation"
-                                                    value={customerFormData.companyLocation}
+                                                    name="billingZipCode"
+                                                    value={customerFormData.billingZipCode}
                                                     onChange={handleCustomerInputChange}
-                                                    placeholder="Enter Google Maps link"
+                                                    placeholder="Zip Code"
                                                 />
-                                            </div>
-                                        </div>
-
-                                        {/* File Uploads */}
-                                        <div className="Customers-form-row Customers-mixed-col">
-                                            <div className="Customers-form-group Customers-profile-img">
-                                                <label className="Customers-form-label">Profile Image</label>
-                                                {customerFormData.profileImage ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                                                        <img
-                                                            src={customerFormData.profileImage}
-                                                            alt="Profile"
-                                                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setCustomerFormData(prev => ({ ...prev, profileImage: '' }))}
-                                                            style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem' }}
-                                                        >
-                                                            x Remove
-                                                        </button>
-                                                    </div>
-                                                ) : null}
-                                                <input
-                                                    type="file"
-                                                    ref={profileImageRef}
-                                                    accept="image/jpeg,image/png,image/jpg"
-                                                    style={{ display: 'none' }}
-                                                    onChange={(e) => handleCustomerFileUpload(e.target.files[0], 'profileImage', 'customers')}
-                                                />
-                                                <div className="Customers-file-input-wrapper" onClick={() => profileImageRef.current?.click()} style={{ cursor: 'pointer' }}>
-                                                    <div className="Customers-file-label">
-                                                        <span className="Customers-file-btn">{uploadingProfileImage ? 'Uploading...' : 'Choose File'}</span>
-                                                        <span className="Customers-file-name">{customerFormData.profileImage ? 'Image uploaded ✓' : 'No file chosen'}</span>
-                                                    </div>
-                                                </div>
-                                                <span className="Customers-file-note">JPEG, PNG or JPG (max 5MB)</span>
-                                            </div>
-                                            <div className="Customers-form-group Customers-any-file">
-                                                <label className="Customers-form-label">Any File</label>
-                                                {customerFormData.anyFile ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                                        <a
-                                                            href={customerFormData.anyFile}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            style={{ color: '#2563eb', fontSize: '0.8rem', textDecoration: 'underline', wordBreak: 'break-all', maxWidth: '200px' }}
-                                                        >
-                                                            View File
-                                                        </a>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setCustomerFormData(prev => ({ ...prev, anyFile: '' }))}
-                                                            style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem' }}
-                                                        >
-                                                            x Remove
-                                                        </button>
-                                                    </div>
-                                                ) : null}
-                                                <input
-                                                    type="file"
-                                                    ref={anyFileRef}
-                                                    style={{ display: 'none' }}
-                                                    onChange={(e) => handleCustomerFileUpload(e.target.files[0], 'anyFile', 'customers')}
-                                                />
-                                                <div className="Customers-file-input-wrapper" onClick={() => anyFileRef.current?.click()} style={{ cursor: 'pointer' }}>
-                                                    <div className="Customers-file-label">
-                                                        <span className="Customers-file-btn">{uploadingAnyFile ? 'Uploading...' : 'Choose File'}</span>
-                                                        <span className="Customers-file-name">{customerFormData.anyFile ? 'File uploaded ✓' : 'No file chosen'}</span>
-                                                    </div>
-                                                </div>
-                                                <span className="Customers-file-note">Any file type. Max 10MB</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Account Information */}
-                                    <div className="Customers-form-section">
-                                        <h3 className="Customers-section-subtitle">Account Information</h3>
-                                        <div className="Customers-form-row Customers-mixed-col">
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Customer Type <span className="Customers-text-red">*</span></label>
-                                                <select
-                                                    className="Customers-form-select"
-                                                    name="accountType"
-                                                    value={customerFormData.accountType || 'Credit'}
-                                                    onChange={handleCustomerInputChange}
-                                                >
-                                                    <option value="Credit">Credit Customer</option>
-                                                    <option value="Cash">Cash Customer</option>
-                                                </select>
-                                            </div>
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Balance Type</label>
-                                                <select
-                                                    className="Customers-form-select"
-                                                    name="balanceType"
-                                                    value={customerFormData.balanceType}
-                                                    onChange={handleCustomerInputChange}
-                                                >
-                                                    <option value="Debit">Debit</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="Customers-form-row Customers-mixed-col">
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <div className="Customers-input-with-note">
-                                                    <label className="Customers-form-label">Account Name <span className="Customers-text-red">*</span></label>
+                                    {/* Shipping Address */}
+                                    <div style={{ flex: 1, paddingLeft: '2rem', borderLeft: '1px solid #edf2f7' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                            <h3 className="Customers-section-subtitle">Shipping Addresses</h3>
+                                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.85rem' }}>
                                                     <input
-                                                        type="text"
-                                                        className="Customers-form-input"
-                                                        value={customerFormData.name}
-                                                        readOnly
-                                                        disabled
-                                                        style={{ backgroundColor: '#f3f4f6' }}
-                                                    />
-                                                    <span className="Customers-input-note">This will auto-fill from selection above</span>
-                                                </div>
-                                            </div>
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Account Balance <span className="Customers-text-red">*</span></label>
-                                                <input
-                                                    type="number"
-                                                    className="Customers-form-input"
-                                                    name="accountBalance"
-                                                    value={customerFormData.accountBalance}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="0.00"
-                                                    min="0"
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === '-' || e.key === 'e' || e.key === 'E') {
-                                                            e.preventDefault();
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Creation Date <span className="Customers-text-red">*</span></label>
-                                                <input
-                                                    type="date"
-                                                    className="Customers-form-input"
-                                                    name="creationDate"
-                                                    value={customerFormData.creationDate}
-                                                    onChange={handleCustomerInputChange}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Bank Details */}
-                                    <div className="Customers-form-section">
-                                        <h3 className="Customers-section-subtitle">Bank Details</h3>
-                                        <div className="Customers-form-row Customers-three-col">
-                                            <div className="Customers-form-group">
-                                                <label className="Customers-form-label">Bank Account Number</label>
-                                                <input
-                                                    type="text"
-                                                    className="Customers-form-input"
-                                                    name="bankAccountNumber"
-                                                    value={customerFormData.bankAccountNumber}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="Enter bank account number"
-                                                />
-                                            </div>
-                                            <div className="Customers-form-group">
-                                                <label className="Customers-form-label">Bank IFSC</label>
-                                                <input
-                                                    type="text"
-                                                    className="Customers-form-input"
-                                                    name="bankIFSC"
-                                                    value={customerFormData.bankIFSC}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="Enter bank IFSC"
-                                                />
-                                            </div>
-                                            <div className="Customers-form-group">
-                                                <label className="Customers-form-label">Bank Name & Branch</label>
-                                                <input
-                                                    type="text"
-                                                    className="Customers-form-input"
-                                                    name="bankNameBranch"
-                                                    value={customerFormData.bankNameBranch}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="Enter bank name & branch"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Contact & GST */}
-                                    <div className="Customers-form-section">
-                                        <h3 className="Customers-section-subtitle">Contact & Status</h3>
-                                        <div className="Customers-form-row Customers-mixed-col">
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Phone <span className="Customers-text-red">*</span></label>
-                                                <input
-                                                    type="text"
-                                                    className="Customers-form-input"
-                                                    name="phone"
-                                                    value={customerFormData.phone}
-                                                    onChange={handleCustomerInputChange}
-                                                    maxLength={10}
-                                                    placeholder="Enter Phone"
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Email <span className="Customers-text-red">*</span></label>
-                                                <input
-                                                    type="email"
-                                                    className="Customers-form-input"
-                                                    name="email"
-                                                    value={customerFormData.email}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="Enter Email"
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="Customers-form-group Customers-half-width">
-                                                <label className="Customers-form-label">Credit Period (days)</label>
-                                                <input
-                                                    type="number"
-                                                    className="Customers-form-input"
-                                                    name="creditPeriod"
-                                                    value={customerFormData.creditPeriod}
-                                                    onChange={handleCustomerInputChange}
-                                                    placeholder="Enter credit period"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="Customers-form-row" style={{ alignItems: 'center' }}>
-                                            <label className="Customers-switch" style={{ marginRight: '10px' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    name="gstEnabled"
-                                                    checked={customerFormData.gstEnabled}
-                                                    onChange={handleCustomerInputChange}
-                                                />
-                                                <span className="Customers-slider Customers-round"></span>
-                                            </label>
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Enable GST</span>
-
-                                            {customerFormData.gstEnabled && (
-                                                <div className="Customers-form-group" style={{ marginLeft: '2rem', flex: 1 }}>
-                                                    <input
-                                                        type="text"
-                                                        className="Customers-form-input"
-                                                        name="gstNumber"
-                                                        value={customerFormData.gstNumber}
+                                                        type="checkbox"
+                                                        name="shippingSameAsBilling"
+                                                        checked={customerFormData.shippingSameAsBilling}
                                                         onChange={handleCustomerInputChange}
-                                                        placeholder="Enter GSTIN"
+                                                        style={{ marginRight: '5px' }}
                                                     />
-                                                </div>
-                                            )}
+                                                    Apply Billing to First Shipping
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className="Customers-voucher-badge text-blue-600 border border-blue-600 bg-white hover:bg-blue-50"
+                                                    onClick={addCustomerShippingAddress}
+                                                    style={{ padding: '2px 8px', fontSize: '0.8rem', cursor: 'pointer' }}
+                                                >
+                                                    + Add More
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Addresses */}
-                                    <div className="Customers-form-section">
-                                        <div className="Customers-form-row">
-                                            {/* Billing Address */}
-                                            <div style={{ flex: 1 }}>
-                                                <h3 className="Customers-section-subtitle">Billing Address</h3>
+                                        {customerFormData.shippingSameAsBilling && (
+                                            <div style={{ marginBottom: '1.5rem', padding: '15px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
+                                                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#0369a1' }}>First Shipping Address (Same as Billing)</h4>
+                                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#0c4a6e' }}>
+                                                    <strong>Address:</strong> {customerFormData.billingAddress || 'N/A'}<br />
+                                                    {customerFormData.billingCity && `${customerFormData.billingCity}, `}{customerFormData.billingState && `${customerFormData.billingState}, `}{customerFormData.billingZipCode}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {customerFormData.shippingAddresses.length === 0 && !customerFormData.shippingSameAsBilling && (
+                                            <div className="Customers-form-group" style={{ padding: '15px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                                                <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#64748b' }}>
+                                                    No shipping addresses added.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={addCustomerShippingAddress}
+                                                    className="Customers-voucher-badge text-blue-600"
+                                                >
+                                                    Click here to add one
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {customerFormData.shippingAddresses.map((addr, index) => (
+                                            <div key={index} style={{ marginBottom: '1.5rem', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative' }}>
+                                                {customerFormData.shippingAddresses.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeCustomerShippingAddress(index)}
+                                                        style={{ position: 'absolute', top: '10px', right: '10px', color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                )}
+                                                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#475569' }}>Shipping Address #{index + 1}</h4>
+
                                                 <div className="Customers-form-group">
                                                     <label className="Customers-form-label">Name</label>
                                                     <input
                                                         type="text"
                                                         className="Customers-form-input"
-                                                        name="billingName"
-                                                        value={customerFormData.billingName}
-                                                        onChange={handleCustomerInputChange}
+                                                        value={addr.name}
+                                                        onChange={(e) => handleCustomerShippingAddressChange(index, 'name', e.target.value)}
                                                         placeholder="Enter Name"
                                                     />
                                                 </div>
@@ -9157,9 +9403,8 @@ const Invoice = () => {
                                                     <input
                                                         type="text"
                                                         className="Customers-form-input"
-                                                        name="billingPhone"
-                                                        value={customerFormData.billingPhone}
-                                                        onChange={handleCustomerInputChange}
+                                                        value={addr.phone}
+                                                        onChange={(e) => handleCustomerShippingAddressChange(index, 'phone', e.target.value)}
                                                         maxLength={10}
                                                         placeholder="Enter Phone"
                                                     />
@@ -9168,11 +9413,10 @@ const Invoice = () => {
                                                     <label className="Customers-form-label">Address</label>
                                                     <textarea
                                                         className="Customers-form-textarea"
-                                                        name="billingAddress"
-                                                        value={customerFormData.billingAddress}
-                                                        onChange={handleCustomerInputChange}
+                                                        value={addr.address}
+                                                        onChange={(e) => handleCustomerShippingAddressChange(index, 'address', e.target.value)}
                                                         placeholder="Enter Address"
-                                                        rows="3"
+                                                        rows="2"
                                                     />
                                                 </div>
                                                 <div className="Customers-form-row">
@@ -9180,9 +9424,8 @@ const Invoice = () => {
                                                         <input
                                                             type="text"
                                                             className="Customers-form-input"
-                                                            name="billingCity"
-                                                            value={customerFormData.billingCity}
-                                                            onChange={handleCustomerInputChange}
+                                                            value={addr.city}
+                                                            onChange={(e) => handleCustomerShippingAddressChange(index, 'city', e.target.value)}
                                                             placeholder="City"
                                                         />
                                                     </div>
@@ -9190,9 +9433,8 @@ const Invoice = () => {
                                                         <input
                                                             type="text"
                                                             className="Customers-form-input"
-                                                            name="billingState"
-                                                            value={customerFormData.billingState}
-                                                            onChange={handleCustomerInputChange}
+                                                            value={addr.state}
+                                                            onChange={(e) => handleCustomerShippingAddressChange(index, 'state', e.target.value)}
                                                             placeholder="State"
                                                         />
                                                     </div>
@@ -9202,9 +9444,8 @@ const Invoice = () => {
                                                         <input
                                                             type="text"
                                                             className="Customers-form-input"
-                                                            name="billingCountry"
-                                                            value={customerFormData.billingCountry}
-                                                            onChange={handleCustomerInputChange}
+                                                            value={addr.country}
+                                                            onChange={(e) => handleCustomerShippingAddressChange(index, 'country', e.target.value)}
                                                             placeholder="Country"
                                                         />
                                                     </div>
@@ -9212,829 +9453,691 @@ const Invoice = () => {
                                                         <input
                                                             type="text"
                                                             className="Customers-form-input"
-                                                            name="billingZipCode"
-                                                            value={customerFormData.billingZipCode}
-                                                            onChange={handleCustomerInputChange}
+                                                            value={addr.zipCode}
+                                                            onChange={(e) => handleCustomerShippingAddressChange(index, 'zipCode', e.target.value)}
                                                             placeholder="Zip Code"
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {/* Shipping Address */}
-                                            <div style={{ flex: 1, paddingLeft: '2rem', borderLeft: '1px solid #edf2f7' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                                    <h3 className="Customers-section-subtitle">Shipping Addresses</h3>
-                                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.85rem' }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                name="shippingSameAsBilling"
-                                                                checked={customerFormData.shippingSameAsBilling}
-                                                                onChange={handleCustomerInputChange}
-                                                                style={{ marginRight: '5px' }}
-                                                            />
-                                                            Apply Billing to First Shipping
-                                                        </label>
-                                                        <button
-                                                            type="button"
-                                                            className="Customers-voucher-badge text-blue-600 border border-blue-600 bg-white hover:bg-blue-50"
-                                                            onClick={addCustomerShippingAddress}
-                                                            style={{ padding: '2px 8px', fontSize: '0.8rem', cursor: 'pointer' }}
-                                                        >
-                                                            + Add More
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {customerFormData.shippingSameAsBilling && (
-                                                    <div style={{ marginBottom: '1.5rem', padding: '15px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px' }}>
-                                                        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#0369a1' }}>First Shipping Address (Same as Billing)</h4>
-                                                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#0c4a6e' }}>
-                                                            <strong>Address:</strong> {customerFormData.billingAddress || 'N/A'}<br />
-                                                            {customerFormData.billingCity && `${customerFormData.billingCity}, `}{customerFormData.billingState && `${customerFormData.billingState}, `}{customerFormData.billingZipCode}
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {customerFormData.shippingAddresses.length === 0 && !customerFormData.shippingSameAsBilling && (
-                                                    <div className="Customers-form-group" style={{ padding: '15px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-                                                        <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: '#64748b' }}>
-                                                            No shipping addresses added.
-                                                        </p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={addCustomerShippingAddress}
-                                                            className="Customers-voucher-badge text-blue-600"
-                                                        >
-                                                            Click here to add one
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {customerFormData.shippingAddresses.map((addr, index) => (
-                                                    <div key={index} style={{ marginBottom: '1.5rem', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '8px', position: 'relative' }}>
-                                                        {customerFormData.shippingAddresses.length > 1 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeCustomerShippingAddress(index)}
-                                                                style={{ position: 'absolute', top: '10px', right: '10px', color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        )}
-                                                        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#475569' }}>Shipping Address #{index + 1}</h4>
-
-                                                        <div className="Customers-form-group">
-                                                            <label className="Customers-form-label">Name</label>
-                                                            <input
-                                                                type="text"
-                                                                className="Customers-form-input"
-                                                                value={addr.name}
-                                                                onChange={(e) => handleCustomerShippingAddressChange(index, 'name', e.target.value)}
-                                                                placeholder="Enter Name"
-                                                            />
-                                                        </div>
-                                                        <div className="Customers-form-group">
-                                                            <label className="Customers-form-label">Phone</label>
-                                                            <input
-                                                                type="text"
-                                                                className="Customers-form-input"
-                                                                value={addr.phone}
-                                                                onChange={(e) => handleCustomerShippingAddressChange(index, 'phone', e.target.value)}
-                                                                maxLength={10}
-                                                                placeholder="Enter Phone"
-                                                            />
-                                                        </div>
-                                                        <div className="Customers-form-group">
-                                                            <label className="Customers-form-label">Address</label>
-                                                            <textarea
-                                                                className="Customers-form-textarea"
-                                                                value={addr.address}
-                                                                onChange={(e) => handleCustomerShippingAddressChange(index, 'address', e.target.value)}
-                                                                placeholder="Enter Address"
-                                                                rows="2"
-                                                            />
-                                                        </div>
-                                                        <div className="Customers-form-row">
-                                                            <div className="Customers-form-group" style={{ flex: 1 }}>
-                                                                <input
-                                                                    type="text"
-                                                                    className="Customers-form-input"
-                                                                    value={addr.city}
-                                                                    onChange={(e) => handleCustomerShippingAddressChange(index, 'city', e.target.value)}
-                                                                    placeholder="City"
-                                                                />
-                                                            </div>
-                                                            <div className="Customers-form-group" style={{ flex: 1 }}>
-                                                                <input
-                                                                    type="text"
-                                                                    className="Customers-form-input"
-                                                                    value={addr.state}
-                                                                    onChange={(e) => handleCustomerShippingAddressChange(index, 'state', e.target.value)}
-                                                                    placeholder="State"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="Customers-form-row">
-                                                            <div className="Customers-form-group" style={{ flex: 1 }}>
-                                                                <input
-                                                                    type="text"
-                                                                    className="Customers-form-input"
-                                                                    value={addr.country}
-                                                                    onChange={(e) => handleCustomerShippingAddressChange(index, 'country', e.target.value)}
-                                                                    placeholder="Country"
-                                                                />
-                                                            </div>
-                                                            <div className="Customers-form-group" style={{ flex: 1 }}>
-                                                                <input
-                                                                    type="text"
-                                                                    className="Customers-form-input"
-                                                                    value={addr.zipCode}
-                                                                    onChange={(e) => handleCustomerShippingAddressChange(index, 'zipCode', e.target.value)}
-                                                                    placeholder="Zip Code"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        ))}
                                     </div>
-                                </div>
-
-                                <div className="Customers-modal-footer">
-                                    <button type="button" className="Customers-btn-cancel" onClick={() => setShowAddCustomerModal(false)}>Cancel</button>
-                                    <button type="button" className="Customers-btn-save" onClick={handleCustomerSubmit} disabled={customerSubmitting}>
-                                        {customerSubmitting ? 'Creating...' : 'Create'}
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                    )}
 
-                    {/* Add New Product Modal */}
-                    {showAddProductModal && (
-                        <div className="Zirak-Inventory-modal-overlay" style={{ zIndex: 20000 }}>
-                            <div className="Zirak-Inventory-modal-content Zirak-Inventory-modal" style={{ textAlign: 'left' }}>
-                                <div className="Zirak-Inventory-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                        <h2 className="Zirak-Inventory-modal-title" style={{ margin: 0 }}>
-                                            {itemModalTab === 'PRODUCT' ? 'Add Product' : 'Add Service'}
-                                        </h2>
-                                        <div style={{
-                                            display: 'inline-flex',
-                                            backgroundColor: '#f1f5f9',
-                                            padding: '3px',
-                                            borderRadius: '8px',
-                                            gap: '3px'
-                                        }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setItemModalTab('PRODUCT')}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '5px 14px',
-                                                    borderRadius: '6px',
-                                                    border: 'none',
-                                                    fontSize: '13px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: itemModalTab === 'PRODUCT' ? 600 : 500,
-                                                    backgroundColor: itemModalTab === 'PRODUCT' ? '#ffffff' : 'transparent',
-                                                    color: itemModalTab === 'PRODUCT' ? '#0f172a' : '#64748b',
-                                                    boxShadow: itemModalTab === 'PRODUCT' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                                    transition: 'all 0.15s ease'
-                                                }}
-                                            >
-                                                <Package size={15} />
-                                                <span>Product</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setItemModalTab('SERVICE')}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '5px 14px',
-                                                    borderRadius: '6px',
-                                                    border: 'none',
-                                                    fontSize: '13px',
-                                                    cursor: 'pointer',
-                                                    fontWeight: itemModalTab === 'SERVICE' ? 600 : 500,
-                                                    backgroundColor: itemModalTab === 'SERVICE' ? '#ffffff' : 'transparent',
-                                                    color: itemModalTab === 'SERVICE' ? '#0f172a' : '#64748b',
-                                                    boxShadow: itemModalTab === 'SERVICE' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                                    transition: 'all 0.15s ease'
-                                                }}
-                                            >
-                                                <Briefcase size={15} />
-                                                <span>Service</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <button className="Zirak-Inventory-close-btn" onClick={() => setShowAddProductModal(false)}>
-                                        <X size={20} />
+                        <div className="Customers-modal-footer">
+                            <button type="button" className="Customers-btn-cancel" onClick={() => setShowAddCustomerModal(false)}>Cancel</button>
+                            <button type="button" className="Customers-btn-save" onClick={handleCustomerSubmit} disabled={customerSubmitting}>
+                                {customerSubmitting ? 'Creating...' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add New Product Modal */}
+            {showAddProductModal && (
+                <div className="Zirak-Inventory-modal-overlay" style={{ zIndex: 20000 }}>
+                    <div className="Zirak-Inventory-modal-content Zirak-Inventory-modal" style={{ textAlign: 'left' }}>
+                        <div className="Zirak-Inventory-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <h2 className="Zirak-Inventory-modal-title" style={{ margin: 0 }}>
+                                    {itemModalTab === 'PRODUCT' ? 'Add Product' : 'Add Service'}
+                                </h2>
+                                <div style={{
+                                    display: 'inline-flex',
+                                    backgroundColor: '#f1f5f9',
+                                    padding: '3px',
+                                    borderRadius: '8px',
+                                    gap: '3px'
+                                }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setItemModalTab('PRODUCT')}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '5px 14px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            fontSize: '13px',
+                                            cursor: 'pointer',
+                                            fontWeight: itemModalTab === 'PRODUCT' ? 600 : 500,
+                                            backgroundColor: itemModalTab === 'PRODUCT' ? '#ffffff' : 'transparent',
+                                            color: itemModalTab === 'PRODUCT' ? '#0f172a' : '#64748b',
+                                            boxShadow: itemModalTab === 'PRODUCT' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                    >
+                                        <Package size={15} />
+                                        <span>Product</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setItemModalTab('SERVICE')}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '5px 14px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            fontSize: '13px',
+                                            cursor: 'pointer',
+                                            fontWeight: itemModalTab === 'SERVICE' ? 600 : 500,
+                                            backgroundColor: itemModalTab === 'SERVICE' ? '#ffffff' : 'transparent',
+                                            color: itemModalTab === 'SERVICE' ? '#0f172a' : '#64748b',
+                                            boxShadow: itemModalTab === 'SERVICE' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                    >
+                                        <Briefcase size={15} />
+                                        <span>Service</span>
                                     </button>
                                 </div>
+                            </div>
+                            <button className="Zirak-Inventory-close-btn" onClick={() => setShowAddProductModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
 
-                                {itemModalTab === 'SERVICE' ? (
-                                    <form onSubmit={handleServiceSubmit}>
-                                        <div className="Zirak-Inventory-modal-body">
-                                            <div className="Zirak-Inventory-form-grid">
-                                                <div className="Zirak-Inventory-form-group">
-                                                    <label className="Zirak-Inventory-form-label">Service Name <span style={{ color: '#ef4444' }}>*</span></label>
-                                                    <input
-                                                        type="text"
-                                                        name="name"
-                                                        className="Zirak-Inventory-form-input"
-                                                        placeholder="Enter service name (e.g. Design Consulting, Maintenance)"
-                                                        value={serviceFormData.name}
-                                                        onChange={handleServiceInputChange}
-                                                        required
-                                                    />
-                                                </div>
-
-                                                <div className="Zirak-Inventory-form-group">
-                                                    <label className="Zirak-Inventory-form-label">SKU / Service Code</label>
-                                                    <input
-                                                        type="text"
-                                                        name="sku"
-                                                        className="Zirak-Inventory-form-input"
-                                                        placeholder="Enter SKU (optional)"
-                                                        value={serviceFormData.sku}
-                                                        onChange={handleServiceInputChange}
-                                                    />
-                                                </div>
-
-                                                <div className="Zirak-Inventory-form-group">
-                                                    <label className="Zirak-Inventory-form-label">Unit of Measure (Optional)</label>
-                                                    <select
-                                                        name="uomId"
-                                                        className="Zirak-Inventory-form-input"
-                                                        value={serviceFormData.uomId}
-                                                        onChange={handleServiceInputChange}
-                                                    >
-                                                        <option value="">Select UOM (Optional)</option>
-                                                        {(allUoms || []).map(uom => (
-                                                            <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.category || uom.uomType || 'Unit'})</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-
-                                                <div className="Zirak-Inventory-form-group">
-                                                    <label className="Zirak-Inventory-form-label">Price / Rate (Optional)</label>
-                                                    <input
-                                                        type="number"
-                                                        name="price"
-                                                        step="0.01"
-                                                        className="Zirak-Inventory-form-input"
-                                                        placeholder="0.00 (Can be adjusted in invoice)"
-                                                        value={serviceFormData.price}
-                                                        onChange={handleServiceInputChange}
-                                                    />
-                                                </div>
-
-                                                <div className="Zirak-Inventory-form-group">
-                                                    <label className="Zirak-Inventory-form-label">Default Tax / VAT %</label>
-                                                    <input
-                                                        type="number"
-                                                        name="taxRate"
-                                                        step="0.01"
-                                                        className="Zirak-Inventory-form-input"
-                                                        placeholder={`e.g. ${defaultVat || 23}`}
-                                                        value={serviceFormData.taxRate}
-                                                        onChange={handleServiceInputChange}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="Zirak-Inventory-form-group Zirak-Inventory-full-width" style={{ marginTop: '15px' }}>
-                                                <label className="Zirak-Inventory-form-label">Service Description</label>
-                                                <textarea
-                                                    name="description"
-                                                    className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
-                                                    placeholder="Describe the scope of the service"
-                                                    rows={3}
-                                                    value={serviceFormData.description}
-                                                    onChange={handleServiceInputChange}
-                                                />
-                                            </div>
-
-                                            <div className="Zirak-Inventory-form-group" style={{ marginTop: '15px' }}>
-                                                <label className="Zirak-Inventory-form-label">Internal Remarks</label>
-                                                <textarea
-                                                    name="remarks"
-                                                    className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
-                                                    placeholder="Internal notes (not visible to customers)"
-                                                    rows={2}
-                                                    value={serviceFormData.remarks}
-                                                    onChange={handleServiceInputChange}
-                                                />
-                                                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Remarks are for internal use only.</p>
-                                            </div>
-
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '15px' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    id="allowInInvoicesCheck"
-                                                    name="allowInInvoices"
-                                                    checked={serviceFormData.allowInInvoices}
-                                                    onChange={handleServiceInputChange}
-                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                                                />
-                                                <label htmlFor="allowInInvoicesCheck" style={{ fontSize: '13px', color: '#334155', cursor: 'pointer', margin: 0, fontWeight: 500 }}>
-                                                    Allow this service to be selected in invoices
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-modal-footer">
-                                            <button
-                                                type="button"
-                                                className="Zirak-Inventory-btn-cancel"
-                                                onClick={() => {
-                                                    setShowAddProductModal(false);
-                                                    resetServiceForm();
-                                                }}
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                className="Zirak-Inventory-btn-submit"
-                                                disabled={serviceSubmitting}
-                                                style={{ backgroundColor: '#1e293b' }}
-                                            >
-                                                {serviceSubmitting ? 'Saving...' : 'Save Service'}
-                                            </button>
-                                        </div>
-                                    </form>
-                                ) : (
-                                    <form onSubmit={handleFullProductSubmit}>
-                                    <div className="Zirak-Inventory-modal-body">
-                                        <div className="Zirak-Inventory-form-grid">
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Item Name *</label>
-                                                <input
-                                                    type="text"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="name"
-                                                    placeholder="Enter item name"
-                                                    value={productFormData.name}
-                                                    onChange={handleProductInputChange}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
-                                                <input
-                                                    type="text"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="hsn"
-                                                    placeholder="Enter Item Code / SKU"
-                                                    value={productFormData.hsn}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Barcode</label>
-                                                <input
-                                                    type="text"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="barcode"
-                                                    placeholder="Enter barcode"
-                                                    value={productFormData.barcode}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Item Image</label>
-                                                <div className="Zirak-Inventory-file-input-wrapper">
-                                                    <label className="Zirak-Inventory-file-input-label">
-                                                        {uploadingImage ? (
-                                                            <>
-                                                                <Loader2 size={16} className="Zirak-Inventory-animate-spin" style={{ display: 'inline-block', marginRight: '6px' }} />
-                                                                <span>Uploading...</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Upload size={16} style={{ display: 'inline-block', marginRight: '6px' }} />
-                                                                <span>Choose File</span>
-                                                            </>
-                                                        )}
-                                                        <input
-                                                            type="file"
-                                                            className="Zirak-Inventory-hidden-file-input"
-                                                            onChange={handleProductImageChange}
-                                                            accept="image/*"
-                                                            disabled={uploadingImage}
-                                                        />
-                                                    </label>
-                                                    <span className="Zirak-Inventory-file-name" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                                                        {productFormData.image ? (
-                                                            <>
-                                                                <img
-                                                                    src={productFormData.image}
-                                                                    alt="Preview"
-                                                                    style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #cbd5e1' }}
-                                                                />
-                                                                <a href={productFormData.image} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
-                                                                    View Image
-                                                                </a>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setProductFormData(prev => ({ ...prev, image: '' }))}
-                                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 4px' }}
-                                                                    title="Remove Image"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            </>
-                                                        ) : 'No file chosen'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Item Category (Optional)</label>
-                                                <div className="Zirak-Inventory-input-with-action">
-                                                    <select
-                                                        name="categoryId" className="Zirak-Inventory-form-input"
-                                                        value={productFormData.categoryId} onChange={handleProductInputChange}
-                                                    >
-                                                        <option value="">Select Category</option>
-                                                        {categories.map(cat => (
-                                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                                        ))}
-                                                    </select>
-                                                    <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={() => setShowCategoryModal(true)}><Plus size={16} /></button>
-                                                </div>
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
-                                                <div className="Zirak-Inventory-input-with-action">
-                                                    <select
-                                                        name="uomId" className="Zirak-Inventory-form-input"
-                                                        value={productFormData.uomId} onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setProductFormData(prev => ({
-                                                                ...prev,
-                                                                uomId: val,
-                                                                purchaseUomId: val,
-                                                                salesUomId: val
-                                                            }));
-                                                        }}
-                                                    >
-                                                        <option value="">Select Base UOM</option>
-                                                        {allUoms.filter(u => u.uomType === 'Simple').map(uom => (
-                                                            <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.category})</option>
-                                                        ))}
-                                                    </select>
-                                                    <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={() => setShowUomModal(true)}>
-                                                        <Plus size={16} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Default Purchase Unit</label>
-                                                <select
-                                                    name="purchaseUomId" className="Zirak-Inventory-form-input"
-                                                    value={productFormData.purchaseUomId} onChange={handleProductInputChange}
-                                                    disabled={!productFormData.uomId}
-                                                >
-                                                    <option value="">Select Purchase UOM</option>
-                                                    {productFormData.uomId && (() => {
-                                                        const base = allUoms.find(u => u.id === parseInt(productFormData.uomId));
-                                                        if (!base) return null;
-                                                        return allUoms.filter(u => u.category === base.category).map(uom => (
-                                                            <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.uomType})</option>
-                                                        ));
-                                                    })()}
-                                                </select>
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Default Sales Unit</label>
-                                                <select
-                                                    name="salesUomId" className="Zirak-Inventory-form-input"
-                                                    value={productFormData.salesUomId} onChange={handleProductInputChange}
-                                                    disabled={!productFormData.uomId}
-                                                >
-                                                    <option value="">Select Sales UOM</option>
-                                                    {productFormData.uomId && (() => {
-                                                        const base = allUoms.find(u => u.id === parseInt(productFormData.uomId));
-                                                        if (!base) return null;
-                                                        return allUoms.filter(u => u.category === base.category).map(uom => (
-                                                            <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.uomType})</option>
-                                                        ));
-                                                    })()}
-                                                </select>
-                                            </div>
-
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">SKU *</label>
-                                                <input
-                                                    type="text"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="sku"
-                                                    placeholder="Enter SKU"
-                                                    value={productFormData.sku}
-                                                    onChange={handleProductInputChange}
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-section-title-row">
-                                            <h3 className="Zirak-Inventory-section-title">Warehouse Information</h3>
-                                            <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={addProductWarehouseRow}>+ Add Warehouse</button>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-warehouse-table-container">
-                                            <table className="Zirak-Inventory-warehouse-input-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>WAREHOUSE</th>
-                                                        <th>QUANTITY</th>
-                                                        <th>MINIMUM ORDER QUANTITY</th>
-                                                        <th>INITIAL QUANTITY ON HAND</th>
-                                                        <th>ACTION</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {productWarehouseRows.map((row) => (
-                                                        <tr key={row.id}>
-                                                            <td>
-                                                                <select
-                                                                    className="Zirak-Inventory-form-input Zirak-Inventory-mini"
-                                                                    value={row.warehouseId}
-                                                                    onChange={(e) => handleProductWhRowChange(row.id, 'warehouseId', e.target.value)}
-                                                                >
-                                                                    <option value="">Select Warehouse</option>
-                                                                    {allWarehouses.map(wh => (
-                                                                        <option key={wh.id} value={wh.id}>{wh.name}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </td>
-                                                            <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.quantity} onChange={(e) => handleProductWhRowChange(row.id, 'quantity', e.target.value)} /></td>
-                                                            <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.minOrderQty} onChange={(e) => handleProductWhRowChange(row.id, 'minOrderQty', e.target.value)} /></td>
-                                                            <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.initialQty} onChange={(e) => handleProductWhRowChange(row.id, 'initialQty', e.target.value)} /></td>
-                                                            <td>
-                                                                <button type="button" className="Zirak-Inventory-btn-remove" onClick={() => removeProductWarehouseRow(row.id)}>Remove</button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-form-group Zirak-Inventory-full-width" style={{ marginTop: '1rem' }}>
-                                            <label className="Zirak-Inventory-form-label">Item Description</label>
-                                            <textarea
-                                                name="description" className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
-                                                placeholder="Enter item description" rows={3}
-                                                value={productFormData.description} onChange={handleProductInputChange}
-                                            ></textarea>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-form-grid" style={{ marginTop: '15px' }}>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">As of Date</label>
-                                                <input
-                                                    type="date"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="asOfDate"
-                                                    value={productFormData.asOfDate}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Tax Account</label>
-                                                <input
-                                                    type="text"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="taxAccount"
-                                                    placeholder="e.g. GST 18%"
-                                                    value={productFormData.taxAccount}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Initial Cost Price</label>
-                                                <input
-                                                    type="number"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="initialCost"
-                                                    step="0.01"
-                                                    value={productFormData.initialCost}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Sale Price</label>
-                                                <input
-                                                    type="number"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="salePrice"
-                                                    step="0.01"
-                                                    value={productFormData.salePrice}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Purchase Price</label>
-                                                <input
-                                                    type="number"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="purchasePrice"
-                                                    step="0.01"
-                                                    value={productFormData.purchasePrice}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                            <div className="Zirak-Inventory-form-group">
-                                                <label className="Zirak-Inventory-form-label">Discount (%)</label>
-                                                <input
-                                                    type="number"
-                                                    className="Zirak-Inventory-form-input"
-                                                    name="discount"
-                                                    value={productFormData.discount}
-                                                    onChange={handleProductInputChange}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="Zirak-Inventory-form-group" style={{ marginTop: '15px' }}>
-                                            <label className="Zirak-Inventory-form-label">Remarks</label>
-                                            <textarea
-                                                className="Zirak-Inventory-form-textarea"
-                                                name="remarks"
-                                                placeholder="Enter remarks"
-                                                value={productFormData.remarks}
-                                                onChange={handleProductInputChange}
-                                                rows="2"
+                        {itemModalTab === 'SERVICE' ? (
+                            <form onSubmit={handleServiceSubmit}>
+                                <div className="Zirak-Inventory-modal-body">
+                                    <div className="Zirak-Inventory-form-grid">
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Service Name <span style={{ color: '#ef4444' }}>*</span></label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                className="Zirak-Inventory-form-input"
+                                                placeholder="Enter service name (e.g. Design Consulting, Maintenance)"
+                                                value={serviceFormData.name}
+                                                onChange={handleServiceInputChange}
+                                                required
                                             />
                                         </div>
 
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">SKU / Service Code</label>
+                                            <input
+                                                type="text"
+                                                name="sku"
+                                                className="Zirak-Inventory-form-input"
+                                                placeholder="Enter SKU (optional)"
+                                                value={serviceFormData.sku}
+                                                onChange={handleServiceInputChange}
+                                            />
+                                        </div>
 
-                                    </div>
-                                    <div className="Zirak-Inventory-modal-footer">
-                                        <button type="button" className="Zirak-Inventory-btn-cancel" onClick={() => setShowAddProductModal(false)}>Cancel</button>
-                                        <button type="submit" className="Zirak-Inventory-btn-submit" disabled={uploadingImage}>Save</button>
-                                    </div>
-                                </form>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Unit of Measure (Optional)</label>
+                                            <select
+                                                name="uomId"
+                                                className="Zirak-Inventory-form-input"
+                                                value={serviceFormData.uomId}
+                                                onChange={handleServiceInputChange}
+                                            >
+                                                <option value="">Select UOM (Optional)</option>
+                                                {(allUoms || []).map(uom => (
+                                                    <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.category || uom.uomType || 'Unit'})</option>
+                                                ))}
+                                            </select>
+                                        </div>
 
-                    {/* Add New Category Modal */}
-                    {showCategoryModal && (
-                        <div className="Zirak-Inventory-modal-overlay Zirak-Inventory-sub-modal" style={{ zIndex: 100000 }}>
-                            <div className="Zirak-Inventory-modal-content Zirak-Inventory-category-modal" style={{ textAlign: 'left' }}>
-                                <div className="Zirak-Inventory-modal-header">
-                                    <h2 className="Zirak-Inventory-modal-title">Add New Category</h2>
-                                    <button className="Zirak-Inventory-close-btn" onClick={() => setShowCategoryModal(false)}>
-                                        <X size={20} />
-                                    </button>
-                                </div>
-                                <div className="Zirak-Inventory-modal-body">
-                                    <div className="Zirak-Inventory-form-group">
-                                        <label className="Zirak-Inventory-form-label">Category Name</label>
-                                        <input
-                                            type="text"
-                                            className="Zirak-Inventory-form-input"
-                                            placeholder="Enter new category name"
-                                            value={newCategoryName}
-                                            onChange={(e) => setNewCategoryName(e.target.value)}
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Price / Rate (Optional)</label>
+                                            <input
+                                                type="number"
+                                                name="price"
+                                                step="0.01"
+                                                className="Zirak-Inventory-form-input"
+                                                placeholder="0.00 (Can be adjusted in invoice)"
+                                                value={serviceFormData.price}
+                                                onChange={handleServiceInputChange}
+                                            />
+                                        </div>
+
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Default Tax / VAT %</label>
+                                            <input
+                                                type="number"
+                                                name="taxRate"
+                                                step="0.01"
+                                                className="Zirak-Inventory-form-input"
+                                                placeholder={`e.g. ${defaultVat || 23}`}
+                                                value={serviceFormData.taxRate}
+                                                onChange={handleServiceInputChange}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-form-group Zirak-Inventory-full-width" style={{ marginTop: '15px' }}>
+                                        <label className="Zirak-Inventory-form-label">Service Description</label>
+                                        <textarea
+                                            name="description"
+                                            className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
+                                            placeholder="Describe the scope of the service"
+                                            rows={3}
+                                            value={serviceFormData.description}
+                                            onChange={handleServiceInputChange}
                                         />
                                     </div>
+
+                                    <div className="Zirak-Inventory-form-group" style={{ marginTop: '15px' }}>
+                                        <label className="Zirak-Inventory-form-label">Internal Remarks</label>
+                                        <textarea
+                                            name="remarks"
+                                            className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
+                                            placeholder="Internal notes (not visible to customers)"
+                                            rows={2}
+                                            value={serviceFormData.remarks}
+                                            onChange={handleServiceInputChange}
+                                        />
+                                        <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>Remarks are for internal use only.</p>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '15px' }}>
+                                        <input
+                                            type="checkbox"
+                                            id="allowInInvoicesCheck"
+                                            name="allowInInvoices"
+                                            checked={serviceFormData.allowInInvoices}
+                                            onChange={handleServiceInputChange}
+                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                        />
+                                        <label htmlFor="allowInInvoicesCheck" style={{ fontSize: '13px', color: '#334155', cursor: 'pointer', margin: 0, fontWeight: 500 }}>
+                                            Allow this service to be selected in invoices
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="Zirak-Inventory-modal-footer">
+                                    <button
+                                        type="button"
+                                        className="Zirak-Inventory-btn-cancel"
+                                        onClick={() => {
+                                            setShowAddProductModal(false);
+                                            resetServiceForm();
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="Zirak-Inventory-btn-submit"
+                                        disabled={serviceSubmitting}
+                                        style={{ backgroundColor: '#1e293b' }}
+                                    >
+                                        {serviceSubmitting ? 'Saving...' : 'Save Service'}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleFullProductSubmit}>
+                                <div className="Zirak-Inventory-modal-body">
+                                    <div className="Zirak-Inventory-form-grid">
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Item Name *</label>
+                                            <input
+                                                type="text"
+                                                className="Zirak-Inventory-form-input"
+                                                name="name"
+                                                placeholder="Enter item name"
+                                                value={productFormData.name}
+                                                onChange={handleProductInputChange}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Item Code / SKU</label>
+                                            <input
+                                                type="text"
+                                                className="Zirak-Inventory-form-input"
+                                                name="hsn"
+                                                placeholder="Enter Item Code / SKU"
+                                                value={productFormData.hsn}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Barcode</label>
+                                            <input
+                                                type="text"
+                                                className="Zirak-Inventory-form-input"
+                                                name="barcode"
+                                                placeholder="Enter barcode"
+                                                value={productFormData.barcode}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Item Image</label>
+                                            <div className="Zirak-Inventory-file-input-wrapper">
+                                                <label className="Zirak-Inventory-file-input-label">
+                                                    {uploadingImage ? (
+                                                        <>
+                                                            <Loader2 size={16} className="Zirak-Inventory-animate-spin" style={{ display: 'inline-block', marginRight: '6px' }} />
+                                                            <span>Uploading...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Upload size={16} style={{ display: 'inline-block', marginRight: '6px' }} />
+                                                            <span>Choose File</span>
+                                                        </>
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        className="Zirak-Inventory-hidden-file-input"
+                                                        onChange={handleProductImageChange}
+                                                        accept="image/*"
+                                                        disabled={uploadingImage}
+                                                    />
+                                                </label>
+                                                <span className="Zirak-Inventory-file-name" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                                    {productFormData.image ? (
+                                                        <>
+                                                            <img
+                                                                src={productFormData.image}
+                                                                alt="Preview"
+                                                                style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                            />
+                                                            <a href={productFormData.image} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
+                                                                View Image
+                                                            </a>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setProductFormData(prev => ({ ...prev, image: '' }))}
+                                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 4px' }}
+                                                                title="Remove Image"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </>
+                                                    ) : 'No file chosen'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Item Category (Optional)</label>
+                                            <div className="Zirak-Inventory-input-with-action">
+                                                <select
+                                                    name="categoryId" className="Zirak-Inventory-form-input"
+                                                    value={productFormData.categoryId} onChange={handleProductInputChange}
+                                                >
+                                                    <option value="">Select Category</option>
+                                                    {categories.map(cat => (
+                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                    ))}
+                                                </select>
+                                                <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={() => setShowCategoryModal(true)}><Plus size={16} /></button>
+                                            </div>
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Base Unit (Tracking Unit)</label>
+                                            <div className="Zirak-Inventory-input-with-action">
+                                                <select
+                                                    name="uomId" className="Zirak-Inventory-form-input"
+                                                    value={productFormData.uomId} onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setProductFormData(prev => ({
+                                                            ...prev,
+                                                            uomId: val,
+                                                            purchaseUomId: val,
+                                                            salesUomId: val
+                                                        }));
+                                                    }}
+                                                >
+                                                    <option value="">Select Base UOM</option>
+                                                    {allUoms.filter(u => u.uomType === 'Simple').map(uom => (
+                                                        <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.category})</option>
+                                                    ))}
+                                                </select>
+                                                <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={() => setShowUomModal(true)}>
+                                                    <Plus size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Default Purchase Unit</label>
+                                            <select
+                                                name="purchaseUomId" className="Zirak-Inventory-form-input"
+                                                value={productFormData.purchaseUomId} onChange={handleProductInputChange}
+                                                disabled={!productFormData.uomId}
+                                            >
+                                                <option value="">Select Purchase UOM</option>
+                                                {productFormData.uomId && (() => {
+                                                    const base = allUoms.find(u => u.id === parseInt(productFormData.uomId));
+                                                    if (!base) return null;
+                                                    return allUoms.filter(u => u.category === base.category).map(uom => (
+                                                        <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.uomType})</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Default Sales Unit</label>
+                                            <select
+                                                name="salesUomId" className="Zirak-Inventory-form-input"
+                                                value={productFormData.salesUomId} onChange={handleProductInputChange}
+                                                disabled={!productFormData.uomId}
+                                            >
+                                                <option value="">Select Sales UOM</option>
+                                                {productFormData.uomId && (() => {
+                                                    const base = allUoms.find(u => u.id === parseInt(productFormData.uomId));
+                                                    if (!base) return null;
+                                                    return allUoms.filter(u => u.category === base.category).map(uom => (
+                                                        <option key={uom.id} value={uom.id}>{uom.unitName} ({uom.uomType})</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                        </div>
+
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">SKU *</label>
+                                            <input
+                                                type="text"
+                                                className="Zirak-Inventory-form-input"
+                                                name="sku"
+                                                placeholder="Enter SKU"
+                                                value={productFormData.sku}
+                                                onChange={handleProductInputChange}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-section-title-row">
+                                        <h3 className="Zirak-Inventory-section-title">Warehouse Information</h3>
+                                        <button type="button" className="Zirak-Inventory-btn-inline-add" onClick={addProductWarehouseRow}>+ Add Warehouse</button>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-warehouse-table-container">
+                                        <table className="Zirak-Inventory-warehouse-input-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>WAREHOUSE</th>
+                                                    <th>QUANTITY</th>
+                                                    <th>MINIMUM ORDER QUANTITY</th>
+                                                    <th>INITIAL QUANTITY ON HAND</th>
+                                                    <th>ACTION</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {productWarehouseRows.map((row) => (
+                                                    <tr key={row.id}>
+                                                        <td>
+                                                            <select
+                                                                className="Zirak-Inventory-form-input Zirak-Inventory-mini"
+                                                                value={row.warehouseId}
+                                                                onChange={(e) => handleProductWhRowChange(row.id, 'warehouseId', e.target.value)}
+                                                            >
+                                                                <option value="">Select Warehouse</option>
+                                                                {allWarehouses.map(wh => (
+                                                                    <option key={wh.id} value={wh.id}>{wh.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.quantity} onChange={(e) => handleProductWhRowChange(row.id, 'quantity', e.target.value)} /></td>
+                                                        <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.minOrderQty} onChange={(e) => handleProductWhRowChange(row.id, 'minOrderQty', e.target.value)} /></td>
+                                                        <td><input type="number" className="Zirak-Inventory-form-input Zirak-Inventory-mini" value={row.initialQty} onChange={(e) => handleProductWhRowChange(row.id, 'initialQty', e.target.value)} /></td>
+                                                        <td>
+                                                            <button type="button" className="Zirak-Inventory-btn-remove" onClick={() => removeProductWarehouseRow(row.id)}>Remove</button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-form-group Zirak-Inventory-full-width" style={{ marginTop: '1rem' }}>
+                                        <label className="Zirak-Inventory-form-label">Item Description</label>
+                                        <textarea
+                                            name="description" className="Zirak-Inventory-form-input Zirak-Inventory-textarea"
+                                            placeholder="Enter item description" rows={3}
+                                            value={productFormData.description} onChange={handleProductInputChange}
+                                        ></textarea>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-form-grid" style={{ marginTop: '15px' }}>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">As of Date</label>
+                                            <input
+                                                type="date"
+                                                className="Zirak-Inventory-form-input"
+                                                name="asOfDate"
+                                                value={productFormData.asOfDate}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Tax Account</label>
+                                            <input
+                                                type="text"
+                                                className="Zirak-Inventory-form-input"
+                                                name="taxAccount"
+                                                placeholder="e.g. GST 18%"
+                                                value={productFormData.taxAccount}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Initial Cost Price</label>
+                                            <input
+                                                type="number"
+                                                className="Zirak-Inventory-form-input"
+                                                name="initialCost"
+                                                step="0.01"
+                                                value={productFormData.initialCost}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Sale Price</label>
+                                            <input
+                                                type="number"
+                                                className="Zirak-Inventory-form-input"
+                                                name="salePrice"
+                                                step="0.01"
+                                                value={productFormData.salePrice}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Purchase Price</label>
+                                            <input
+                                                type="number"
+                                                className="Zirak-Inventory-form-input"
+                                                name="purchasePrice"
+                                                step="0.01"
+                                                value={productFormData.purchasePrice}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                        <div className="Zirak-Inventory-form-group">
+                                            <label className="Zirak-Inventory-form-label">Discount (%)</label>
+                                            <input
+                                                type="number"
+                                                className="Zirak-Inventory-form-input"
+                                                name="discount"
+                                                value={productFormData.discount}
+                                                onChange={handleProductInputChange}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="Zirak-Inventory-form-group" style={{ marginTop: '15px' }}>
+                                        <label className="Zirak-Inventory-form-label">Remarks</label>
+                                        <textarea
+                                            className="Zirak-Inventory-form-textarea"
+                                            name="remarks"
+                                            placeholder="Enter remarks"
+                                            value={productFormData.remarks}
+                                            onChange={handleProductInputChange}
+                                            rows="2"
+                                        />
+                                    </div>
+
+
                                 </div>
                                 <div className="Zirak-Inventory-modal-footer">
-                                    <button className="Zirak-Inventory-btn-cancel" onClick={() => setShowCategoryModal(false)}>Cancel</button>
-                                    <button className="Zirak-Inventory-btn-submit" onClick={handleProductAddCategorySubmit}>Add</button>
+                                    <button type="button" className="Zirak-Inventory-btn-cancel" onClick={() => setShowAddProductModal(false)}>Cancel</button>
+                                    <button type="submit" className="Zirak-Inventory-btn-submit" disabled={uploadingImage}>Save</button>
                                 </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Add New Category Modal */}
+            {showCategoryModal && (
+                <div className="Zirak-Inventory-modal-overlay Zirak-Inventory-sub-modal" style={{ zIndex: 100000 }}>
+                    <div className="Zirak-Inventory-modal-content Zirak-Inventory-category-modal" style={{ textAlign: 'left' }}>
+                        <div className="Zirak-Inventory-modal-header">
+                            <h2 className="Zirak-Inventory-modal-title">Add New Category</h2>
+                            <button className="Zirak-Inventory-close-btn" onClick={() => setShowCategoryModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="Zirak-Inventory-modal-body">
+                            <div className="Zirak-Inventory-form-group">
+                                <label className="Zirak-Inventory-form-label">Category Name</label>
+                                <input
+                                    type="text"
+                                    className="Zirak-Inventory-form-input"
+                                    placeholder="Enter new category name"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                />
                             </div>
                         </div>
-                    )}
+                        <div className="Zirak-Inventory-modal-footer">
+                            <button className="Zirak-Inventory-btn-cancel" onClick={() => setShowCategoryModal(false)}>Cancel</button>
+                            <button className="Zirak-Inventory-btn-submit" onClick={handleProductAddCategorySubmit}>Add</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                    {/* Add New UOM Modal */}
-                    {showUomModal && (
-                        <div className="Zirak-UOM-modal-overlay" style={{ zIndex: 100000 }}>
-                            <div className="Zirak-UOM-modal" style={{ textAlign: 'left' }}>
-                                <div className="Zirak-UOM-modal-header">
-                                    <h2>Unit Details</h2>
-                                    <button className="Zirak-UOM-close-btn" onClick={() => setShowUomModal(false)}><X size={20} /></button>
+            {/* Add New UOM Modal */}
+            {showUomModal && (
+                <div className="Zirak-UOM-modal-overlay" style={{ zIndex: 100000 }}>
+                    <div className="Zirak-UOM-modal" style={{ textAlign: 'left' }}>
+                        <div className="Zirak-UOM-modal-header">
+                            <h2>Unit Details</h2>
+                            <button className="Zirak-UOM-close-btn" onClick={() => setShowUomModal(false)}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleUomSubmit} noValidate>
+                            <div className="Zirak-UOM-modal-body">
+                                <div className="Zirak-UOM-form-group">
+                                    <label>Measurement Category</label>
+                                    <input
+                                        list="category-suggestions"
+                                        name="category"
+                                        placeholder="Select or type category"
+                                        value={uomFormData.category}
+                                        onChange={handleUomInputChange}
+                                        className="Zirak-UOM-form-input"
+                                    />
+                                    <datalist id="category-suggestions">
+                                        {measurementCategories.map(cat => (
+                                            <option key={cat} value={cat} />
+                                        ))}
+                                    </datalist>
                                 </div>
-                                <form onSubmit={handleUomSubmit} noValidate>
-                                    <div className="Zirak-UOM-modal-body">
+                                <div className="Zirak-UOM-form-group">
+                                    <label>UOM Type</label>
+                                    <select
+                                        name="uomType"
+                                        value={uomFormData.uomType}
+                                        onChange={handleUomInputChange}
+                                        className="Zirak-UOM-form-select"
+                                    >
+                                        <option value="Simple">Simple (Single Standalone Unit)</option>
+                                        <option value="Compound">Compound (Pack of Simple Unit)</option>
+                                    </select>
+                                </div>
+                                <div className="Zirak-UOM-form-group">
+                                    <label>Unit of Measurement (UOM)</label>
+                                    <div className="Zirak-UOM-input-with-button">
+                                        <input
+                                            list="unit-suggestions"
+                                            name="unitName"
+                                            placeholder="Select or type UOM"
+                                            value={uomFormData.unitName}
+                                            onChange={handleUomInputChange}
+                                            className="Zirak-UOM-form-input"
+                                        />
+                                        <datalist id="unit-suggestions">
+                                            {uomFormData.category && unitsByCategory[uomFormData.category] && unitsByCategory[uomFormData.category].map(unit => (
+                                                <option key={unit} value={unit} />
+                                            ))}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                {uomFormData.uomType === 'Compound' && (
+                                    <>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Measurement Category</label>
-                                            <input
-                                                list="category-suggestions"
-                                                name="category"
-                                                placeholder="Select or type category"
-                                                value={uomFormData.category}
-                                                onChange={handleUomInputChange}
-                                                className="Zirak-UOM-form-input"
-                                            />
-                                            <datalist id="category-suggestions">
-                                                {measurementCategories.map(cat => (
-                                                    <option key={cat} value={cat} />
-                                                ))}
-                                            </datalist>
-                                        </div>
-                                        <div className="Zirak-UOM-form-group">
-                                            <label>UOM Type</label>
+                                            <label>Base Unit (Simple Unit to convert to)</label>
                                             <select
-                                                name="uomType"
-                                                value={uomFormData.uomType}
+                                                name="baseUnitId"
+                                                value={uomFormData.baseUnitId}
                                                 onChange={handleUomInputChange}
                                                 className="Zirak-UOM-form-select"
                                             >
-                                                <option value="Simple">Simple (Single Standalone Unit)</option>
-                                                <option value="Compound">Compound (Pack of Simple Unit)</option>
+                                                <option value="">-- Select Base Unit --</option>
+                                                {getUniqueCategories().map(cat => {
+                                                    const unitsInCat = getAvailableBaseUnitsForCategory(cat);
+                                                    if (unitsInCat.length === 0) return null;
+                                                    return (
+                                                        <optgroup key={cat} label={cat}>
+                                                            {unitsInCat.map(u => (
+                                                                <option key={u.id} value={u.id}>
+                                                                    {u.unitName} {u.isStandard ? ' - Standard' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    );
+                                                })}
                                             </select>
                                         </div>
                                         <div className="Zirak-UOM-form-group">
-                                            <label>Unit of Measurement (UOM)</label>
-                                            <div className="Zirak-UOM-input-with-button">
+                                            <label>Conversion Rate (Multiplier)</label>
+                                            <div className="UOM-compound-formula-preview">
+                                                <span>1 {uomFormData.unitName || 'Compound Unit'} = </span>
                                                 <input
-                                                    list="unit-suggestions"
-                                                    name="unitName"
-                                                    placeholder="Select or type UOM"
-                                                    value={uomFormData.unitName}
+                                                    type="number"
+                                                    step="any"
+                                                    name="conversionRate"
+                                                    placeholder="Multiplier e.g. 24"
+                                                    value={uomFormData.conversionRate}
                                                     onChange={handleUomInputChange}
-                                                    className="Zirak-UOM-form-input"
+                                                    min="0.0001"
+                                                    style={{ width: '100px', display: 'inline-block', margin: '0 8px', padding: '6px' }}
                                                 />
-                                                <datalist id="unit-suggestions">
-                                                    {uomFormData.category && unitsByCategory[uomFormData.category] && unitsByCategory[uomFormData.category].map(unit => (
-                                                        <option key={unit} value={unit} />
-                                                    ))}
-                                                </datalist>
+                                                <span> {
+                                                    isNaN(uomFormData.baseUnitId)
+                                                        ? uomFormData.baseUnitId
+                                                        : (allUoms.find(u => u.id === parseInt(uomFormData.baseUnitId))?.unitName || 'Base Unit')
+                                                }</span>
                                             </div>
                                         </div>
-                                        {uomFormData.uomType === 'Compound' && (
-                                            <>
-                                                <div className="Zirak-UOM-form-group">
-                                                    <label>Base Unit (Simple Unit to convert to)</label>
-                                                    <select
-                                                        name="baseUnitId"
-                                                        value={uomFormData.baseUnitId}
-                                                        onChange={handleUomInputChange}
-                                                        className="Zirak-UOM-form-select"
-                                                    >
-                                                        <option value="">-- Select Base Unit --</option>
-                                                        {getUniqueCategories().map(cat => {
-                                                            const unitsInCat = getAvailableBaseUnitsForCategory(cat);
-                                                            if (unitsInCat.length === 0) return null;
-                                                            return (
-                                                                <optgroup key={cat} label={cat}>
-                                                                    {unitsInCat.map(u => (
-                                                                        <option key={u.id} value={u.id}>
-                                                                            {u.unitName} {u.isStandard ? ' - Standard' : ''}
-                                                                        </option>
-                                                                    ))}
-                                                                </optgroup>
-                                                            );
-                                                        })}
-                                                    </select>
-                                                </div>
-                                                <div className="Zirak-UOM-form-group">
-                                                    <label>Conversion Rate (Multiplier)</label>
-                                                    <div className="UOM-compound-formula-preview">
-                                                        <span>1 {uomFormData.unitName || 'Compound Unit'} = </span>
-                                                        <input
-                                                            type="number"
-                                                            step="any"
-                                                            name="conversionRate"
-                                                            placeholder="Multiplier e.g. 24"
-                                                            value={uomFormData.conversionRate}
-                                                            onChange={handleUomInputChange}
-                                                            min="0.0001"
-                                                            style={{ width: '100px', display: 'inline-block', margin: '0 8px', padding: '6px' }}
-                                                        />
-                                                        <span> {
-                                                            isNaN(uomFormData.baseUnitId)
-                                                                ? uomFormData.baseUnitId
-                                                                : (allUoms.find(u => u.id === parseInt(uomFormData.baseUnitId))?.unitName || 'Base Unit')
-                                                        }</span>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="Zirak-UOM-modal-footer">
-                                        <button type="button" className="Zirak-UOM-footer-close-btn" onClick={() => setShowUomModal(false)}>Close</button>
-                                        <button type="submit" className="Zirak-UOM-save-btn">Save</button>
-                                    </div>
-                                </form>
+                                    </>
+                                )}
                             </div>
-                        </div>
-                    )}
-                    {renderSubModals()}
+                            <div className="Zirak-UOM-modal-footer">
+                                <button type="button" className="Zirak-UOM-footer-close-btn" onClick={() => setShowUomModal(false)}>Close</button>
+                                <button type="submit" className="Zirak-UOM-save-btn">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {renderSubModals()}
             {/* Universal Excel Import Modal */}
             <ExcelImportModal
                 isOpen={showImportModal}
