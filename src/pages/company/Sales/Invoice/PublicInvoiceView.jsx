@@ -65,7 +65,7 @@ const resolveCompanyAddressLines = (comp) => {
         locParts.push(comp.state.trim().replace(/,\s*$/, ''));
     }
     const cityState = locParts.join(', ');
-    const fullLoc = [cityState, (comp.zip || '').trim()].filter(Boolean).join(' ');
+    const fullLoc = [cityState, (comp.zip || comp.zipCode || '').trim()].filter(Boolean).join(' ');
 
     const alreadyPresent = lines.some(l => l.toLowerCase().includes(fullLoc.toLowerCase())) ||
         (comp.address && comp.address.toLowerCase().includes(fullLoc.toLowerCase()));
@@ -73,8 +73,16 @@ const resolveCompanyAddressLines = (comp) => {
     if (fullLoc && !alreadyPresent) {
         lines.push(fullLoc);
     }
-    if (lines.length === 0 && (comp.city || comp.state || comp.zip)) {
-        const fallbackLoc = [comp.city, comp.state, comp.zip].filter(Boolean).join(', ');
+    const countryVal = (comp.country || '').trim();
+    if (countryVal) {
+        const countryAlreadyPresent = lines.some(l => l.toLowerCase().includes(countryVal.toLowerCase())) ||
+            (comp.address && comp.address.toLowerCase().includes(countryVal.toLowerCase()));
+        if (!countryAlreadyPresent) {
+            lines.push(countryVal);
+        }
+    }
+    if (lines.length === 0 && (comp.city || comp.state || comp.zip || comp.zipCode || countryVal)) {
+        const fallbackLoc = [comp.city, comp.state, comp.zip || comp.zipCode, countryVal].filter(Boolean).join(', ');
         if (fallbackLoc) lines.push(fallbackLoc);
     }
     return lines;
@@ -586,6 +594,14 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                                             const fullLoc = [cityState, (companyDetails.zip || '').trim()].filter(Boolean).join(' ');
                                             if (fullLoc && (!companyDetails.address || !companyDetails.address.includes(fullLoc))) {
                                                 return <div className="invoice-cea-company-line">{fullLoc}</div>;
+                                            }
+                                            return null;
+                                        })()}
+                                        {(() => {
+                                            const compCountry = (companyDetails.country || document?.company?.country || companySettings?.country || '').trim();
+                                            const countryInAddr = compCountry && companyDetails.address && companyDetails.address.toLowerCase().includes(compCountry.toLowerCase());
+                                            if (compCountry && !countryInAddr) {
+                                                return <div className="invoice-cea-company-line">{compCountry}</div>;
                                             }
                                             return null;
                                         })()}
