@@ -159,3 +159,499 @@
     border: 1px solid #cbd5e1;
     cursor: pointer;
 }
+
+/* Fiscal Year Selector Card & Controls */
+.FY-selector-card {
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    position: relative;
+}
+
+.FY-selector-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.FY-calendar-toggle-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.FY-calendar-toggle-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.FY-selector-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+}
+
+.FY-select {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-weight: 700;
+    color: #1e293b;
+    background-color: #ffffff;
+    cursor: pointer;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.FY-select:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.FY-btn-calendar-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.FY-btn-calendar-picker:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.FY-btn-calendar-picker.active {
+    background: #1e293b;
+    color: #ffffff;
+    border-color: #1e293b;
+}
+
+.FY-closed-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #f59e0b;
+    font-size: 13px;
+    font-weight: 600;
+    background: #fffbeb;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #fef3c7;
+}
+
+/* Year Picker Popover Modal */
+.FY-year-picker-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 24px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.12), 0 6px 12px -3px rgba(0, 0, 0, 0.08);
+    width: 380px;
+    max-width: calc(100vw - 48px);
+    z-index: 1000;
+    padding: 16px;
+    animation: FYFadeIn 0.18s ease-out;
+}
+
+@keyframes FYFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.FY-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.FY-picker-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.FY-picker-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease;
+}
+
+.FY-picker-close-btn:hover {
+    color: #1e293b;
+    background: #f1f5f9;
+}
+
+.FY-picker-tabs {
+    display: flex;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    gap: 4px;
+}
+
+.FY-picker-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.FY-picker-tab-btn.active {
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.FY-decade-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.FY-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.FY-nav-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 5px 8px;
+    color: #475569;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.FY-nav-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+.FY-decade-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.FY-years-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.FY-year-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 4px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.FY-year-tile:hover {
+    border-color: #94a3b8;
+    background-color: #f8fafc;
+}
+
+.FY-year-tile.active {
+    background-color: #1e293b;
+    border-color: #1e293b;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.FY-year-tile.current:not(.active) {
+    border: 1.5px solid #0284c7;
+    background-color: #f0f9ff;
+}
+
+.FY-year-num {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.FY-year-tile.active .FY-year-num {
+    color: #ffffff;
+}
+
+.FY-year-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 2px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.FY-year-badge.selected {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.FY-quick-jump {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+    margin-bottom: 10px;
+}
+
+.FY-jump-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.FY-jump-input {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    outline: none;
+    color: #1e293b;
+}
+
+.FY-jump-input:focus {
+    border-color: #0284c7;
+}
+
+.FY-jump-btn {
+    padding: 5px 12px;
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.FY-jump-btn:hover {
+    background: #334155;
+}
+
+.FY-quick-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.FY-presets-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.FY-preset-btn {
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.FY-preset-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.FY-preset-btn.active {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* Calendar Date View */
+.FY-calendar-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.FY-cal-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    margin: 0;
+}
+
+.FY-picker-date-input {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    outline: none;
+    width: 100%;
+}
+
+.FY-picker-date-input:focus {
+    border-color: #0284c7;
+}
+
+.FY-cal-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+}
+
+.FY-cal-info-title {
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.FY-cal-info-range {
+    color: #64748b;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.FY-calendar-quarters {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.FY-quarter-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 4px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.FY-q-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0284c7;
+}
+
+.FY-q-dates {
+    font-size: 9px;
+    color: #64748b;
+}
+
+.FY-apply-date-btn {
+    background: #1e293b;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.FY-apply-date-btn:hover {
+    background: #334155;
+}
+
+.FY-picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 10px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.FY-picker-footer-done {
+    padding: 4px 12px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.FY-picker-footer-done:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
