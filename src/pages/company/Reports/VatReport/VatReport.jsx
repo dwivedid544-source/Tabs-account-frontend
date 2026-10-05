@@ -95,6 +95,15 @@ const VatReport = () => {
         });
     };
 
+    const formatRate = (rate) => {
+        if (rate === 0 || rate === '0' || rate === '0.0' || rate === '0%') return '0%';
+        if (rate === 'Exempt' || rate === 'Zero' || rate === 'No VAT') return '0%';
+        if (!rate && rate !== 0) return '0%';
+        const str = String(rate).trim();
+        if (str.endsWith('%')) return str;
+        return `${str}%`;
+    };
+
     const handleTransactionClick = (t) => {
         if (t.invoiceId) {
             navigate('/company/sales/invoice', {
@@ -126,11 +135,13 @@ const VatReport = () => {
     const rateBreakdown = reportPayload?.rateBreakdown || [];
     const outputVatTransactions = (reportPayload?.outputVatTransactions || []).filter(item =>
         (item.docNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.refNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.type?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     const inputVatTransactions = (reportPayload?.inputVatTransactions || []).filter(item =>
         (item.docNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.refNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.type?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -166,7 +177,7 @@ const VatReport = () => {
             ["VAT RATE BREAKDOWN", "", "", "", "", ""],
             ["Rate (%)", "Net Sales", "Output VAT (T1)", "Net Purchases", "Input VAT (T2)", "Net VAT Balance"],
             ...rateBreakdown.map(r => [
-                `${r.rate}%`,
+                formatRate(r.rate),
                 formatCurrency(r.salesTaxable),
                 formatCurrency(r.salesVat),
                 formatCurrency(r.purchasesTaxable),
@@ -190,7 +201,7 @@ const VatReport = () => {
                 t.refNumber || '-',
                 t.partyName,
                 formatCurrency(t.taxableAmount),
-                `${t.vatRate}%`,
+                formatRate(t.vatRate),
                 formatCurrency(t.vatAmount),
                 formatCurrency(t.grossAmount),
                 t.paymentMode || '-'
@@ -212,7 +223,7 @@ const VatReport = () => {
                 t.refNumber || '-',
                 t.partyName,
                 formatCurrency(t.taxableAmount),
-                `${t.vatRate}%`,
+                formatRate(t.vatRate),
                 formatCurrency(t.vatAmount),
                 formatCurrency(t.grossAmount),
                 t.paymentMode || '-'
@@ -260,7 +271,7 @@ const VatReport = () => {
         autoTable(doc, {
             head: [['VAT Rate', 'Net Sales', 'Output VAT (T1)', 'Net Purchases', 'Input VAT (T2)', 'Net VAT']],
             body: rateBreakdown.map(r => [
-                `${r.rate}%`,
+                formatRate(r.rate),
                 formatCurrency(r.salesTaxable),
                 formatCurrency(r.salesVat),
                 formatCurrency(r.purchasesTaxable),
@@ -506,7 +517,7 @@ const VatReport = () => {
                                     rateBreakdown.map((r) => (
                                         <tr key={r.rate}>
                                             <td>
-                                                <span className="vat-rate-tag">{r.rate}% VAT</span>
+                                                <span className="vat-rate-tag">{parseFloat(r.rate) === 0 ? '0% (Zero / Exempt)' : `${formatRate(r.rate)} VAT`}</span>
                                             </td>
                                             <td className="text-right">{formatCurrency(r.salesTaxable)}</td>
                                             <td className="text-right font-bold text-slate-800">{formatCurrency(r.salesVat)}</td>
@@ -594,7 +605,9 @@ const VatReport = () => {
                                             <td className="text-slate-500">{t.refNumber || '-'}</td>
                                             <td>{t.partyName}</td>
                                             <td className="text-right">{formatCurrency(t.taxableAmount)}</td>
-                                            <td className="text-center">{t.vatRate}%</td>
+                                            <td className="text-center">
+                                                <span className="vat-rate-tag">{formatRate(t.vatRate)}</span>
+                                            </td>
                                             <td className="text-right font-bold text-slate-900">{formatCurrency(t.vatAmount)}</td>
                                             <td className="text-right text-slate-600">{formatCurrency(t.grossAmount)}</td>
                                         </tr>
@@ -644,7 +657,9 @@ const VatReport = () => {
                                             <td className="text-slate-500">{t.refNumber || '-'}</td>
                                             <td>{t.partyName}</td>
                                             <td className="text-right">{formatCurrency(t.taxableAmount)}</td>
-                                            <td className="text-center">{t.vatRate}%</td>
+                                            <td className="text-center">
+                                                <span className="vat-rate-tag">{formatRate(t.vatRate)}</span>
+                                            </td>
                                             <td className="text-right font-bold text-slate-900">{formatCurrency(t.vatAmount)}</td>
                                             <td className="text-right text-slate-600">{formatCurrency(t.grossAmount)}</td>
                                         </tr>
@@ -714,7 +729,9 @@ const VatReport = () => {
                                             </td>
                                             <td>{t.partyName}</td>
                                             <td className="text-right">{formatCurrency(t.taxableAmount)}</td>
-                                            <td className="text-center">{t.vatRate}%</td>
+                                            <td className="text-center">
+                                                <span className="vat-rate-tag">{formatRate(t.vatRate)}</span>
+                                            </td>
                                             <td className="text-right font-bold text-slate-900">{formatCurrency(t.vatAmount)}</td>
                                             <td className="text-right text-slate-600">{formatCurrency(t.grossAmount)}</td>
                                         </tr>
