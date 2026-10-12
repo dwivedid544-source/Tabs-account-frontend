@@ -71,6 +71,92 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
         }));
     };
 
+    const adjustSubmenuPosition = (el) => {
+        if (isOpen || !el) return;
+        const submenu = el.querySelector('.submenu');
+        if (!submenu) return;
+
+        const rect = el.getBoundingClientRect();
+        const itemCount = el.querySelectorAll('.submenu-item').length;
+        const estimatedHeight = Math.max(itemCount * 38 + 24, 180);
+        const measuredHeight = submenu.offsetHeight || submenu.scrollHeight;
+        const submenuHeight = measuredHeight > 50 ? measuredHeight : estimatedHeight;
+
+        const viewportHeight = window.innerHeight;
+        const safetyMargin = 16;
+        const maxAllowedBottom = viewportHeight - safetyMargin;
+
+        let targetTop = rect.top;
+
+        // If bottom of submenu overflows viewport bottom, shift upwards
+        if (targetTop + submenuHeight > maxAllowedBottom) {
+            targetTop = maxAllowedBottom - submenuHeight;
+        }
+
+        // Clamp so top never goes above safetyMargin
+        if (targetTop < safetyMargin) {
+            targetTop = safetyMargin;
+        }
+
+        submenu.style.top = `${targetTop}px`;
+    };
+
+    const resetSubmenuPosition = (el) => {
+        if (!el || isOpen) return;
+        const submenu = el.querySelector('.submenu');
+        if (submenu && !el.classList.contains('is-expanded')) {
+            submenu.style.top = '';
+        }
+    };
+
+    const adjustTooltipPosition = (e) => {
+        if (isOpen) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const textEl = e.currentTarget.querySelector('.menu-text');
+        if (textEl) {
+            textEl.style.top = `${rect.top + (rect.height - 34) / 2}px`;
+        }
+    };
+
+    const resetTooltipPosition = (e) => {
+        const textEl = e.currentTarget.querySelector('.menu-text');
+        if (textEl) {
+            textEl.style.top = '';
+        }
+    };
+
+    const handleMenuScroll = (e) => {
+        if (isOpen) return;
+        const activeGroup = e.currentTarget.querySelector('.menu-group.is-expanded, .menu-group:hover');
+        if (activeGroup) {
+            adjustSubmenuPosition(activeGroup);
+        }
+    };
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (!isOpen) {
+                const activeGroup = document.querySelector('.sidebar.collapsed .menu-group.is-expanded');
+                if (activeGroup) {
+                    adjustSubmenuPosition(activeGroup);
+                }
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isOpen]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (!isOpen && !e.target.closest('.sidebar')) {
+                setExpandedGroups({});
+                setExpandedSubGroups({});
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
     const isPathExemptFromExpiry = (targetPath) => {
         if (!targetPath) return false;
         const cleanPath = targetPath.split('?')[0].replace(/\/$/, '');
@@ -356,7 +442,12 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 const isActive = allVisibleItems.some(sub => location.pathname.startsWith(sub.path));
 
                 return (
-                    <div key={index} className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''}`}>
+                    <div
+                        key={index}
+                        className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''} ${isExpanded ? 'is-expanded' : ''}`}
+                        onMouseEnter={(e) => adjustSubmenuPosition(e.currentTarget)}
+                        onMouseLeave={(e) => resetSubmenuPosition(e.currentTarget)}
+                    >
                         <div
                             className={`menu-item has-submenu ${isActive ? 'active-parent' : ''} ${isGroupFullyLocked ? 'item-locked' : ''}`}
                             onClick={(e) => {
@@ -364,6 +455,10 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                                     handleLockedNavigation(e);
                                 } else {
                                     toggleGroup(item.label);
+                                    if (!isOpen) {
+                                        const group = e.currentTarget.closest('.menu-group');
+                                        setTimeout(() => adjustSubmenuPosition(group), 20);
+                                    }
                                 }
                             }}
                             style={isGroupFullyLocked ? { cursor: 'not-allowed' } : undefined}
@@ -394,6 +489,10 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     toggleSubGroup(subKey);
+                                                    if (!isOpen) {
+                                                        const group = e.currentTarget.closest('.menu-group');
+                                                        setTimeout(() => adjustSubmenuPosition(group), 30);
+                                                    }
                                                 }}
                                             >
                                                 <span>{sec.category}</span>
@@ -454,7 +553,12 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 const isActive = visibleSubItems.some(sub => location.pathname.startsWith(sub.path));
 
                 return (
-                    <div key={index} className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''}`}>
+                    <div
+                        key={index}
+                        className={`menu-group ${isGroupFullyLocked ? 'menu-group-locked' : ''} ${isExpanded ? 'is-expanded' : ''}`}
+                        onMouseEnter={(e) => adjustSubmenuPosition(e.currentTarget)}
+                        onMouseLeave={(e) => resetSubmenuPosition(e.currentTarget)}
+                    >
                         <div
                             className={`menu-item has-submenu ${isActive ? 'active-parent' : ''} ${isGroupFullyLocked ? 'item-locked' : ''}`}
                             onClick={(e) => {
@@ -462,6 +566,10 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                                     handleLockedNavigation(e);
                                 } else {
                                     toggleGroup(item.label);
+                                    if (!isOpen) {
+                                        const group = e.currentTarget.closest('.menu-group');
+                                        setTimeout(() => adjustSubmenuPosition(group), 20);
+                                    }
                                 }
                             }}
                             style={isGroupFullyLocked ? { cursor: 'not-allowed' } : undefined}
@@ -520,6 +628,8 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                             handleItemClick();
                         }
                     }}
+                    onMouseEnter={adjustTooltipPosition}
+                    onMouseLeave={resetTooltipPosition}
                     style={isLocked ? { cursor: 'not-allowed', opacity: 0.65 } : undefined}
                     title={isLocked ? 'Your subscription has expired. Please renew your plan to access this feature.' : undefined}
                 >
@@ -552,7 +662,7 @@ const Sidebar = ({ isOpen, role = 'superadmin', permissions = [], planModules = 
                 </button>
             </div>
 
-            <div className="sidebar-menu">
+            <div className="sidebar-menu" onScroll={handleMenuScroll}>
                 {renderMenu(menuItems[role] || [])}
             </div>
         </div>

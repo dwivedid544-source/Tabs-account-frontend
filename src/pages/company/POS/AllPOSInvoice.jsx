@@ -412,52 +412,54 @@ const AllPOSInvoice = () => {
                         </div>
                     </div>
 
-                    <table className="invoice-table-preview">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Warehouse</th>
-                                <th style={{ textAlign: 'center' }}>Qty</th>
-                                <th>Rate</th>
-                                <th>Amount Paid</th>
-                                <th>Tax (%)</th>
-                                <th style={{ textAlign: 'right' }}>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {selectedInvoice.items.map((item, idx) => {
-                                const retQty = returnedQtyMap[item.productId] || 0;
-                                return (
-                                    <tr key={idx} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                        <td style={{ padding: '15px 0' }}>
-                                            <div className="font-bold">{item.product?.name || item.description || 'Item'}</div>
-                                            <div style={{ fontSize: '12px', color: '#64748b' }}>{item.description}</div>
-                                        </td>
-                                        <td style={{ padding: '15px 0' }}>{item.warehouse?.name || (item.warehouseId ? `WH #${item.warehouseId}` : 'Warehouse Hub')}</td>
-                                        <td style={{ padding: '15px 0', textAlign: 'center' }}>
-                                             {item.originalQuantity !== undefined ? item.originalQuantity : (item.quantity + retQty)}
-                                             {retQty > 0 && (
-                                                 <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: '600', marginTop: '2px' }}>
-                                                     ({retQty} Returned)
-                                                 </div>
-                                             )}
-                                        </td>
-                                        <td style={{ padding: '15px 0' }}>{formatCurrency(item.rate)}</td>
-                                        <td style={{ padding: '15px 0', color: '#10b981', fontWeight: '700' }}>
-                                            {(() => {
-                                                const total = selectedInvoice.totalAmount || 1;
-                                                const paid = selectedInvoice.paidAmount || 0;
-                                                const line = item.amount || 0;
-                                                return formatCurrency((line / total) * paid);
-                                            })()}
-                                        </td>
-                                        <td style={{ padding: '15px 0' }}>{item.taxRate}%</td>
-                                        <td style={{ padding: '15px 0', textAlign: 'right' }}>{formatCurrency(item.amount)}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="posinv-invoice-table-wrapper">
+                        <table className="invoice-table-preview">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Warehouse</th>
+                                    <th style={{ textAlign: 'center' }}>Qty</th>
+                                    <th>Rate</th>
+                                    <th>Amount Paid</th>
+                                    <th>Tax (%)</th>
+                                    <th style={{ textAlign: 'right' }}>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {selectedInvoice.items.map((item, idx) => {
+                                    const retQty = returnedQtyMap[item.productId] || 0;
+                                    return (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                            <td style={{ padding: '15px 0' }}>
+                                                <div className="font-bold">{item.product?.name || item.description || 'Item'}</div>
+                                                <div style={{ fontSize: '12px', color: '#64748b' }}>{item.description}</div>
+                                            </td>
+                                            <td style={{ padding: '15px 0' }}>{item.warehouse?.name || (item.warehouseId ? `WH #${item.warehouseId}` : 'Warehouse Hub')}</td>
+                                            <td style={{ padding: '15px 0', textAlign: 'center' }}>
+                                                 {item.originalQuantity !== undefined ? item.originalQuantity : (item.quantity + retQty)}
+                                                 {retQty > 0 && (
+                                                     <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: '600', marginTop: '2px' }}>
+                                                         ({retQty} Returned)
+                                                     </div>
+                                                 )}
+                                            </td>
+                                            <td style={{ padding: '15px 0' }}>{formatCurrency(item.rate)}</td>
+                                            <td style={{ padding: '15px 0', color: '#10b981', fontWeight: '700' }}>
+                                                {(() => {
+                                                    const total = selectedInvoice.totalAmount || 1;
+                                                    const paid = selectedInvoice.paidAmount || 0;
+                                                    const line = item.amount || 0;
+                                                    return formatCurrency((line / total) * paid);
+                                                })()}
+                                            </td>
+                                            <td style={{ padding: '15px 0' }}>{item.taxRate}%</td>
+                                            <td style={{ padding: '15px 0', textAlign: 'right' }}>{formatCurrency(item.amount)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
 
                     <div className="invoice-total-section">
                         <div className="invoice-totals">

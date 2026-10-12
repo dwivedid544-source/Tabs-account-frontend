@@ -1704,36 +1704,38 @@ const POS = () => {
                                         </div>
                                     </div>
 
-                                    <table className="POS-invoice-table-preview">
-                                        <thead>
-                                            <tr>
-                                                <th>Item</th>
-                                                <th>Warehouse</th>
-                                                <th className="text-center">Quantity</th>
-                                                <th className="text-right">Rate</th>
-                                                <th className="text-right">Discount</th>
-                                                <th className="text-right">Tax (%)</th>
-                                                <th className="text-right">Price</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {invoiceData.items.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td>
-                                                        <div className="font-bold text-gray-800">{item.description || 'Item'}</div>
-                                                    </td>
-                                                    <td>
-                                                        {warehouses.find(w => w.id === parseInt(item.warehouseId))?.name || 'Warehouse Hub'}
-                                                    </td>
-                                                    <td className="text-center">{item.quantity}</td>
-                                                    <td className="text-right">{formatCurrency(item.rate)}</td>
-                                                    <td className="text-right">{formatCurrency(item.discount || 0)}</td>
-                                                    <td className="text-right">{item.taxRate}%</td>
-                                                    <td className="text-right font-bold">{formatCurrency((item.quantity * item.rate) * (1 + item.taxRate / 100))}</td>
+                                    <div className="POS-invoice-table-scroll-wrapper">
+                                        <table className="POS-invoice-table-preview">
+                                            <thead>
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th>Warehouse</th>
+                                                    <th className="text-center">Quantity</th>
+                                                    <th className="text-right">Rate</th>
+                                                    <th className="text-right">Discount</th>
+                                                    <th className="text-right">Tax (%)</th>
+                                                    <th className="text-right">Price</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {invoiceData.items.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>
+                                                            <div className="font-bold text-gray-800">{item.description || 'Item'}</div>
+                                                        </td>
+                                                        <td>
+                                                            {warehouses.find(w => w.id === parseInt(item.warehouseId))?.name || 'Warehouse Hub'}
+                                                        </td>
+                                                        <td className="text-center">{item.quantity}</td>
+                                                        <td className="text-right">{formatCurrency(item.rate)}</td>
+                                                        <td className="text-right">{formatCurrency(item.discount || 0)}</td>
+                                                        <td className="text-right">{item.taxRate}%</td>
+                                                        <td className="text-right font-bold">{formatCurrency((item.quantity * item.rate) * (1 + item.taxRate / 100))}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
 
                                     <div className="POS-invoice-total-section">
                                         <div className="POS-invoice-totals">

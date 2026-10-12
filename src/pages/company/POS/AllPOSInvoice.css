@@ -312,22 +312,30 @@
 
 /* View Mode / Receipt Detail */
 .posinv-view-root {
-    background: #ffffff;
+    background: #f8fafc;
     min-height: 100vh;
-    padding: 0;
+    padding: 1.5rem 1rem 3rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .posinv-top-bar {
     width: 100%;
+    max-width: 960px;
     display: flex;
     align-items: center;
-    padding: 1.5rem 3rem;
+    padding: 1rem 1.5rem;
     background: white;
-    border-bottom: 1px solid #e2e8f0;
-    gap: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
 }
 
 .posinv-btn-back-square {
@@ -384,10 +392,28 @@
 
 .posinv-receipt-card {
     width: 100%;
+    max-width: 960px;
     background: white;
-    padding: 50px 80px;
-    box-shadow: none;
-    min-height: calc(100vh - 80px);
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+    min-height: auto;
+}
+
+.posinv-invoice-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.posinv-invoice-table-wrapper .invoice-table-preview {
+    min-width: 620px;
+    width: 100%;
+    margin-top: 0;
 }
 
 .posinv-receipt-header {

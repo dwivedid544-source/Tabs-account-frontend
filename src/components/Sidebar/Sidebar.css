@@ -19,7 +19,7 @@
 
 .sidebar.collapsed {
     width: 80px;
-    padding: 1.5rem 0.75rem;
+    padding: 1.5rem 0.5rem;
     overflow: visible; /* Allow floating menus to show */
 }
 
@@ -116,10 +116,49 @@
     flex-direction: column;
     gap: 0.5rem;
     padding-right: 4px;
+    min-height: 0;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.3);
+    border-radius: 9999px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.6);
 }
 
 .sidebar.collapsed .sidebar-menu {
-    overflow: visible;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+    padding-right: 2px;
+}
+
+.sidebar.collapsed .sidebar-menu::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar.collapsed .sidebar-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar.collapsed .sidebar-menu::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+}
+
+.sidebar.collapsed .sidebar-menu::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.6);
 }
 
 /* ===============================
@@ -190,13 +229,13 @@
 }
 
 /* ===============================
-   COLLAPSED HOVER EFFECTS (FLOATING MENU)
+   COLLAPSED HOVER EFFECTS (FLOATING MENU & TOOLTIPS)
    =============================== */
-.sidebar.collapsed .menu-item:hover .menu-text {
+.sidebar.collapsed .menu-item:not(.has-submenu):hover .menu-text {
     display: flex;
     align-items: center;
-    position: absolute;
-    left: 65px; /* Moved closer */
+    position: fixed !important;
+    left: 72px !important;
     background-color: #1e293b;
     color: white;
     padding: 0.5rem 1rem;
@@ -209,7 +248,7 @@
 }
 
 /* Hover Bridge for single tooltips */
-.sidebar.collapsed .menu-item:hover .menu-text::after {
+.sidebar.collapsed .menu-item:not(.has-submenu):hover .menu-text::after {
     content: "";
     position: absolute;
     left: -20px;
@@ -220,7 +259,7 @@
 }
 
 /* Tooltip Arrow */
-.sidebar.collapsed .menu-item:hover .menu-text::before {
+.sidebar.collapsed .menu-item:not(.has-submenu):hover .menu-text::before {
     content: "";
     position: absolute;
     left: -6px;
@@ -231,56 +270,55 @@
     border-right: 6px solid #1e293b;
 }
 
-.sidebar.collapsed .menu-group:hover > .submenu {
+.sidebar.collapsed .menu-group:hover > .submenu,
+.sidebar.collapsed .menu-group.is-expanded > .submenu {
     display: flex !important;
     flex-direction: column;
-    position: absolute;
-    left: 65px; /* Moved slightly closer to avoid gap */
-    top: 0;
+    position: fixed !important;
+    left: 72px !important;
     background-color: #1e293b;
     min-width: 220px;
+    max-width: 280px;
     padding: 0.75rem;
     border-radius: 12px;
     z-index: 3000;
     box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     margin-left: 0;
     border-left: none;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
-.sidebar.collapsed .menu-group:hover .submenu-nested-list {
+/* Custom sleek scrollbar for collapsed floating submenus */
+.sidebar.collapsed .submenu::-webkit-scrollbar {
+    width: 5px;
+}
+.sidebar.collapsed .submenu::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar.collapsed .submenu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+.sidebar.collapsed .submenu::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.sidebar.collapsed .menu-group:hover .submenu-nested-list,
+.sidebar.collapsed .menu-group.is-expanded .submenu-nested-list {
     display: flex !important;
 }
-
 
 /* Hover Bridge: Transparent area to keep hover active while moving mouse to submenu */
 .sidebar.collapsed .menu-group .submenu::after {
     content: "";
     position: absolute;
-    left: -20px;
+    left: -25px;
     top: 0;
-    width: 20px;
+    width: 25px;
     height: 100%;
     background: transparent;
-}
-
-.sidebar.collapsed .menu-group:hover .submenu .submenu-item {
-    color: #cbd5e1;
-    padding: 0.7rem 1.2rem;
-    cursor: pointer;
-    display: block;
-    width: 100%;
-    text-decoration: none;
-}
-
-.sidebar.collapsed .menu-group:hover .submenu-item:hover {
-    color: white;
-    background-color: rgba(255,255,255,0.1);
-}
-
-.sidebar.collapsed .menu-group:hover .submenu-item.active {
-    color: #ffffff !important;
-    background-color: #1e293b !important;
-    font-weight: 600;
 }
 
 /* HOVER */
@@ -329,30 +367,43 @@
     border-left: 1px solid #edf2f7;
 }
 
+.sidebar.open .submenu {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    padding: 0 0 0 0.75rem !important;
+}
+
 .sidebar.open .submenu.expanded {
-    display: block;
+    display: block !important;
 }
 
 /* ===============================
-   REPORTS SUBMENU & SUB-CATEGORIES
+   REPORTS SUBMENU & SUB-CATEGORIES (OPEN SIDEBAR)
 ================================ */
 .submenu-section {
     margin-bottom: 4px;
 }
 
 .reports-sub-header {
-    font-weight: 600 !important;
-    color: #313131 !important;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .reports-sub-header:hover {
-    color: #000000 !important;
+    color: #0f172a;
     background-color: #f1f5f9;
 }
 
 .active-parent-sub {
-    color: #1e293b !important;
-    font-weight: 700 !important;
+    color: #0284c7;
+    font-weight: 700;
 }
 
 .submenu-nested-list {
@@ -382,6 +433,100 @@
     color: #1e293b;
     font-weight: 700;
     background-color: #e2e8f0;
+}
+
+/* ===============================
+   COLLAPSED FLOATING SUBMENU THEMING & REPORTS DETAILS FIX
+================================ */
+/* Reports category headers inside collapsed floating submenu */
+.sidebar.collapsed .submenu .reports-sub-header {
+    color: #f8fafc !important;
+    font-weight: 600 !important;
+    background-color: transparent !important;
+    padding: 0.6rem 0.85rem !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
+    transition: all 0.2s ease !important;
+}
+
+.sidebar.collapsed .submenu .reports-sub-header:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sidebar.collapsed .submenu .reports-sub-header.active-parent-sub {
+    color: #38bdf8 !important;
+    background-color: rgba(56, 189, 248, 0.15) !important;
+    font-weight: 700 !important;
+}
+
+.sidebar.collapsed .submenu .reports-sub-header svg {
+    color: #94a3b8 !important;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar.collapsed .submenu .reports-sub-header:hover svg,
+.sidebar.collapsed .submenu .reports-sub-header.active-parent-sub svg {
+    color: #38bdf8 !important;
+}
+
+/* Collapsed nested report items list */
+.sidebar.collapsed .submenu .submenu-nested-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding-left: 0.75rem !important;
+    margin-top: 4px !important;
+    margin-bottom: 6px !important;
+    border-left: 2px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.sidebar.collapsed .submenu .submenu-nested-list .submenu-item {
+    color: #cbd5e1 !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    border-radius: 6px !important;
+    margin-bottom: 2px !important;
+}
+
+.sidebar.collapsed .submenu .submenu-nested-list .submenu-item:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sidebar.collapsed .submenu .submenu-nested-list .submenu-item.active {
+    color: #38bdf8 !important;
+    background-color: rgba(56, 189, 248, 0.18) !important;
+    font-weight: 700 !important;
+}
+
+/* Collapsed standard submenu items (Sales, Inventory, Purchases, Voucher, Users, Settings) */
+.sidebar.collapsed .menu-group:hover .submenu > .submenu-item,
+.sidebar.collapsed .menu-group.is-expanded .submenu > .submenu-item {
+    color: #cbd5e1 !important;
+    padding: 0.6rem 0.85rem !important;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    text-decoration: none;
+    border-radius: 8px !important;
+}
+
+.sidebar.collapsed .menu-group:hover .submenu > .submenu-item:hover,
+.sidebar.collapsed .menu-group.is-expanded .submenu > .submenu-item:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sidebar.collapsed .menu-group:hover .submenu > .submenu-item.active,
+.sidebar.collapsed .menu-group.is-expanded .submenu > .submenu-item.active {
+    color: #38bdf8 !important;
+    background-color: rgba(56, 189, 248, 0.18) !important;
+    font-weight: 700 !important;
 }
 
 /* ============================
