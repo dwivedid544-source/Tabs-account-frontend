@@ -156,6 +156,9 @@ export const CompanyProvider = ({ children }) => {
                 if (labels && labels[key] !== undefined) {
                     return typeof labels[key] === 'string' ? sanitizeEnglishOnly(labels[key]) : labels[key];
                 }
+                if (labels && labels.labels && labels.labels[key] !== undefined) {
+                    return typeof labels.labels[key] === 'string' ? sanitizeEnglishOnly(labels.labels[key]) : labels.labels[key];
+                }
             } catch (e) {
                 // fall through to default
             }

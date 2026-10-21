@@ -40,15 +40,13 @@ import productServiceFromServices from '../../../../services/productService';
 import categoryService from '../../../../services/categoryService';
 import { uploadToCloudinary } from '../../../../utils/cloudinaryUpload';
 import { Upload, Loader2 } from 'lucide-react';
-import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
-import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
-import ceaArchitectsLogoBase64 from '../../../../assets/ceaArchitectsLogoBase64';
 import ExcelImportModal from '../../../../components/common/ExcelImportModal/ExcelImportModal';
 import { exportToExcel, exportSingleInvoiceToExcel } from '../../../../utils/excelService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BASE_URL } from '../../../../api/axiosInstance';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
+import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
 import InvoiceActionDropdown from './InvoiceActionDropdown';
 import { computeInvoiceFinancials, computeInvoiceLine, validateDiscount, resolveInvoicePaymentHistory, buildCombinedPaymentHistory, convertInvoiceToActiveCurrency } from './invoiceFinancials';
 export { resolveInvoicePaymentHistory, buildCombinedPaymentHistory, convertInvoiceToActiveCurrency };
@@ -176,9 +174,113 @@ const safeAutoTable = (doc, options) => {
     throw new Error('PDF AutoTable generator is not available');
 };
 
-const safeSavePdf = (doc, fileName) => {
+const getInvoicePdfFilename = (inv, customersList = []) => {
+    if (!inv) return 'Invoice.pdf';
+
+    const matchedCust = (Array.isArray(customersList) && customersList.find(c =>
+        c && String(c.id) === String(inv.customerId || inv.customer?.id)
+    )) || null;
+
+    const rawCustName = (
+        inv.billingName ||
+        inv.customer?.name ||
+        inv.customer?.billingName ||
+        matchedCust?.name ||
+        matchedCust?.billingName ||
+        inv.customerName ||
+        (Array.isArray(inv.invoices) && (inv.invoices[0]?.billingName || inv.invoices[0]?.customer?.name)) ||
+        ''
+    ).trim();
+
+    // Clean customer name: remove filesystem-prohibited chars: \ / : * ? " < > | #
+    const cleanCustName = rawCustName
+        .replace(/[/\\?%*:|"<>#]/g, '')
+        .trim()
+        .replace(/\s+/g, '_');
+
+    // Resolve invoice number
+    const rawInvNum = String(
+        inv.invoiceNumber ||
+        (Array.isArray(inv.invoices) && inv.invoices[0]?.invoiceNumber) ||
+        (inv.id ? `INV-${inv.id}` : '')
+    ).trim();
+
+    const cleanInvNum = rawInvNum
+        .replace(/^#/, '')
+        .replace(/[/\\?%*:|"<>#]/g, '')
+        .trim()
+        .replace(/\s+/g, '_');
+
+    if (cleanCustName && cleanInvNum) {
+        return `${cleanCustName}_${cleanInvNum}.pdf`;
+    }
+    if (cleanInvNum) {
+        return `${cleanInvNum}.pdf`;
+    }
+    if (cleanCustName) {
+        return `${cleanCustName}_Invoice.pdf`;
+    }
+    return 'Invoice.pdf';
+};
+
+const openPdfInTab = async (previewWindow, blobUrl, pdfBlob, finalName) => {
+    let sessionOpened = false;
+    try {
+        const cleanServerUrl = (BASE_URL || 'https://tabaccounts.com').replace(/\/+$/, '');
+        const previewSessionEndpoint = `${cleanServerUrl}/api/pdf/preview-session?fileName=${encodeURIComponent(finalName)}`;
+        const sessionRes = await fetch(previewSessionEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/pdf' },
+            body: pdfBlob
+        });
+        if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            if (sessionData?.previewUrl) {
+                const fullPreviewUrl = `${cleanServerUrl}${sessionData.previewUrl}`;
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.location.href = fullPreviewUrl;
+                } else {
+                    window.open(fullPreviewUrl, '_blank');
+                }
+                sessionOpened = true;
+            }
+        }
+    } catch (sessionErr) {
+        console.warn('Could not create server preview session, falling back to blob URL:', sessionErr);
+    }
+
+    if (!sessionOpened) {
+        if (previewWindow && !previewWindow.closed) {
+            try {
+                previewWindow.location.href = blobUrl;
+            } catch {
+                window.open(blobUrl, '_blank');
+            }
+        } else {
+            window.open(blobUrl, '_blank');
+        }
+    }
+};
+
+const safeSavePdf = async (doc, fileName, options = {}) => {
+    const { mode = 'saveAs', openTab = false, previewWindow = null } = options;
     const rawName = (fileName || 'Invoice.pdf').replace(/[\\/:*?"<>|#]/g, '_');
     const finalName = rawName.endsWith('.pdf') ? rawName : `${rawName}.pdf`;
+    const cleanTitle = finalName.replace(/\.pdf$/i, '');
+
+    try {
+        if (doc && typeof doc.setDocumentProperties === 'function') {
+            doc.setDocumentProperties({
+                title: cleanTitle,
+                subject: cleanTitle,
+                author: 'TAB Accounts',
+                creator: 'TAB Accounts'
+            });
+        }
+    } catch (e) {
+        console.warn('Could not set PDF document title metadata:', e);
+    }
+
     try {
         const arrayBuffer = doc.output('arraybuffer');
         const uint8 = new Uint8Array(arrayBuffer);
@@ -205,7 +307,45 @@ const safeSavePdf = (doc, fileName) => {
         const pdfBlob = new Blob([uint8], { type: 'application/pdf' });
         const url = URL.createObjectURL(pdfBlob);
 
-        // Trigger file download
+        // 1. If mode === 'saveAs', invoke native File System Access API (Windows "Save As" file dialog)
+        if (mode === 'saveAs' && typeof window.showSaveFilePicker === 'function') {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: finalName,
+                    types: [{
+                        description: 'PDF Document (*.pdf)',
+                        accept: { 'application/pdf': ['.pdf'] }
+                    }]
+                });
+                const writableStream = await fileHandle.createWritable();
+                await writableStream.write(pdfBlob);
+                await writableStream.close();
+
+                if (openTab) {
+                    await openPdfInTab(previewWindow, url, pdfBlob, finalName);
+                } else {
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(url); } catch { }
+                    }, 60000);
+                }
+
+                return true;
+            } catch (pickerErr) {
+                // If user clicks "Cancel" in the "Save As" dialog, cleanly exit without error or duplicate download
+                if (pickerErr.name === 'AbortError') {
+                    if (previewWindow && !previewWindow.closed) {
+                        try { previewWindow.close(); } catch { }
+                    }
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(url); } catch { }
+                    }, 1000);
+                    return false;
+                }
+                console.warn('showSaveFilePicker failed, trying anchor fallback:', pickerErr);
+            }
+        }
+
+        // 2. Direct Anchor Download (for mode === 'download' or when showSaveFilePicker is not available/failed)
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -213,21 +353,32 @@ const safeSavePdf = (doc, fileName) => {
         document.body.appendChild(a);
         a.click();
 
-        // Also open in new browser tab so user can immediately view all content
-        window.open(url, '_blank');
-
         setTimeout(() => {
             try {
                 if (document.body.contains(a)) {
                     document.body.removeChild(a);
                 }
-                URL.revokeObjectURL(url);
             } catch { }
-        }, 60000);
+        }, 10000);
+
+        // 3. Open in new tab if requested
+        if (openTab) {
+            await openPdfInTab(previewWindow, url, pdfBlob, finalName);
+        }
+
+        setTimeout(() => {
+            try { URL.revokeObjectURL(url); } catch { }
+        }, 180000);
+
+        return true;
     } catch (saveErr) {
         console.warn('Sanitized blob download failed, trying doc.save fallback:', saveErr);
+        if (previewWindow && !previewWindow.closed) {
+            try { previewWindow.close(); } catch { }
+        }
         try {
             doc.save(finalName);
+            return true;
         } catch (blobErr) {
             console.error('All PDF download mechanisms failed:', blobErr);
             throw blobErr;
@@ -3097,7 +3248,14 @@ const Invoice = () => {
 
 
     const handlePrint = () => {
+        const targetInv = selectedInvoice;
+        const printTitle = getInvoicePdfFilename(targetInv, customers).replace(/\.pdf$/i, '');
+        const prevTitle = document.title;
+        document.title = printTitle;
         window.print();
+        setTimeout(() => {
+            document.title = prevTitle;
+        }, 1000);
     };
 
     const handlePrintInvoice = async (invoice) => {
@@ -3115,14 +3273,26 @@ const Invoice = () => {
             setSelectedInvoice(target);
             setViewMode(true);
             setTimeout(() => {
+                const printTitle = getInvoicePdfFilename(target, customers).replace(/\.pdf$/i, '');
+                const prevTitle = document.title;
+                document.title = printTitle;
                 window.print();
+                setTimeout(() => {
+                    document.title = prevTitle;
+                }, 1000);
             }, 300);
         } catch (err) {
             console.error('Error preparing invoice for print:', err);
             setSelectedInvoice(invoice);
             setViewMode(true);
             setTimeout(() => {
+                const printTitle = getInvoicePdfFilename(invoice, customers).replace(/\.pdf$/i, '');
+                const prevTitle = document.title;
+                document.title = printTitle;
                 window.print();
+                setTimeout(() => {
+                    document.title = prevTitle;
+                }, 1000);
             }, 300);
         }
     };
@@ -3206,7 +3376,23 @@ const Invoice = () => {
         }
 
         const doc = new jsPDF('p', 'mm', 'a4');
-        const comp = inv.company || companySettings || {};
+        const pdfDocTitle = getInvoicePdfFilename(inv, customers).replace(/\.pdf$/i, '');
+        try {
+            doc.setDocumentProperties({
+                title: pdfDocTitle,
+                subject: `Invoice ${inv.invoiceNumber || ''}`,
+                author: 'TAB Accounts',
+                creator: 'TAB Accounts'
+            });
+        } catch (e) {
+            console.warn('Could not set PDF doc title:', e);
+        }
+        const comp = { ...(companySettings || {}), ...(inv.company || {}) };
+        Object.keys(companySettings || {}).forEach(k => {
+            if ((comp[k] === undefined || comp[k] === null || (typeof comp[k] === 'string' && !comp[k].trim())) && companySettings[k]) {
+                comp[k] = companySettings[k];
+            }
+        });
         const currency = inv.currency || comp.currency || 'EUR';
         const rawItems = inv.invoiceitem || inv.posinvoiceitem || inv.items || [];
         const lineItems = rawItems.length > 0 ? rawItems : [
@@ -3220,13 +3406,13 @@ const Invoice = () => {
             }
         ];
 
-        // Resolve company logo with multi-stage fallback (guarantees logo is NEVER missing)
+        // Resolve company logo dynamically (strictly use company's uploaded logo, never fall back to hardcoded logos)
         let logoBase64 = null;
         let logoNaturalWidth = 177;
         let logoNaturalHeight = 76;
 
         const candidateLogo = comp.invoiceLogo || comp.logo || companySettings?.invoiceLogo || companySettings?.logo;
-        const logoRaw = candidateLogo ? getCompanyLogoSrc(candidateLogo, ceaArchitectsLogoBase64) : ceaArchitectsLogoBase64;
+        const logoRaw = candidateLogo ? getCompanyLogoSrc(candidateLogo, null) : null;
 
         const measureDimensions = (src) => new Promise((resolve) => {
             if (!src || typeof window === 'undefined') return resolve({ width: 177, height: 76 });
@@ -3291,7 +3477,7 @@ const Invoice = () => {
         }
 
         // Stage 3: Direct fetch as Blob -> FileReader (bypasses canvas CORS tainting completely)
-        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && (logoRaw.startsWith('http://') || logoRaw.startsWith('https://') || logoRaw.startsWith('/'))) {
+        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw && (logoRaw.startsWith('http://') || logoRaw.startsWith('https://') || logoRaw.startsWith('/'))) {
             try {
                 const sep = logoRaw.includes('?') ? '&' : '?';
                 const fetchUrl = `${logoRaw}${sep}_cb=${Date.now()}`;
@@ -3317,7 +3503,7 @@ const Invoice = () => {
         }
 
         // Stage 4: Try standard Image loading with canvas flattening
-        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw !== tabAccountsLogo && typeof window !== 'undefined') {
+        if (!logoBase64 && typeof logoRaw === 'string' && logoRaw && typeof window !== 'undefined') {
             try {
                 const canvasRes = await new Promise((resCanvas) => {
                     const timer = setTimeout(() => resCanvas(null), 2500);
@@ -3439,10 +3625,10 @@ const Invoice = () => {
             if (balanceVal <= tol && (totalVal > 0 || paidVal > 0)) return 'PAID';
             if (balanceVal <= tol && totalVal === 0) return 'PAID';
             if (rawStatus === 'PAID' && balanceVal <= tol) return 'PAID';
-            if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
-            if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
             if (balanceVal > tol && isDuePassedDate) return 'OVERDUE';
             if (rawStatus === 'OVERDUE' && balanceVal > tol) return 'OVERDUE';
+            if (paidVal > tol && balanceVal > tol) return 'PARTIALLY PAID';
+            if (rawStatus === 'PARTIAL' || rawStatus === 'PARTIALLY PAID') return 'PARTIALLY PAID';
             if (financials.status) return financials.status;
             if (rawStatus && rawStatus !== 'UNPAID' && rawStatus !== 'DUE') return rawStatus;
             return 'UNPAID';
@@ -3485,66 +3671,86 @@ const Invoice = () => {
         };
 
         // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(17, 24, 39);
-        let compY = 18;
-        if (comp.name) {
-            compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
-        }
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(55, 65, 81);
-        const compAddrLinesPdf = resolveCompanyAddressLines(comp);
-        compAddrLinesPdf.forEach(addrLine => {
-            compY = printPdfBlock(addrLine, 14, compY, 135, 4.2);
-        });
-        if (comp.phone && String(comp.phone).trim()) {
-            compY = printPdfBlock(String(comp.phone).trim(), 14, compY, 135, 4.2);
-        }
-        if (comp.email && String(comp.email).trim()) {
-            compY = printPdfBlock(String(comp.email).trim(), 14, compY, 135, 4.2);
-        }
-
-        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
-        if (vatId && String(vatId).trim()) {
-            compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
-        }
-
-        // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
-        let logoPdfHeight = 0;
-        if (logoBase64) {
-            try {
-                const maxW = 42; // Maximum logo width in mm
-                const maxH = 22; // Maximum logo height in mm
-                const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
-                    ? (logoNaturalWidth / logoNaturalHeight)
-                    : (177 / 76);
-
-                let logoWidth, logoHeight;
-                if (aspect > maxW / maxH) {
-                    // Wide landscape image
-                    logoWidth = maxW;
-                    logoHeight = maxW / aspect;
-                } else {
-                    // Tall portrait or square image
-                    logoHeight = maxH;
-                    logoWidth = maxH * aspect;
-                }
-
-                logoPdfHeight = logoHeight;
-                const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
-                doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
-            } catch (imgErr) {
-                console.warn('Could not add primary image to PDF, trying CEA fallback:', imgErr);
+        const resolveSettingLabel = (key, fallbackDefault = true) => {
+            const labelsSource = companySettings?.invoiceLabels || comp?.invoiceLabels;
+            if (labelsSource) {
                 try {
-                    if (ceaArchitectsLogoBase64) {
-                        doc.addImage(ceaArchitectsLogoBase64, 'PNG', 196 - 42, 12, 42, 18);
-                        logoPdfHeight = 18;
+                    const parsed = typeof labelsSource === 'string' ? JSON.parse(labelsSource) : labelsSource;
+                    if (parsed && parsed[key] !== undefined) {
+                        return parsed[key];
                     }
-                } catch (fallbackErr) {
-                    console.error('All PDF logo additions failed:', fallbackErr);
+                    if (parsed && parsed.labels && parsed.labels[key] !== undefined) {
+                        return parsed.labels[key];
+                    }
+                } catch (e) {}
+            }
+            return getInvoiceLabel ? getInvoiceLabel(key) : fallbackDefault;
+        };
+
+        const showHeader = resolveSettingLabel('showHeader') !== false;
+        const showFooter = resolveSettingLabel('showFooter') !== false;
+        let compY = 18;
+        let logoPdfHeight = 0;
+        let hasHeaderContent = false;
+
+        if (showHeader) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.setTextColor(17, 24, 39);
+            if (comp.name) {
+                compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
+                hasHeaderContent = true;
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(55, 65, 81);
+            const compAddrLinesPdf = resolveCompanyAddressLines(comp);
+            compAddrLinesPdf.forEach(addrLine => {
+                compY = printPdfBlock(addrLine, 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            });
+            if (comp.phone && String(comp.phone).trim()) {
+                compY = printPdfBlock(String(comp.phone).trim(), 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+            if (comp.email && String(comp.email).trim()) {
+                compY = printPdfBlock(String(comp.email).trim(), 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+
+            const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
+            if (vatId && String(vatId).trim()) {
+                compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+
+            // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
+            if (logoBase64) {
+                try {
+                    const maxW = 42; // Maximum logo width in mm
+                    const maxH = 22; // Maximum logo height in mm
+                    const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
+                        ? (logoNaturalWidth / logoNaturalHeight)
+                        : (177 / 76);
+
+                    let logoWidth, logoHeight;
+                    if (aspect > maxW / maxH) {
+                        // Wide landscape image
+                        logoWidth = maxW;
+                        logoHeight = maxW / aspect;
+                    } else {
+                        // Tall portrait or square image
+                        logoHeight = maxH;
+                        logoWidth = maxH * aspect;
+                    }
+
+                    logoPdfHeight = logoHeight;
+                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
+                    doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
+                    hasHeaderContent = true;
+                } catch (imgErr) {
+                    console.warn('Could not add image to PDF:', imgErr);
                 }
             }
         }
@@ -3558,7 +3764,7 @@ const Invoice = () => {
         const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
         const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
 
-        let midY = Math.max(50, compY + 4, 12 + logoPdfHeight + 4);
+        let midY = hasHeaderContent ? Math.max(38, compY + 5, 12 + logoPdfHeight + 4) : 18;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
@@ -3728,10 +3934,12 @@ const Invoice = () => {
         doc.line(14, postTableY, 196, postTableY);
         doc.setLineDashPattern([], 0);
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('We appreciate your business.', 14, postTableY + 4);
+        if (showFooter) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text('We appreciate your business.', 14, postTableY + 4);
+        }
 
         const totLabelX = 138;
         const totValX = 196;
@@ -3893,14 +4101,16 @@ const Invoice = () => {
         const companyAddrLines = resolveCompanyAddressLines(comp);
         const hasBankDetails = bankLines.length > 0;
         const hasCompanyAddress = companyAddrLines.length > 0;
+        let bankY = 0;
+        let bankBoxHeight = 0;
 
-        if (hasBankDetails || hasCompanyAddress) {
+        if (showFooter && (hasBankDetails || hasCompanyAddress)) {
             const leftLinesCount = bankLines.length;
             const rightLinesCount = hasCompanyAddress ? (companyAddrLines.length + 1) : 0;
             const maxLines = Math.max(leftLinesCount, rightLinesCount, 1);
-            const bankBoxHeight = Math.max(16, 5 + (maxLines * 3.8));
+            bankBoxHeight = Math.max(16, 5 + (maxLines * 3.8));
 
-            let bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
+            bankY = (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY : vatSectionY + 20) + 3.5;
             if (bankY + bankBoxHeight + 4 > 275) {
                 doc.addPage();
                 bankY = 20;
@@ -3939,6 +4149,106 @@ const Invoice = () => {
                     rY += (wrapped.length * 3.8);
                 });
             }
+        }
+
+        // --- 7. INVOICES INCLUDED IN THIS STATEMENT (For Combined Invoices) ---
+        const isCombinedInv = Boolean(
+            inv.isCombined ||
+            (Array.isArray(inv.invoices) && inv.invoices.length > 0) ||
+            (typeof inv.id === 'string' && (inv.id.toLowerCase().startsWith('combined-') || inv.id.toLowerCase().includes('combined'))) ||
+            (typeof inv.invoiceNumber === 'string' && (inv.invoiceNumber.toLowerCase().startsWith('combined-') || inv.invoiceNumber.toLowerCase().includes('combined')))
+        );
+
+        if (isCombinedInv && Array.isArray(inv.invoices) && inv.invoices.length > 0) {
+            let incY = (showFooter && (hasBankDetails || hasCompanyAddress))
+                ? (bankY + bankBoxHeight + 5)
+                : (doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 5 : vatSectionY + 25);
+
+            const incEstHeight = 12 + (inv.invoices.length * 6);
+            if (incY + incEstHeight > 275) {
+                doc.addPage();
+                incY = 20;
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
+            doc.text('INVOICES INCLUDED IN THIS STATEMENT', 14, incY);
+
+            const incCols = [
+                { key: 'num', header: 'INVOICE #', cellWidth: 40, align: 'left', fontStyle: 'bold' },
+                { key: 'date', header: 'DATE', cellWidth: 29, align: 'left' },
+                { key: 'dueDate', header: 'DUE DATE', cellWidth: 29, align: 'left' },
+                { key: 'total', header: 'TOTAL', cellWidth: 29, align: 'right' },
+                { key: 'paid', header: 'PAID', cellWidth: 27.5, align: 'right' },
+                { key: 'balance', header: 'BALANCE', cellWidth: 27.5, align: 'right', fontStyle: 'bold' }
+            ];
+
+            const incHead = [
+                incCols.map(c => ({
+                    content: c.header,
+                    styles: { halign: c.align }
+                }))
+            ];
+
+            const incBody = (inv.invoices || []).map(ci => [
+                ci.invoiceNumber || (ci.id ? `INV-${ci.id}` : '-'),
+                ci.date ? formatCeaDate(ci.date) : '-',
+                ci.dueDate ? formatCeaDate(ci.dueDate) : '-',
+                Number(ci.totalAmount || 0).toFixed(2),
+                Number(ci.paidAmount || 0).toFixed(2),
+                Number(ci.balanceAmount || 0).toFixed(2)
+            ]);
+
+            const incColumnStyles = {};
+            incCols.forEach((c, idx) => {
+                incColumnStyles[idx] = {
+                    cellWidth: c.cellWidth,
+                    halign: c.align,
+                    valign: 'middle'
+                };
+            });
+
+            safeAutoTable(doc, {
+                startY: incY + 2,
+                head: incHead,
+                body: incBody,
+                theme: 'plain',
+                tableWidth: totalPrintableWidth,
+                styles: {
+                    overflow: 'linebreak',
+                    valign: 'middle',
+                    fontSize: 7.2,
+                    lineColor: [226, 232, 240],
+                    lineWidth: { bottom: 0.1 }
+                },
+                headStyles: {
+                    fillColor: tableHeaderBgRgb,
+                    textColor: tableHeaderTextRgb,
+                    fontStyle: 'bold',
+                    fontSize: 7.2,
+                    cellPadding: { top: 2.0, bottom: 2.0, left: 1.5, right: 1.5 }
+                },
+                bodyStyles: {
+                    textColor: [15, 23, 42],
+                    fontSize: 7.2,
+                    cellPadding: { top: 2.0, bottom: 2.0, left: 1.5, right: 1.5 }
+                },
+                columnStyles: incColumnStyles,
+                didParseCell: (data) => {
+                    const c = incCols[data.column.index];
+                    if (c && c.align) {
+                        data.cell.styles.halign = c.align;
+                    }
+                    if (data.section === 'body') {
+                        if (data.column.index === 0 || data.column.index === 5) {
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                },
+                rowPageBreak: 'avoid',
+                margin: { left: 14, right: 14 }
+            });
         }
 
         // --- 7. PAYMENT HISTORY TABLE (commented out) ---
@@ -4017,38 +4327,108 @@ const Invoice = () => {
         } */
 
         // --- 7. FOOTER ---
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(148, 163, 184);
-            doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+        if (showFooter) {
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(148, 163, 184);
+                doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+            }
         }
 
         return { doc, inv };
     }
 
-    const handleDownloadSingleInvoicePDF = async (invInput) => {
+    const handleSaveSingleInvoicePDF = async (invInput) => {
         if (!invInput) return;
         try {
-            toast.loading('Generating invoice PDF...', { id: 'single-inv-pdf' });
+            toast.loading('Preparing invoice PDF for saving...', { id: 'single-inv-pdf-save' });
             const result = await buildCeaPdfDoc(invInput);
             if (!result || !result.doc) {
                 throw new Error('PDF document could not be built');
             }
             const { doc, inv } = result;
-            const cleanInvNum = String(inv.invoiceNumber || 'Invoice').replace(/[\\/:*?"<>|#]/g, '_');
-            const fileName = `${cleanInvNum}.pdf`;
-            safeSavePdf(doc, fileName);
-            toast.dismiss('single-inv-pdf');
-            toast.success(`Invoice ${inv.invoiceNumber || ''} downloaded as PDF!`);
+            const fileName = getInvoicePdfFilename(inv || invInput, customers);
+            toast.dismiss('single-inv-pdf-save');
+            const saved = await safeSavePdf(doc, fileName, { mode: 'saveAs' });
+            if (saved !== false) {
+                toast.success(`Invoice ${inv?.invoiceNumber || invInput?.invoiceNumber || ''} saved as PDF!`);
+            }
         } catch (error) {
-            console.error('Error generating invoice PDF:', error);
-            toast.dismiss('single-inv-pdf');
-            toast.error(error?.message ? `Failed to generate PDF: ${error.message}` : 'Failed to generate PDF. Please try again.');
+            console.error('Error saving invoice PDF:', error);
+            toast.dismiss('single-inv-pdf-save');
+            toast.error(error?.message ? `Failed to save PDF: ${error.message}` : 'Failed to save PDF. Please try again.');
         }
     };
+
+    const handleDownloadSingleInvoicePDF = async (invInput) => {
+        if (!invInput) return;
+
+        // Open preview window synchronously during the user click gesture to avoid browser popup blockers
+        let previewWindow = null;
+        try {
+            previewWindow = window.open('', '_blank');
+            if (previewWindow && previewWindow.document) {
+                previewWindow.document.title = 'Preparing Invoice PDF...';
+                previewWindow.document.body.innerHTML = `
+                    <div style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="text-align:center;background:#1e293b;padding:32px 48px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid #334155;">
+                            <div style="width:36px;height:36px;border:3px solid #334155;border-top-color:#059669;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+                            <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Preparing Invoice PDF</div>
+                            <div style="font-size:13px;color:#94a3b8;">Downloading and opening PDF preview...</div>
+                        </div>
+                    </div>
+                    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+                `;
+            }
+        } catch (e) {
+            console.warn('Could not open preview tab synchronously:', e);
+        }
+
+        try {
+            toast.loading('Preparing invoice PDF for download...', { id: 'single-inv-pdf-download' });
+            const result = await buildCeaPdfDoc(invInput);
+            if (!result || !result.doc) {
+                throw new Error('PDF document could not be built');
+            }
+            const { doc, inv } = result;
+            const fileName = getInvoicePdfFilename(inv || invInput, customers);
+            toast.dismiss('single-inv-pdf-download');
+
+            await safeSavePdf(doc, fileName, {
+                mode: 'download',
+                openTab: true,
+                previewWindow
+            });
+
+            toast.success(`Invoice ${inv?.invoiceNumber || invInput?.invoiceNumber || ''} downloaded!`);
+        } catch (error) {
+            console.error('Error downloading invoice PDF:', error);
+            toast.dismiss('single-inv-pdf-download');
+            if (previewWindow && !previewWindow.closed) {
+                try { previewWindow.close(); } catch { }
+            }
+            toast.error(error?.message ? `Failed to download PDF: ${error.message}` : 'Failed to download PDF. Please try again.');
+        }
+    };
+
+    // Global Ctrl+S shortcut to save invoice as PDF when viewing
+    useEffect(() => {
+        const handleSaveShortcut = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                const targetInv = viewMode && selectedInvoice ? selectedInvoice : invoiceToExport;
+                if (targetInv) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSaveSingleInvoicePDF(targetInv);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleSaveShortcut, true);
+        return () => window.removeEventListener('keydown', handleSaveShortcut, true);
+    }, [viewMode, selectedInvoice, invoiceToExport]);
 
     const getInvoicesForExport = () => {
         const term = (searchTerm || '').trim().toLowerCase();
@@ -5667,7 +6047,7 @@ const Invoice = () => {
                         </div> */}
 
                         {/* Primary Action */}
-                        {viewBalance > 0 && hasPermission('create sales payment') ? (
+                        {viewBalance > 0 && hasPermission('create sales payment') && (
                             <button
                                 type="button"
                                 className="Invoice-btn-primary-detail payment"
@@ -5683,17 +6063,41 @@ const Invoice = () => {
                                 <CreditCard size={16} />
                                 <span>Receive Payment</span>
                             </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className="Invoice-btn-primary-detail print"
-                                onClick={handlePrint}
-                                title="Print Invoice"
-                            >
-                                <Printer size={16} />
-                                <span>Print</span>
-                            </button>
                         )}
+
+                        <button
+                            type="button"
+                            className="Invoice-btn-primary-detail download"
+                            onClick={() => handleSaveSingleInvoicePDF(selectedInvoice)}
+                            title="Save Invoice as PDF (Save As... / Ctrl + S)"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#059669',
+                                color: '#ffffff',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontWeight: '600',
+                                fontSize: '0.85rem',
+                                border: 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <Download size={16} />
+                            <span>Save PDF</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className="Invoice-btn-primary-detail print"
+                            onClick={handlePrint}
+                            title="Print Invoice"
+                        >
+                            <Printer size={16} />
+                            <span>Print</span>
+                        </button>
 
                         {/* Clean Actions Dropdown */}
                         <InvoiceActionDropdown
@@ -5708,6 +6112,7 @@ const Invoice = () => {
                             handleUnpay={handleUnpay}
                             handleOpenEmailModal={handleOpenEmailModal}
                             handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                            handleSaveSingleInvoicePDF={handleSaveSingleInvoicePDF}
                             handlePrintInvoice={handlePrintInvoice}
                             handlePrint={handlePrint}
                             navigate={navigate}
@@ -5745,13 +6150,29 @@ const Invoice = () => {
                     const textHighlightColor = _isLight ? '#111827' : themeColor;
                     const tableHeaderBg = _isLight ? '#dedede' : themeColor;
                     const tableHeaderText = _isLight ? '#555555' : '#ffffff';
-                    const showHeader = getInvoiceLabel('showHeader') !== false;
-                    const showFooter = getInvoiceLabel('showFooter') !== false;
-                    const showWarehouse = getInvoiceLabel('showWarehouse') !== false;
-                    const showTax = getInvoiceLabel('showTax') !== false;
-                    const showUom = getInvoiceLabel('showUom') === true;
-                    const showQty = getInvoiceLabel('showQty') !== false;
-                    const showRate = getInvoiceLabel('showRate') !== false;
+                    const resolveSettingLabel = (key, fallbackDefault = true) => {
+                        const labelsSource = companySettings?.invoiceLabels || companyDetails?.invoiceLabels;
+                        if (labelsSource) {
+                            try {
+                                const parsed = typeof labelsSource === 'string' ? JSON.parse(labelsSource) : labelsSource;
+                                if (parsed && parsed[key] !== undefined) {
+                                    return parsed[key];
+                                }
+                                if (parsed && parsed.labels && parsed.labels[key] !== undefined) {
+                                    return parsed.labels[key];
+                                }
+                            } catch (e) {}
+                        }
+                        return getInvoiceLabel ? getInvoiceLabel(key) : fallbackDefault;
+                    };
+
+                    const showHeader = resolveSettingLabel('showHeader') !== false;
+                    const showFooter = resolveSettingLabel('showFooter') !== false;
+                    const showWarehouse = resolveSettingLabel('showWarehouse') !== false;
+                    const showTax = resolveSettingLabel('showTax') !== false;
+                    const showUom = resolveSettingLabel('showUom') === true;
+                    const showQty = resolveSettingLabel('showQty') !== false;
+                    const showRate = resolveSettingLabel('showRate') !== false;
 
                     const formatCeaDate = (dateVal) => {
                         if (!dateVal) return '';
@@ -6033,9 +6454,11 @@ const Invoice = () => {
                                 <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                                 <div className="invoice-cea-subtotal-section">
-                                    <div className="invoice-cea-appreciation">
-                                        We appreciate your business.
-                                    </div>
+                                    {showFooter && (
+                                        <div className="invoice-cea-appreciation">
+                                            We appreciate your business.
+                                        </div>
+                                    )}
                                     <div className="invoice-cea-totals-grid">
                                         <span className="invoice-cea-total-label">SUBTOTAL</span>
                                         <span className="invoice-cea-total-val">{Number(subtotalVal).toFixed(2)}</span>
@@ -6174,7 +6597,7 @@ const Invoice = () => {
                                 </div>
 
                                 {/* 7. BANK DETAILS BOX */}
-                                {(hasBankDetails || hasCompanyAddress) && (
+                                {showFooter && (hasBankDetails || hasCompanyAddress) && (
                                     <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                         <div className="invoice-cea-bank-grid">
                                             {hasBankDetails && (
@@ -6698,6 +7121,7 @@ const Invoice = () => {
                                                                     handleUnpay={handleUnpay}
                                                                     handleOpenEmailModal={handleOpenEmailModal}
                                                                     handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                    handleSaveSingleInvoicePDF={handleSaveSingleInvoicePDF}
                                                                     handlePrintInvoice={handlePrintInvoice}
                                                                     navigate={navigate}
                                                                     setShowExportModal={setShowExportModal}
@@ -6951,6 +7375,7 @@ const Invoice = () => {
                                                                         handleUnpay={handleUnpay}
                                                                         handleOpenEmailModal={handleOpenEmailModal}
                                                                         handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                        handleSaveSingleInvoicePDF={handleSaveSingleInvoicePDF}
                                                                         handlePrintInvoice={handlePrintInvoice}
                                                                         navigate={navigate}
                                                                         setShowExportModal={setShowExportModal}
@@ -7061,6 +7486,7 @@ const Invoice = () => {
                                                                                                     handleUnpay={handleUnpay}
                                                                                                     handleOpenEmailModal={handleOpenEmailModal}
                                                                                                     handleDownloadSingleInvoicePDF={handleDownloadSingleInvoicePDF}
+                                                                                                    handleSaveSingleInvoicePDF={handleSaveSingleInvoicePDF}
                                                                                                     handlePrintInvoice={handlePrintInvoice}
                                                                                                     navigate={navigate}
                                                                                                     setShowExportModal={setShowExportModal}

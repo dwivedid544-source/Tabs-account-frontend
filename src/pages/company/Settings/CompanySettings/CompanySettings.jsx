@@ -17,7 +17,6 @@ import { CompanyContext } from '../../../../context/CompanyContext';
 import { useTranslation } from '../../../../context/LanguageContext';
 import SmtpSettings from '../SmtpSettings/SmtpSettings';
 import { resolveLogoUrl } from '../../../../utils/logoUrl';
-import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -2128,9 +2127,11 @@ const CompanySettings = () => {
                                                 <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                                                 <div className="invoice-cea-subtotal-section">
-                                                    <div className="invoice-cea-appreciation">
-                                                        We appreciate your business.
-                                                    </div>
+                                                    {invoiceLabels.showFooter !== false && (
+                                                        <div className="invoice-cea-appreciation">
+                                                            We appreciate your business.
+                                                        </div>
+                                                    )}
                                                     <div className="invoice-cea-totals-grid">
                                                         <span className="invoice-cea-total-label">{invoiceLabels.subTotal || 'SUBTOTAL'}</span>
                                                         <span className="invoice-cea-total-val">2000.00</span>
@@ -2240,9 +2241,11 @@ const CompanySettings = () => {
                                     })()}
 
                                     {/* 8. PAGE FOOTER */}
-                                    <div className="invoice-cea-page-footer">
-                                        Page 1 of 1
-                                    </div>
+                                    {invoiceLabels.showFooter !== false && (
+                                        <div className="invoice-cea-page-footer">
+                                            Page 1 of 1
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

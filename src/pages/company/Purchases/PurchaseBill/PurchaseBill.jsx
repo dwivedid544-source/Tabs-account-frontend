@@ -154,9 +154,64 @@ const safeAutoTable = (doc, options) => {
     throw new Error('PDF AutoTable generator is not available');
 };
 
-const safeSavePdf = (doc, fileName) => {
+const openPdfInTab = async (previewWindow, blobUrl, pdfBlob, finalName) => {
+    let sessionOpened = false;
+    try {
+        const cleanServerUrl = (BASE_URL || 'https://tabaccounts.com').replace(/\/+$/, '');
+        const previewSessionEndpoint = `${cleanServerUrl}/api/pdf/preview-session?fileName=${encodeURIComponent(finalName)}`;
+        const sessionRes = await fetch(previewSessionEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/pdf' },
+            body: pdfBlob
+        });
+        if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            if (sessionData?.previewUrl) {
+                const fullPreviewUrl = `${cleanServerUrl}${sessionData.previewUrl}`;
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.location.href = fullPreviewUrl;
+                } else {
+                    window.open(fullPreviewUrl, '_blank');
+                }
+                sessionOpened = true;
+            }
+        }
+    } catch (sessionErr) {
+        console.warn('Could not create server preview session, falling back to blob URL:', sessionErr);
+    }
+
+    if (!sessionOpened) {
+        if (previewWindow && !previewWindow.closed) {
+            try {
+                previewWindow.location.href = blobUrl;
+            } catch {
+                window.open(blobUrl, '_blank');
+            }
+        } else {
+            window.open(blobUrl, '_blank');
+        }
+    }
+};
+
+const safeSavePdf = async (doc, fileName, options = {}) => {
+    const { mode = 'saveAs', openTab = false, previewWindow = null } = options;
     const rawName = (fileName || 'PurchaseBill.pdf').replace(/[\\/:*?"<>|#]/g, '_');
     const finalName = rawName.endsWith('.pdf') ? rawName : `${rawName}.pdf`;
+    const cleanTitle = finalName.replace(/\.pdf$/i, '');
+
+    try {
+        if (doc && typeof doc.setDocumentProperties === 'function') {
+            doc.setDocumentProperties({
+                title: cleanTitle,
+                subject: cleanTitle,
+                author: 'TAB Accounts',
+                creator: 'TAB Accounts'
+            });
+        }
+    } catch (e) {
+        console.warn('Could not set PDF document title metadata:', e);
+    }
+
     try {
         const arrayBuffer = doc.output('arraybuffer');
         const uint8 = new Uint8Array(arrayBuffer);
@@ -183,7 +238,44 @@ const safeSavePdf = (doc, fileName) => {
         const pdfBlob = new Blob([uint8], { type: 'application/pdf' });
         const url = URL.createObjectURL(pdfBlob);
 
-        // Trigger file download
+        // 1. Try modern File System Access API (native Windows Save As dialog)
+        if (mode === 'saveAs' && typeof window.showSaveFilePicker === 'function') {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: finalName,
+                    types: [{
+                        description: 'PDF Document (*.pdf)',
+                        accept: { 'application/pdf': ['.pdf'] }
+                    }]
+                });
+                const writableStream = await fileHandle.createWritable();
+                await writableStream.write(pdfBlob);
+                await writableStream.close();
+
+                if (openTab) {
+                    await openPdfInTab(previewWindow, url, pdfBlob, finalName);
+                } else {
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(url); } catch { }
+                    }, 60000);
+                }
+
+                return true;
+            } catch (pickerErr) {
+                if (pickerErr.name === 'AbortError') {
+                    if (previewWindow && !previewWindow.closed) {
+                        try { previewWindow.close(); } catch { }
+                    }
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(url); } catch { }
+                    }, 1000);
+                    return false;
+                }
+                console.warn('showSaveFilePicker error, falling back to anchor:', pickerErr);
+            }
+        }
+
+        // 2. Direct Anchor Download (for mode === 'download' or fallback)
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -191,24 +283,35 @@ const safeSavePdf = (doc, fileName) => {
         document.body.appendChild(a);
         a.click();
 
-        // Also open in new browser tab so user can immediately view all content
-        window.open(url, '_blank');
-
         setTimeout(() => {
             try {
                 if (document.body.contains(a)) {
                     document.body.removeChild(a);
                 }
-                URL.revokeObjectURL(url);
-            } catch {}
-        }, 60000);
+            } catch { }
+        }, 10000);
+
+        // 3. Open in new tab if requested
+        if (openTab) {
+            await openPdfInTab(previewWindow, url, pdfBlob, finalName);
+        }
+
+        setTimeout(() => {
+            try { URL.revokeObjectURL(url); } catch { }
+        }, 180000);
+
+        return true;
     } catch (saveErr) {
-        console.warn('Sanitized PDF save failed, trying standard doc.save fallback:', saveErr);
+        console.warn('Sanitized blob download failed, trying doc.save fallback:', saveErr);
+        if (previewWindow && !previewWindow.closed) {
+            try { previewWindow.close(); } catch { }
+        }
         try {
             doc.save(finalName);
-        } catch (fallbackErr) {
-            console.error('All PDF download mechanisms failed:', fallbackErr);
-            toast.error('Failed to download PDF. Please use browser print.');
+            return true;
+        } catch (blobErr) {
+            console.error('All PDF download mechanisms failed:', blobErr);
+            throw blobErr;
         }
     }
 };
@@ -1725,7 +1828,17 @@ const PurchaseBill = () => {
     };
 
     const handlePrint = () => {
+        const rawVendorName = (viewBill?.vendor?.name || viewBill?.vendorName || '').trim();
+        const cleanVendorName = rawVendorName.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+        const rawBillNum = String(viewBill?.billNumber || viewBill?.id || 'Purchase_Bill').replace(/^#/, '').trim();
+        const cleanBillNum = rawBillNum.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+        const printTitle = cleanVendorName && cleanBillNum ? `${cleanVendorName}_${cleanBillNum}` : (cleanBillNum || 'Purchase_Bill');
+        const prevTitle = document.title;
+        document.title = printTitle;
         window.print();
+        setTimeout(() => {
+            document.title = prevTitle;
+        }, 1000);
     };
 
     const handleUnpay = (bill) => {
@@ -2268,7 +2381,7 @@ const PurchaseBill = () => {
         { id: 'payment', label: 'Payment', icon: CreditCard, status: 'pending' },
     ];
 
-    async function buildPurchaseBillPdfDoc(billInput) {
+    async function buildPurchaseBillPdfDoc(billInput, options = {}) {
         if (!billInput) return null;
         const tol = 0.01;
         let bill = billInput;
@@ -2584,66 +2697,91 @@ const PurchaseBill = () => {
         };
 
         // --- 1. HEADER (Top Left: Company Details, Top Right: Logo) ---
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(17, 24, 39);
-        let compY = 18;
-        if (comp.name) {
-            compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
-        }
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(55, 65, 81);
-        const compAddrLinesPdf = resolveCompanyAddressLines(comp);
-        compAddrLinesPdf.forEach(addrLine => {
-            compY = printPdfBlock(addrLine, 14, compY, 135, 4.2);
-        });
-        if (comp.phone && String(comp.phone).trim()) {
-            compY = printPdfBlock(String(comp.phone).trim(), 14, compY, 135, 4.2);
-        }
-        if (comp.email && String(comp.email).trim()) {
-            compY = printPdfBlock(String(comp.email).trim(), 14, compY, 135, 4.2);
-        }
-
-        const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
-        if (vatId && String(vatId).trim()) {
-            compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
-        }
-
-        // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
-        let logoPdfHeight = 0;
-        if (logoBase64) {
-            try {
-                const maxW = 42; // Maximum logo width in mm
-                const maxH = 22; // Maximum logo height in mm
-                const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
-                    ? (logoNaturalWidth / logoNaturalHeight)
-                    : (177 / 76);
-
-                let logoWidth, logoHeight;
-                if (aspect > maxW / maxH) {
-                    // Landscape: constrained by max width
-                    logoWidth = maxW;
-                    logoHeight = maxW / aspect;
-                } else {
-                    // Portrait or square: constrained by max height
-                    logoHeight = maxH;
-                    logoWidth = maxH * aspect;
-                }
-
-                logoPdfHeight = logoHeight;
-                const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
-                doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
-            } catch (imgErr) {
-                console.warn('Could not add image to PDF, trying CEA fallback:', imgErr);
+        const resolveSettingLabel = (key, fallbackDefault = true) => {
+            const labelsSource = companySettings?.invoiceLabels || comp?.invoiceLabels;
+            if (labelsSource) {
                 try {
-                    if (ceaArchitectsLogoBase64) {
-                        doc.addImage(ceaArchitectsLogoBase64, 'PNG', 196 - 42, 12, 42, 18);
-                        logoPdfHeight = 18;
+                    const parsed = typeof labelsSource === 'string' ? JSON.parse(labelsSource) : labelsSource;
+                    const activeTpl = bill.invoiceTemplate || comp.invoiceTemplate || companySettings?.invoiceTemplate;
+                    if (activeTpl && parsed.savedTemplates && parsed.savedTemplates[activeTpl]?.labels && parsed.savedTemplates[activeTpl].labels[key] !== undefined) {
+                        return parsed.savedTemplates[activeTpl].labels[key];
                     }
-                } catch (fallbackErr) {
-                    console.error('All PDF logo additions failed:', fallbackErr);
+                    if (parsed && parsed[key] !== undefined) {
+                        return parsed[key];
+                    }
+                    if (parsed && parsed.labels && parsed.labels[key] !== undefined) {
+                        return parsed.labels[key];
+                    }
+                } catch (e) {}
+            }
+            return getInvoiceLabel ? getInvoiceLabel(key) : fallbackDefault;
+        };
+
+        const showHeader = resolveSettingLabel('showHeader') !== false;
+        const showFooter = resolveSettingLabel('showFooter') !== false;
+
+        let compY = 18;
+        let logoPdfHeight = 0;
+        let hasHeaderContent = false;
+
+        if (showHeader) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.setTextColor(17, 24, 39);
+            if (comp.name) {
+                compY = printPdfBlock(comp.name, 14, compY, 135, 5.2);
+                hasHeaderContent = true;
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(55, 65, 81);
+            const compAddrLinesPdf = resolveCompanyAddressLines(comp);
+            compAddrLinesPdf.forEach(addrLine => {
+                compY = printPdfBlock(addrLine, 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            });
+            if (comp.phone && String(comp.phone).trim()) {
+                compY = printPdfBlock(String(comp.phone).trim(), 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+            if (comp.email && String(comp.email).trim()) {
+                compY = printPdfBlock(String(comp.email).trim(), 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+
+            const vatId = comp.vatNumber || comp.taxNumber || comp.gstNumber;
+            if (vatId && String(vatId).trim()) {
+                compY = printPdfBlock(`VAT ID: ${String(vatId).trim()}`, 14, compY, 135, 4.2);
+                hasHeaderContent = true;
+            }
+
+            // Top Right Logo Image with aspect-ratio preservation (object-fit: contain)
+            if (logoBase64) {
+                try {
+                    const maxW = 42; // Maximum logo width in mm
+                    const maxH = 22; // Maximum logo height in mm
+                    const aspect = (logoNaturalWidth && logoNaturalHeight && logoNaturalHeight > 0)
+                        ? (logoNaturalWidth / logoNaturalHeight)
+                        : (177 / 76);
+
+                    let logoWidth, logoHeight;
+                    if (aspect > maxW / maxH) {
+                        // Landscape: constrained by max width
+                        logoWidth = maxW;
+                        logoHeight = maxW / aspect;
+                    } else {
+                        // Portrait or square: constrained by max height
+                        logoHeight = maxH;
+                        logoWidth = maxH * aspect;
+                    }
+
+                    logoPdfHeight = logoHeight;
+                    const fmt = logoBase64.startsWith('data:image/png') ? 'PNG' : (logoBase64.startsWith('data:image/webp') ? 'WEBP' : 'JPEG');
+                    doc.addImage(logoBase64, fmt, 196 - logoWidth, 12, logoWidth, logoHeight);
+                    hasHeaderContent = true;
+                } catch (imgErr) {
+                    console.warn('Could not add image to PDF:', imgErr);
                 }
             }
         }
@@ -2656,7 +2794,7 @@ const PurchaseBill = () => {
         const tableHeaderBgRgb = _isLight ? [222, 222, 222] : themeRgb;
         const tableHeaderTextRgb = _isLight ? [85, 85, 85] : [255, 255, 255];
 
-        let midY = Math.max(50, compY + 4, 12 + logoPdfHeight + 4);
+        let midY = hasHeaderContent ? Math.max(50, compY + 4, 12 + logoPdfHeight + 4) : 18;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(13);
         doc.setTextColor(_combinedTitleRgb[0], _combinedTitleRgb[1], _combinedTitleRgb[2]);
@@ -2817,10 +2955,12 @@ const PurchaseBill = () => {
         doc.line(14, postTableY, 196, postTableY);
         doc.setLineDashPattern([], 0);
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('We appreciate your business.', 14, postTableY + 4);
+        if (showFooter) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text('We appreciate your business.', 14, postTableY + 4);
+        }
 
         const totLabelX = 138;
         const totValX = 196;
@@ -2966,7 +3106,7 @@ const PurchaseBill = () => {
         const hasBankDetails = bankLines.length > 0;
         const hasCompanyAddress = companyAddrLines.length > 0;
 
-        if (hasBankDetails || hasCompanyAddress) {
+        if (showFooter && (hasBankDetails || hasCompanyAddress)) {
             const leftLinesCount = bankLines.length;
             const rightLinesCount = hasCompanyAddress ? (companyAddrLines.length + 1) : 0;
             const maxLines = Math.max(leftLinesCount, rightLinesCount, 1);
@@ -3076,23 +3216,92 @@ const PurchaseBill = () => {
         }
 
         // --- 8. FOOTER ---
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184);
-            doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
+        if (showFooter) {
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184);
+                doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
+            }
         }
 
-        const fileName = `Purchase_Bill_${String(bill.billNumber || bill.id || 'document').replace(/[\\/:*?"<>|#]/g, '_')}.pdf`;
-        safeSavePdf(doc, fileName);
-        toast.success(`Downloaded ${fileName}`);
+        const rawVendorName = (bill.vendor?.name || bill.vendorName || bill.vendor?.companyName || '').trim();
+        const cleanVendorName = rawVendorName.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+        const rawBillNum = String(bill.billNumber || bill.id || 'document').replace(/^#/, '').trim();
+        const cleanBillNum = rawBillNum.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+        const saved = await safeSavePdf(doc, fileName, options);
+        if (saved !== false) {
+            toast.success(`Saved ${fileName}`);
+        }
         return doc;
     }
 
+    const handleDownloadBillPdf = (billToExport) => {
+        if (!billToExport) return;
+        let previewWindow = null;
+        try {
+            previewWindow = window.open('', '_blank');
+            if (previewWindow && previewWindow.document) {
+                previewWindow.document.title = 'Preparing Purchase Bill PDF...';
+                previewWindow.document.body.innerHTML = `
+                    <div style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="text-align:center;background:#1e293b;padding:32px 48px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid #334155;">
+                            <div style="width:36px;height:36px;border:3px solid #334155;border-top-color:#059669;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+                            <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Preparing Purchase Bill PDF</div>
+                            <div style="font-size:13px;color:#94a3b8;">Downloading and opening PDF preview...</div>
+                        </div>
+                    </div>
+                    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+                `;
+            }
+        } catch (e) {
+            console.warn('Could not open preview tab synchronously:', e);
+        }
+        buildPurchaseBillPdfDoc(billToExport, { mode: 'download', openTab: true, previewWindow });
+    };
+
+    // Global Ctrl+S shortcut to save purchase bill as PDF when viewing
+    useEffect(() => {
+        const handleSaveShortcut = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                if (isViewMode && viewBill) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    buildPurchaseBillPdfDoc(viewBill, { mode: 'saveAs' });
+                }
+            }
+        };
+        window.addEventListener('keydown', handleSaveShortcut, true);
+        return () => window.removeEventListener('keydown', handleSaveShortcut, true);
+    }, [isViewMode, viewBill]);
+
     if (isViewMode && viewBill) {
         const comp = companySettings || companyDetails || {};
+        const resolveSettingLabel = (key, fallbackDefault = true) => {
+            const labelsSource = companySettings?.invoiceLabels || comp?.invoiceLabels;
+            if (labelsSource) {
+                try {
+                    const parsed = typeof labelsSource === 'string' ? JSON.parse(labelsSource) : labelsSource;
+                    const activeTpl = viewBill.invoiceTemplate || comp.invoiceTemplate || companySettings?.invoiceTemplate;
+                    if (activeTpl && parsed.savedTemplates && parsed.savedTemplates[activeTpl]?.labels && parsed.savedTemplates[activeTpl].labels[key] !== undefined) {
+                        return parsed.savedTemplates[activeTpl].labels[key];
+                    }
+                    if (parsed && parsed[key] !== undefined) {
+                        return parsed[key];
+                    }
+                    if (parsed && parsed.labels && parsed.labels[key] !== undefined) {
+                        return parsed.labels[key];
+                    }
+                } catch (e) {}
+            }
+            return getInvoiceLabel ? getInvoiceLabel(key) : fallbackDefault;
+        };
+
+        const showHeader = resolveSettingLabel('showHeader') !== false;
+        const showFooter = resolveSettingLabel('showFooter') !== false;
+
         const themeColor = comp.invoiceColor || '#dedede';
         const _isLight = isLightColor(themeColor);
         const headingColor = _isLight ? '#1e293b' : themeColor;
@@ -3302,7 +3511,26 @@ const PurchaseBill = () => {
                             </button>
                         )}
                         <button
-                            onClick={() => buildPurchaseBillPdfDoc(viewBill)}
+                            onClick={() => buildPurchaseBillPdfDoc(viewBill, { mode: 'saveAs' })}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#059669',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem'
+                            }}
+                            title="Save Bill as PDF (Save As... / Ctrl + S)"
+                        >
+                            <Download size={16} /> Save PDF
+                        </button>
+                        <button
+                            onClick={() => handleDownloadBillPdf(viewBill)}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -3316,7 +3544,7 @@ const PurchaseBill = () => {
                                 cursor: 'pointer',
                                 fontSize: '0.875rem'
                             }}
-                            title="Download PDF"
+                            title="Download PDF (Direct Download & Open in New Tab)"
                         >
                             <Download size={16} /> Download PDF
                         </button>
@@ -3352,39 +3580,41 @@ const PurchaseBill = () => {
                         }}
                     >
                         {/* 1. HEADER: Company Details (Left) and Logo (Right) */}
-                        <div className="invoice-cea-header">
-                            <div className="invoice-cea-company">
-                                {comp.name && (
-                                    <div className="invoice-cea-company-name">{comp.name}</div>
-                                )}
-                                {compAddrLines.map((line, idx) => (
-                                    <div key={idx} className="invoice-cea-company-line">{line}</div>
-                                ))}
-                                {comp.phone && String(comp.phone).trim() && (
-                                    <div className="invoice-cea-company-line">{String(comp.phone).trim()}</div>
-                                )}
-                                {comp.email && String(comp.email).trim() && (
-                                    <div className="invoice-cea-company-line">{String(comp.email).trim()}</div>
-                                )}
-                                {(comp.vatNumber || comp.taxNumber || comp.gstNumber) && String(comp.vatNumber || comp.taxNumber || comp.gstNumber).trim() && (
-                                    <div className="invoice-cea-company-line">
-                                        VAT ID: {String(comp.vatNumber || comp.taxNumber || comp.gstNumber).trim()}
+                        {showHeader && (
+                            <div className="invoice-cea-header">
+                                <div className="invoice-cea-company">
+                                    {comp.name && (
+                                        <div className="invoice-cea-company-name">{comp.name}</div>
+                                    )}
+                                    {compAddrLines.map((line, idx) => (
+                                        <div key={idx} className="invoice-cea-company-line">{line}</div>
+                                    ))}
+                                    {comp.phone && String(comp.phone).trim() && (
+                                        <div className="invoice-cea-company-line">{String(comp.phone).trim()}</div>
+                                    )}
+                                    {comp.email && String(comp.email).trim() && (
+                                        <div className="invoice-cea-company-line">{String(comp.email).trim()}</div>
+                                    )}
+                                    {(comp.vatNumber || comp.taxNumber || comp.gstNumber) && String(comp.vatNumber || comp.taxNumber || comp.gstNumber).trim() && (
+                                        <div className="invoice-cea-company-line">
+                                            VAT ID: {String(comp.vatNumber || comp.taxNumber || comp.gstNumber).trim()}
+                                        </div>
+                                    )}
+                                </div>
+                                {companyLogoSrc && (
+                                    <div className="invoice-cea-logo-container">
+                                        <img
+                                            src={companyLogoSrc}
+                                            alt={comp.name || "Company Logo"}
+                                            className="invoice-cea-logo-img"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
                                     </div>
                                 )}
                             </div>
-                            {companyLogoSrc && (
-                                <div className="invoice-cea-logo-container">
-                                    <img
-                                        src={companyLogoSrc}
-                                        alt={comp.name || "Company Logo"}
-                                        className="invoice-cea-logo-img"
-                                        onError={(e) => {
-                                            e.currentTarget.style.display = 'none';
-                                        }}
-                                    />
-                                </div>
-                            )}
-                        </div>
+                        )}
 
                         {/* 2. MIDDLE: Document Title & BILL FROM / VENDOR (Left) and Metadata Grid (Right) */}
                         <div className="invoice-cea-middle">
@@ -3521,9 +3751,11 @@ const PurchaseBill = () => {
                         <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                         <div className="invoice-cea-subtotal-section">
-                            <div className="invoice-cea-appreciation">
-                                We appreciate your business.
-                            </div>
+                            {showFooter && (
+                                <div className="invoice-cea-appreciation">
+                                    We appreciate your business.
+                                </div>
+                            )}
                             <div className="invoice-cea-totals-grid">
                                 <span className="invoice-cea-total-label">SUBTOTAL</span>
                                 <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
@@ -3664,7 +3896,7 @@ const PurchaseBill = () => {
                         </div>
 
                         {/* 7. BANK DETAILS BOX */}
-                        {(hasBankDetails || hasCompanyAddress) && (
+                        {showFooter && (hasBankDetails || hasCompanyAddress) && (
                             <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${_isLight ? '#94a3b8' : themeColor}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                 <div className="invoice-cea-bank-grid">
                                     {hasBankDetails && (
@@ -3732,7 +3964,7 @@ const PurchaseBill = () => {
                         })()} */}
 
                         {/* 9. NOTES & TERMS */}
-                        {(() => {
+                        {showFooter && (() => {
                             let displayNotes = viewBill?.notes || comp.notes || '';
                             const linkedGrnNo = viewBill?.goodsreceiptnote?.grnNumber;
                             const linkedPoNo = viewBill?.purchaseorder?.orderNumber;
@@ -3788,9 +4020,11 @@ const PurchaseBill = () => {
                         })()}
 
                         {/* 11. PAGE FOOTER */}
-                        <div className="invoice-cea-page-footer" style={{ marginTop: '24px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>
-                            Page 1 of 1
-                        </div>
+                        {showFooter && (
+                            <div className="invoice-cea-page-footer" style={{ marginTop: '24px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>
+                                Page 1 of 1
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -4217,7 +4451,7 @@ const PurchaseBill = () => {
                                                                                                     </button>
                                                                                                 )}
                                                                                                 <button className="PBILL-btn-icon view" onClick={() => handleView(pb)} title="View"><Eye size={14} /></button>
-                                                                    <button className="PBILL-btn-icon download" onClick={() => buildPurchaseBillPdfDoc(pb)} title="Download PDF"><Download size={14} /></button>
+                                                                    <button className="PBILL-btn-icon download" onClick={() => handleDownloadBillPdf(pb)} title="Download PDF"><Download size={14} /></button>
                                                                                                 {hasPermission('edit purchase bill') && (
                                                                                                     <button className="PBILL-btn-icon edit" onClick={() => handleEdit(pb.id)}><Pencil size={14} /></button>
                                                                                                 )}

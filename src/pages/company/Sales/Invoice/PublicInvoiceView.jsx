@@ -9,7 +9,6 @@ import './Invoice.css';
 import { computeInvoiceFinancials, computeInvoiceLine, resolveInvoicePaymentHistory, convertInvoiceToActiveCurrency } from './invoiceFinancials';
 import { Loader2, AlertCircle, Download, Printer } from 'lucide-react';
 import tabAccountsLogo from '../../../../assets/tab-accounts-logo.png';
-import ceaArchitectsLogo from '../../../../assets/cea-architects-logo.png';
 
 const getContrastTextColor = (hexColor) => {
     if (!hexColor) return '#ffffff';
@@ -101,6 +100,32 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
     const [downloading, setDownloading] = useState(false);
     const [error, setError] = useState(null);
 
+    const getInvoiceFileName = () => {
+        const doc = displayDocument || document || {};
+        const rawCustName = (doc.customer?.name || doc.billingName || doc.customer?.billingName || '').trim();
+        const cleanCustName = rawCustName.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+        const rawInvNum = (doc.invoiceNumber ? String(doc.invoiceNumber).replace(/^#/, '') : String(id || 'Invoice')).trim();
+        const cleanInvNum = rawInvNum.replace(/[/\\?%*:|"<>#]/g, '').trim().replace(/\s+/g, '_');
+
+        if (cleanCustName && cleanInvNum) {
+            return `${cleanCustName}_${cleanInvNum}.pdf`;
+        }
+        if (cleanInvNum) {
+            return `${cleanInvNum}.pdf`;
+        }
+        return 'Invoice.pdf';
+    };
+
+    const handlePrint = () => {
+        const prevTitle = window.document.title;
+        const printTitle = getInvoiceFileName().replace(/\.pdf$/i, '');
+        window.document.title = printTitle;
+        window.print();
+        setTimeout(() => {
+            window.document.title = prevTitle;
+        }, 1000);
+    };
+
     const handleDownloadPdf = async () => {
         try {
             setDownloading(true);
@@ -112,11 +137,31 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                 throw new Error('Failed to download invoice PDF');
             }
             const blob = await response.blob();
+            const fileName = getInvoiceFileName();
+
+            if (typeof window.showSaveFilePicker === 'function') {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'PDF Document (*.pdf)',
+                            accept: { 'application/pdf': ['.pdf'] }
+                        }]
+                    });
+                    const writableStream = await fileHandle.createWritable();
+                    await writableStream.write(blob);
+                    await writableStream.close();
+                    return;
+                } catch (pickerErr) {
+                    if (pickerErr.name === 'AbortError') return;
+                    console.warn('showSaveFilePicker error, falling back to anchor:', pickerErr);
+                }
+            }
+
             const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
-            const docNum = document?.invoiceNumber ? String(document.invoiceNumber).replace(/^#/, '') : id;
-            link.download = `Invoice-${docNum}.pdf`;
+            link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -129,6 +174,19 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
             setDownloading(false);
         }
     };
+
+    // Global Ctrl+S shortcut to save invoice as PDF when viewing public invoice
+    useEffect(() => {
+        const handleSaveShortcut = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDownloadPdf();
+            }
+        };
+        window.addEventListener('keydown', handleSaveShortcut, true);
+        return () => window.removeEventListener('keydown', handleSaveShortcut, true);
+    }, [displayDocument, document]);
 
     const formatDocCurrency = (amount, currencyCode) => {
         const docCurrency = currencyCode || displayDocument?.currency || document?.currency || companySettings?.currency || 'EUR';
@@ -459,7 +517,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         {downloading ? 'Downloading...' : 'Download Invoice (PDF)'}
                     </button>
                     <button
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -733,9 +791,11 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             <div className="invoice-cea-divider-dotted" style={{ borderColor: '#9ca3af', opacity: 0.5 }} />
 
                             <div className="invoice-cea-subtotal-section">
-                                <div className="invoice-cea-appreciation">
-                                    We appreciate your business.
-                                </div>
+                                {showFooter && (
+                                    <div className="invoice-cea-appreciation">
+                                        We appreciate your business.
+                                    </div>
+                                )}
                                 <div className="invoice-cea-totals-grid">
                                     <span className="invoice-cea-total-label">SUBTOTAL</span>
                                     <span className="invoice-cea-total-val">{Number(subtotalVal || 0).toFixed(2)}</span>
@@ -859,7 +919,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                             </div>
 
                             {/* 7. BANK DETAILS BOX */}
-                            {(hasBankDetails || hasCompanyAddress) && (
+                            {showFooter && (hasBankDetails || hasCompanyAddress) && (
                                 <div className="invoice-cea-bank-box" style={{ borderLeft: `3px solid ${themeColor || '#3b82f6'}`, backgroundColor: getTintBg(themeColor, 0.04) }}>
                                     <div className="invoice-cea-bank-grid">
                                         {hasBankDetails && (
@@ -972,7 +1032,7 @@ const PublicInvoiceView = ({ type = 'invoice' }) => {
                         {downloading ? 'Downloading Invoice...' : 'Download Invoice (PDF)'}
                     </button>
                     <button 
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-lg font-semibold shadow hover:shadow-md transition flex items-center gap-2 cursor-pointer"
                     >
                         <Printer size={18} /> Print

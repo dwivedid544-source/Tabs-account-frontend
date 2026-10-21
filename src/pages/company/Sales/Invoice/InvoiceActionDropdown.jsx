@@ -17,6 +17,7 @@ const InvoiceActionDropdown = ({
     handleUnpay,
     handleOpenEmailModal,
     handleDownloadSingleInvoicePDF,
+    handleSaveSingleInvoicePDF,
     handlePrintInvoice,
     handlePrint,
     navigate,
@@ -222,6 +223,21 @@ const InvoiceActionDropdown = ({
                             <span>Download PDF</span>
                         </button>
                     )}
+
+                    {/* Save PDF (Save As...) - Commented out since dedicated 'Save PDF' button exists in view header */}
+                    {/* {handleSaveSingleInvoicePDF && (
+                        <button
+                            type="button"
+                            className="Invoice-actions-item"
+                            onClick={() => {
+                                onClose?.();
+                                handleSaveSingleInvoicePDF(invoice);
+                            }}
+                        >
+                            <Download size={14} color="#0d9488" />
+                            <span>Save PDF As...</span>
+                        </button>
+                    )} */}
 
                     {/* Print */}
                     {(handlePrintInvoice || handlePrint) && (
